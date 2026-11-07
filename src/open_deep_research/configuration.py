@@ -234,7 +234,7 @@ class Configuration(BaseModel):
             "x_oap_ui_config": {
                 "type": "text",
                 "default": "",
-                "description": "Comma-separated reviewer models, e.g. openai:gpt-5,anthropic:claude-sonnet-4-5,google_genai:gemini-2.5-pro or openrouter:<model>. At least two required."
+                "description": "Comma-separated reviewer models, e.g. openai:gpt-5.5,anthropic:claude-sonnet-5-5 or openrouter:<model>; `crossvet-setup` picks them from the models your keys can use. At least two required."
             }
         }
     )
