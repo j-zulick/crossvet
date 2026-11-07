@@ -248,6 +248,26 @@ class Configuration(BaseModel):
             }
         }
     )
+    review_critic_enabled: bool = Field(
+        default=True,
+        json_schema_extra={
+            "x_oap_ui_config": {
+                "type": "boolean",
+                "default": True,
+                "description": "Before voting, have an independent critic check each reviewer finding against the research notes (agree / disagree with evidence / disagree concern). Unresolved findings are reported as disputed."
+            }
+        }
+    )
+    run_export_path: str = Field(
+        default="",
+        json_schema_extra={
+            "x_oap_ui_config": {
+                "type": "text",
+                "default": "",
+                "description": "Optional JSONL file to append each reviewed run to (draft, critiques, critic verdicts, ballots, revision) for evaluation or fine-tuning."
+            }
+        }
+    )
     review_model_max_tokens: int = Field(
         default=8000,
         json_schema_extra={

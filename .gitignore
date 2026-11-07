@@ -71,3 +71,8 @@ temp/
 .next
 .ruff_cache
 first-run/
+
+
+
+# Exported run records
+runs/

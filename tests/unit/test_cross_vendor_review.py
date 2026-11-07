@@ -7,10 +7,16 @@ import pytest
 from open_deep_research import cross_vendor_review as rc
 from open_deep_research.cross_vendor_review import (
     Ballot,
+    CriticReport,
+    CriticVerdict,
     Critique,
     anonymize,
+    apply_verdicts,
     check_citations,
+    critic_for,
+    enumerate_findings,
     parse_review_models,
+    quote_in_notes,
     weighted_borda,
 )
 
@@ -78,10 +84,17 @@ class FakeModel:
         self.name, self.critique, self.fail = name, critique, fail
 
     def with_structured_output(self, schema, **kwargs):
+
+
+    critic_report = None  # class-level default: critic agrees with everything
+
+    def with_structured_output(self, schema):
         if self.fail:
             return FakeStructured(RuntimeError("provider down"))
         if schema is Critique:
             return FakeStructured(self.critique)
+        if schema is CriticReport:
+            return FakeStructured(self.critic_report or CriticReport(verdicts=[]))
         return FakeStructured(Ballot(ranking=["C1", "C2", "C3"], confidence=0.9))
 
     async def ainvoke(self, _messages):
@@ -270,3 +283,92 @@ def test_strip_tracking_removes_only_utm_params():
     out = rc.strip_tracking(text)
     assert "utm_" not in out
     assert "https://a.org/x)" in out and "https://b.org/y?id=3&z=1" in out and "https://c.org/p#top" in out
+
+
+# ---- Evidence-grounded critic ----
+
+def test_enumerate_findings_ids_are_stable():
+    c = Critique(unsupported_claims=["a", "b"], factual_concerns=["c"], overall_score=5)
+    assert enumerate_findings(c, "C2") == {"C2-U1": "a", "C2-U2": "b", "C2-F1": "c"}
+
+
+def test_quote_in_notes_requires_real_meaningful_quote():
+    notes = "The study found   a 12% Increase in revenue during 2024."
+    assert quote_in_notes("found a 12% increase in revenue", notes)
+    assert not quote_in_notes("found a 15% increase in revenue", notes)
+    assert not quote_in_notes("12%", notes)  # too short to count as evidence
+
+
+def test_apply_verdicts_keeps_drops_and_disputes():
+    c = Critique(unsupported_claims=["claim A", "claim B", "claim C"], factual_concerns=["concern D"], overall_score=6)
+    notes = "Source says revenue grew 12 percent in 2024 according to the filing."
+    verdicts = [
+        CriticVerdict(finding_id="C1-U1", verdict="AGREE"),
+        CriticVerdict(finding_id="C1-U2", verdict="DISAGREE_EVIDENCE", evidence_quote="revenue grew 12 percent in 2024", reason="notes support it"),
+        CriticVerdict(finding_id="C1-U3", verdict="DISAGREE_EVIDENCE", evidence_quote="a quote that is not in the notes", reason="made up"),
+        CriticVerdict(finding_id="C1-F1", verdict="DISAGREE_CONCERN", reason="speculative"),
+    ]
+    kept, disputed, dropped = apply_verdicts(c, "C1", verdicts, notes)
+    assert kept.unsupported_claims == ["claim A"]
+    assert kept.factual_concerns == []
+    assert [d["id"] for d in dropped] == ["C1-U2"]
+    # an unverifiable "evidence" quote is downgraded to a dispute, never trusted
+    assert {d["id"] for d in disputed} == {"C1-U3", "C1-F1"}
+
+
+def test_findings_without_verdict_are_kept():
+    c = Critique(unsupported_claims=["x"], overall_score=5)
+    kept, disputed, dropped = apply_verdicts(c, "C1", [], "notes")
+    assert kept.unsupported_claims == ["x"] and not disputed and not dropped
+
+
+def test_critic_is_never_the_author_when_alternatives_exist():
+    models = ["openai:a", "anthropic:b", "google_genai:c"]
+    for m in models:
+        assert critic_for(m, models) != m
+    assert critic_for("only:model", ["only:model"]) == "only:model"
+
+
+def test_node_reports_disputed_and_exports_run(monkeypatch, enabled_env, tmp_path):
+    export = tmp_path / "runs" / "review.jsonl"
+    monkeypatch.setenv("RUN_EXPORT_PATH", str(export))
+    monkeypatch.setenv("REVIEW_MODELS", "openai:a,anthropic:b")
+    disputes_everything = CriticReport(verdicts=[
+        CriticVerdict(finding_id=f"C{i}-U1", verdict="DISAGREE_CONCERN", reason="not verifiable from notes") for i in (1, 2)
+    ])
+
+    def fake_build(model, max_tokens, config):
+        m = FakeModel(model, critique=_c(7, f"claim by {model}"))
+        m.critic_report = disputes_everything
+        return m
+
+    monkeypatch.setattr(rc, "build_reviewer", fake_build)
+    out = asyncio.run(rc.cross_vendor_review(_state(), {"configurable": {}}))
+    report = out["final_report"]
+    assert "### Disputed" in report
+    assert "claim by openai:a" in report and "claim by anthropic:b" in report
+    assert out["review"]["critic"]["status"] == "ok"
+    assert len(out["review"]["critic"]["disputed"]) == 2
+
+    import json
+    lines = export.read_text().splitlines()
+    assert len(lines) == 1
+    rec = json.loads(lines[0])
+    assert rec["draft_report"].startswith("Draft cites")
+    assert rec["revised_report"].startswith("REVISED REPORT")
+    assert len(rec["critic"]["disputed"]) == 2
+
+
+def test_critic_failure_keeps_findings_and_is_reported(monkeypatch, enabled_env):
+    monkeypatch.setenv("REVIEW_MODELS", "openai:a,anthropic:b")
+
+    class CriticDown(FakeModel):
+        def with_structured_output(self, schema):
+            if schema is CriticReport:
+                return FakeStructured(RuntimeError("critic down"))
+            return super().with_structured_output(schema)
+
+    monkeypatch.setattr(rc, "build_reviewer", lambda m, t, c: CriticDown(m, critique=_c(7, f"claim by {m}")))
+    out = asyncio.run(rc.cross_vendor_review(_state(), {"configurable": {}}))
+    assert out["review"]["critic"]["status"].startswith("partial")
+    assert "### Disputed" not in out["final_report"]
