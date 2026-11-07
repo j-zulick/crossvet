@@ -27,6 +27,11 @@ def test_load_setups_validates(tmp_path):
     with pytest.raises(ValueError, match="duplicate"):
         compare.load_setups(dup)
 
+    edition = tmp_path / "e.toml"
+    edition.write_text('[[setup]]\nname = "a"\nedition = "deep_agent"\n[[setup]]\nname = "b"\nedition = "other"\n')
+    with pytest.raises(ValueError, match="unknown edition 'other'"):
+        compare.load_setups(edition)
+
     bad_name = tmp_path / "n.toml"
     bad_name.write_text('[[setup]]\nname = "../x"\n')
     with pytest.raises(ValueError, match="needs a name"):

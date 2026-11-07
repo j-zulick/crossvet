@@ -2,6 +2,15 @@
 
 All notable changes to Crossvet. Versions follow [Semantic Versioning](https://semver.org/); dates are release dates.
 
+## [0.6.0]
+
+### Added
+- **Deep Agents edition** (graph `deep_agent`): a LangChain Deep Agent plans, delegates sub-questions to a researcher sub-agent and writes the report to its virtual filesystem; the same cross-vendor review follows. A callback captures every search result returned to the agent or its sub-agents (and, with built-in model search, the sources in every model reply) as the research notes the review verifies against.
+- `crossvet-compare` setups accept `edition = "deep_agent"`; `examples/compare/editions.toml` compares the two editions with the same models.
+
+### Changed
+- New dependency: `deepagents` 0.7.
+
 ## [0.5.0]
 
 ### Added

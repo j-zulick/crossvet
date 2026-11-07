@@ -25,6 +25,9 @@ configuration field names (the lowercase form of the environment variables)::
     research_model = "ollama:qwen3:32b"
     review_models = "local:model-a,local:model-b"
 
+Add ``edition = "deep_agent"`` next to a setup's name to run the Deep Agents edition
+instead of the LangGraph edition.
+
 ``questions.txt`` has one question per line; blank lines and lines starting with ``#``
 are ignored. Results go to ``results.jsonl`` (one line per run), ``summary.csv`` and
 ``summary.md`` (one row per setup), plus every report under ``reports/``.
@@ -58,6 +61,7 @@ from langchain_core.callbacks import AsyncCallbackHandler
 from langchain_core.messages import HumanMessage
 
 URL_RE = re.compile(r"https?://[^\s)\]>\"']+")
+EDITIONS = ("langgraph", "deep_agent")
 FORCED = {"REQUIRE_APPROVAL": "false", "ALLOW_CLARIFICATION": "false"}
 
 
@@ -67,6 +71,7 @@ class Setup:
 
     name: str
     config: dict[str, Any]
+    edition: str = "langgraph"
 
 
 @dataclass
@@ -123,7 +128,10 @@ def load_setups(path: str | Path) -> list[Setup]:
         unknown = sorted(set(config) - allowed)
         if unknown:
             raise ValueError(f"{path}: setup '{name}' has unknown settings: {', '.join(unknown)}")
-        setups.append(Setup(name, config))
+        edition = str(entry.get("edition") or "langgraph")
+        if edition not in EDITIONS:
+            raise ValueError(f"{path}: setup '{name}' has unknown edition '{edition}' (use {' or '.join(EDITIONS)})")
+        setups.append(Setup(name, config, edition))
     return setups
 
 
@@ -212,12 +220,15 @@ Runner = Callable[[str, list[Any]], Awaitable[dict[str, Any]]]
 RUN_METADATA: contextvars.ContextVar[dict[str, Any]] = contextvars.ContextVar("crossvet_run_metadata", default={})
 
 
-async def default_runner(question: str, callbacks: list[Any]) -> dict[str, Any]:
-    """Run the research graph once without a checkpointer."""
-    from open_deep_research.deep_researcher import deep_researcher
+async def default_runner(question: str, callbacks: list[Any], edition: str = "langgraph") -> dict[str, Any]:
+    """Run one edition's graph once without a checkpointer."""
+    if edition == "deep_agent":
+        from open_deep_research.deep_agent import deep_agent as graph
+    else:
+        from open_deep_research.deep_researcher import deep_researcher as graph
 
     config = {"callbacks": callbacks, "recursion_limit": 200, "metadata": RUN_METADATA.get()}
-    return await deep_researcher.ainvoke({"messages": [HumanMessage(content=question)]}, config)
+    return await graph.ainvoke({"messages": [HumanMessage(content=question)]}, config)
 
 
 # ---------------------------------------------------------------------------
@@ -286,7 +297,8 @@ async def run_one(setup: Setup, question: str, repeat: int, reports_dir: Path, r
     start = time.perf_counter()
     try:
         with applied(setup):
-            out = await runner(question, [counter, *tracers])
+            handlers = [counter, *tracers]
+            out = await (default_runner(question, handlers, setup.edition) if runner is default_runner else runner(question, handlers))
         score(result, out)
         path = reports_dir / setup.name / f"{hashlib.sha1(question.encode()).hexdigest()[:10]}-r{repeat}.md"
         path.parent.mkdir(parents=True, exist_ok=True)
