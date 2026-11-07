@@ -76,12 +76,28 @@ def share_text(question: str, run: dict[str, Any], review: dict[str, Any], repor
     return "\n".join(lines) + "\n\n## Review notes\n\n" + notes + "\n"
 
 
+def _tracing() -> Any:
+    """Langfuse tracing module when this version has it, else None."""
+    try:
+        from open_deep_research import tracing  # added in v0.3
+    except ImportError:
+        return None
+    return tracing
+
+
 async def _invoke(question: str) -> dict[str, Any]:
     from langchain_core.messages import HumanMessage
 
     from open_deep_research.deep_researcher import deep_researcher
 
-    return await deep_researcher.ainvoke({"messages": [HumanMessage(content=question)]}, {"recursion_limit": 200})
+    tracing = _tracing()
+    callbacks = tracing.get_callbacks() if tracing else []
+    config = {"recursion_limit": 200, "callbacks": callbacks, "metadata": {"langfuse_tags": ["crossvet-try"]} if callbacks else {}}
+    try:
+        return await deep_researcher.ainvoke({"messages": [HumanMessage(content=question)]}, config)
+    finally:
+        if tracing:
+            tracing.flush()
 
 
 def main(argv: list[str] | None = None, invoke: Any = None) -> int:
