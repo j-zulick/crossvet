@@ -259,19 +259,18 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
         for lbl, c in by_label.items()
         if abs(c.overall_score - (sum(scores.values()) / len(scores))) >= 3
     ]
-    review_md = [
-        "\n\n---\n## Review notes",
+    notes_items = [
         f"Reviewed by {len(critiques)} models from different vendors ({', '.join(critiques)}); critiques were anonymized before voting.",
         "Draft scores: " + ", ".join(f"{m} {s}/10" for m, s in scores.items()),
         f"Most useful critique (peer vote): {label_to_model[top_label]}" if top_label else "No ballots were returned.",
     ]
     if dissent:
-        review_md.append("Dissent: " + "; ".join(dissent))
+        notes_items.append("Dissent: " + "; ".join(dissent))
     if flagged_urls:
-        review_md.append("Citations not found in research notes (flagged for removal): " + ", ".join(flagged_urls))
+        notes_items.append("Citations not found in research notes (flagged for removal): " + ", ".join(flagged_urls))
     if failed:
-        review_md.append("Reviewers that failed: " + ", ".join(failed))
-    final = revised_text + "\n".join(review_md)
+        notes_items.append("Reviewers that failed: " + ", ".join(failed))
+    final = revised_text.rstrip() + "\n\n---\n\n## Review notes\n\n" + "\n".join(f"- {item}" for item in notes_items) + "\n"
 
     return {
         "final_report": final,

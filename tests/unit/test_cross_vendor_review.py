@@ -126,6 +126,8 @@ def test_node_runs_with_quorum_and_reports_failures(monkeypatch, enabled_env):
     assert out["final_report"].startswith("REVISED REPORT")
     assert "## Review notes" in out["final_report"]
     assert "Dissent" in out["final_report"]  # google_genai:c scored far below the mean
+    notes_section = out["final_report"].split("## Review notes", 1)[1]
+    assert all(line.startswith("- ") for line in notes_section.strip().splitlines())
 
 
 def test_node_skips_without_quorum(monkeypatch, enabled_env):
