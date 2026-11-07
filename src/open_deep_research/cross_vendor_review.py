@@ -22,7 +22,7 @@ import os
 import random
 import re
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Literal
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
@@ -482,7 +482,7 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
     if configurable.run_export_path:
         try:
             await asyncio.to_thread(export_run, configurable.run_export_path, {
-                "exported_at": datetime.now(timezone.utc).isoformat(),
+                "exported_at": datetime.now(UTC).isoformat(),
                 "research_brief": brief,
                 "draft_report": report,
                 "revised_report": revised_text,

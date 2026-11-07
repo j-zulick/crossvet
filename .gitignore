@@ -79,3 +79,4 @@ runs/
 
 # Local checkpoints
 .crossvet/
+compare-results/

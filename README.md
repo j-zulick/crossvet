@@ -89,6 +89,13 @@ Every step is checkpointed (SQLite by default, Postgres with `DATABASE_URL=postg
 
 **Tracing and cost:** set `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY` (and `LANGFUSE_BASE_URL` for a self-hosted Langfuse) and every model call in a CLI run is traced with tokens and cost per model. The LangGraph server also supports LangSmith tracing natively.
 
+## Compare models
+Run the same questions through different model setups — hosted, OpenRouter, Ollama or a local server, in any role — and compare what each produced:
+```bash
+uv run crossvet-compare --setups examples/compare/setups.toml --questions examples/compare/questions.txt --repeats 2
+```
+Each setup is a named set of configuration overrides. Results go to `compare-results/`: one JSON line per run, a per-setup `summary.md` / `summary.csv` (finished runs, latency, input and output tokens, share of cited URLs the research never read, reviewer scores, critic drops and disputes, failed reviewers) and every report for side-by-side reading. A failed run is recorded and the comparison continues.
+
 ## Use it from Claude Code, Codex or Cursor (MCP)
 `crossvet-mcp` is an MCP server (stdio) with two tools:
 - `ask_model(model, prompt)` — ask any configured model, cloud or local;
@@ -105,13 +112,13 @@ Set `RUN_EXPORT_PATH=runs/review.jsonl` to append every reviewed run (draft, cri
 ```bash
 uv run pytest tests/unit -q     # offline: no API keys, no network
 ```
-Covers anonymization (no vendor leaks into labels), Borda tallying, citation flagging, the critic protocol (fabricated evidence quotes are never trusted), quorum and failure handling, run export, the MCP tools, self-hosted model wiring, the approval step with real LangGraph interrupts, and crash-and-resume across two processes (a completed step is never re-run).
+Covers anonymization (no vendor leaks into labels), Borda tallying, citation flagging, the critic protocol (fabricated evidence quotes are never trusted), quorum and failure handling, run export, the MCP tools, self-hosted model wiring, the approval step with real LangGraph interrupts, the comparison harness, and crash-and-resume across two processes (a completed step is never re-run).
 
 ## Roadmap
 - [x] **v0.1** — cross-vendor review, LangGraph 1.2 / LangChain 1.x upgrade, self-hosted model support, web UI, CI
 - [x] **v0.2** — evidence-grounded critic and *Disputed* section, JSONL run export, MCP server (`ask_model`, `compare_models`)
 - [x] **v0.3** — durable CLI runs (SQLite / Postgres checkpoints, resume), human approval before the final report, Langfuse tracing
-- [ ] **v0.4** — model comparison harness: any cloud or local model in any role, compared on citation support, critic outcomes, failures, latency and tokens
+- [x] **v0.4** — model comparison harness: any cloud or local model in any role, compared on citation support, critic outcomes, failures, latency and tokens
 - [ ] **v0.5** — deeper deliberation: rotating challenger, capped rebuttal rounds, position-change tracking with sycophancy flags
 - [ ] **v0.6** — Deep Agents edition (planning, sub-agents, virtual filesystem), compared against the LangGraph edition
 - [ ] **v0.7** — fine-tuning data path: run exports to MLX LoRA datasets for a self-hosted model, measured before/after
