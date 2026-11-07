@@ -9,6 +9,7 @@ panel, and writes the choices to ``.env``.
     uv run crossvet-setup --list       # show the models each key can use
     uv run crossvet-setup --check      # also send one tiny test request to every chosen model
     uv run crossvet-setup --dry-run    # show what would change without writing
+    uv run crossvet-setup --compare-plan my-setups.toml   # also write crossvet-compare setups
 
 Keys are read with hidden input, written only to ``.env`` (permissions 600) and never
 printed. Discovery covers OpenAI, Anthropic, Google (Gemini API), OpenRouter, Ollama
@@ -305,6 +306,68 @@ def choose_search(env: dict[str, str], found: Discovery, chosen: Plan) -> tuple[
 
 
 # ---------------------------------------------------------------------------
+# Comparison plan for crossvet-compare
+# ---------------------------------------------------------------------------
+def _slug(name: str) -> str:
+    return re.sub(r"[^A-Za-z0-9_.-]+", "-", name).strip("-")[:40] or "model"
+
+
+def _toml_value(v: Any) -> str:
+    if isinstance(v, bool):
+        return "true" if v else "false"
+    if isinstance(v, int):
+        return str(v)
+    return '"' + str(v).replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def compare_plan(found: Discovery, chosen: Plan, max_local: int = 4) -> list[dict[str, Any]]:
+    """Setups that answer the usual questions with the models actually available."""
+    from open_deep_research.configuration import Configuration
+
+    fields = Configuration.model_fields
+    panel = ",".join(chosen.panel)
+    setups: list[dict[str, Any]] = [
+        {"name": "review", "comment": "your .env: cross-vendor panel and reviser", "config": {"cross_vendor_review_enabled": True}},
+        {"name": "no-review", "comment": "same research, no review: what review adds", "config": {"cross_vendor_review_enabled": False}},
+    ]
+    if "review_deliberation_rounds" in fields:
+        setups.append({"name": "deliberation-2", "comment": "two deliberation rounds before the vote",
+                       "config": {"cross_vendor_review_enabled": True, "review_deliberation_rounds": 2}})
+    try:
+        import open_deep_research.deep_agent  # noqa: F401
+
+        setups.append({"name": "deep-agent", "edition": "deep_agent", "comment": "Deep Agents edition, same review",
+                       "config": {"cross_vendor_review_enabled": True}})
+    except ImportError:
+        pass
+    local = [f"ollama:{m}" for m in found.models.get("ollama", [])] + [f"local:{m}" for m in found.models.get("local", [])]
+    for model in local[:max_local]:
+        slug = _slug(model.split(":", 1)[1])
+        setups.append({"name": f"writer-{slug}", "comment": f"{model} writes the report; hosted panel reviews it",
+                       "config": {"final_report_model": model, "cross_vendor_review_enabled": True}})
+        if chosen.panel:
+            setups.append({"name": f"reviewer-{slug}", "comment": f"{model} joins the panel as a reviewer",
+                           "config": {"review_models": f"{chosen.panel[0]},{model}", "cross_vendor_review_enabled": True}})
+    if panel and len(chosen.panel) < 2:
+        setups = [s for s in setups if s["name"] != "review"]
+    return setups
+
+
+def render_plan(setups: list[dict[str, Any]]) -> str:
+    """TOML for crossvet-compare."""
+    lines = ["# Written by crossvet-setup --compare-plan from the models available to you.",
+             "# Run: uv run crossvet-compare --setups <this file> --questions examples/compare/questions-15.txt --repeats 2", ""]
+    for setup in setups:
+        lines += [f"# {setup['comment']}", "[[setup]]", f"name = {_toml_value(setup['name'])}"]
+        if setup.get("edition"):
+            lines.append(f"edition = {_toml_value(setup['edition'])}")
+        lines.append("[setup.config]")
+        lines += [f"{k} = {_toml_value(v)}" for k, v in setup["config"].items()]
+        lines.append("")
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
 # Live check
 # ---------------------------------------------------------------------------
 class _Ping(BaseModel):
@@ -364,6 +427,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--dry-run", action="store_true", help="show changes without writing")
     p.add_argument("--no-prompt", action="store_true", help="do not ask for missing keys")
     p.add_argument("--panel-size", type=int, default=3, choices=(2, 3, 4))
+    p.add_argument("--compare-plan", metavar="FILE", help="also write crossvet-compare setups for the available models")
     args = p.parse_args(argv)
 
     env_path = Path(args.env)
@@ -421,6 +485,10 @@ def main(argv: list[str] | None = None) -> int:
         say("\nTesting each model with one tiny request...")
         for model, result in asyncio.run(check_models([m for m in models if m], env)).items():
             say(f"  {model}: {result}")
+
+    if args.compare_plan:
+        Path(args.compare_plan).write_text(render_plan(compare_plan(found, chosen)), encoding="utf-8")
+        say(f"Wrote comparison setups to {args.compare_plan}")
 
     if args.dry_run:
         say("\n(dry run) would set: " + ", ".join(k for k in updates))

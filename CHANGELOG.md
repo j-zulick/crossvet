@@ -6,6 +6,7 @@ All notable changes to Crossvet. Versions follow [Semantic Versioning](https://s
 
 ### Added
 - **Model comparison harness** `crossvet-compare`: runs every question under every named setup (TOML) with optional repeats and writes per-run JSONL, a per-setup summary (Markdown and CSV) and all reports. Records latency, tokens per model from usage metadata, cited and flagged URLs, reviewer scores, critic outcomes and failed reviewers; failed runs are recorded without stopping the comparison. Example setups and questions in `examples/compare/`.
+- `crossvet-setup --compare-plan FILE` writes comparison setups from the models your keys and local servers offer; `examples/compare/questions-15.txt` adds 15 questions with checkable answers.
 
 ### Changed
 - Python 3.11 or newer is required (the lockfile already targeted 3.13).

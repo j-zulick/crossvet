@@ -181,3 +181,22 @@ def test_plan_replaces_stage_models_when_key_is_rejected():
     assert chosen.stages["FINAL_REPORT_MODEL"] == "anthropic:claude-sonnet-5-5"
     assert chosen.stages["SUMMARIZATION_MODEL"] == "anthropic:claude-haiku-5-5"
     assert any("OPENAI_API_KEY was rejected" in w for w in chosen.warnings)
+
+
+def test_compare_plan_uses_available_models(tmp_path):
+    import tomllib
+
+    from open_deep_research import compare
+
+    found = Discovery(models={"openai": OPENAI_IDS, "anthropic": ANTHROPIC_IDS, "ollama": ["qwen3:32b", 'we"ird:1b']})
+    chosen = sw.plan(found, {"OPENAI_API_KEY": "x"})
+    text = sw.render_plan(sw.compare_plan(found, chosen))
+    data = tomllib.loads(text)
+    names = [s["name"] for s in data["setup"]]
+    assert names[:2] == ["review", "no-review"]
+    assert "writer-qwen3-32b" in names and "reviewer-qwen3-32b" in names and "writer-we-ird-1b" in names
+    reviewer = next(s for s in data["setup"] if s["name"] == "reviewer-qwen3-32b")
+    assert reviewer["config"]["review_models"] == "openai:gpt-5.6-sol,ollama:qwen3:32b"
+    path = tmp_path / "plan.toml"
+    path.write_text(text)
+    assert [s.name for s in compare.load_setups(path)] == names  # valid input for crossvet-compare
