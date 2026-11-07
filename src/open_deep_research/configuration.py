@@ -238,6 +238,16 @@ class Configuration(BaseModel):
             }
         }
     )
+    review_reviser_model: str = Field(
+        default="",
+        json_schema_extra={
+            "x_oap_ui_config": {
+                "type": "text",
+                "default": "",
+                "description": "Model that revises the report after review. Defaults to the final report model. Pick one from a vendor that is not on the review panel so no lab grades and rewrites its own work."
+            }
+        }
+    )
     review_model_max_tokens: int = Field(
         default=4000,
         json_schema_extra={

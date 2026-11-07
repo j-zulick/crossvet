@@ -59,6 +59,31 @@ class Ballot(BaseModel):
 ###################
 # Pure helpers (unit-tested)
 ###################
+def vendor_of(model: str) -> str:
+    """Return the vendor behind a model string.
+
+    ``openai:gpt-x`` -> ``openai``; ``openrouter:anthropic/claude`` -> ``anthropic``;
+    ``ollama:x`` / ``local:x`` -> ``self-hosted``; a bare name -> the name itself.
+    """
+    model = (model or "").strip()
+    provider, _, rest = model.partition(":")
+    if not rest:
+        return provider.lower()
+    if provider == "openrouter":
+        return rest.split("/", 1)[0].lower()
+    if provider in ("ollama", "local"):
+        return "self-hosted"
+    if provider in ("google_genai", "google_vertexai", "google"):
+        return "google"
+    return provider.lower()
+
+
+def reviser_conflicts(reviser: str, reviewers: list[str]) -> list[str]:
+    """Reviewers that share a vendor with the reviser (empty means the reviser is independent)."""
+    v = vendor_of(reviser)
+    return [r for r in reviewers if vendor_of(r) == v]
+
+
 def parse_review_models(value: str) -> list[str]:
     """Split a comma-separated model list, dropping blanks."""
     return [m.strip() for m in (value or "").split(",") if m.strip()]
@@ -160,9 +185,10 @@ Research notes the report was written from (sources and findings):
 Draft report:
 {report}
 
-Review the draft strictly against the research notes. Flag claims the notes do not support, statements that look wrong or overstated, and important missing perspectives. Suggest concrete revisions. Be specific and brief."""
+Review the draft strictly against the research notes. Flag claims the notes do not support, statements that look wrong or overstated, and important missing perspectives. Suggest concrete revisions. Be specific and brief.
+Give your own assessment: do not defer to how confident or polished the draft sounds, and do not soften a concern unless the notes resolve it."""
 
-VOTE_PROMPT = """Several anonymous reviewers critiqued the same research report. Rank their critiques from most to least useful for improving the report's accuracy and completeness. Judge only the critiques' content.
+VOTE_PROMPT = """Several anonymous reviewers critiqued the same research report. Rank their critiques from most to least useful for improving the report's accuracy and completeness. Judge only the critiques' content: reward specific, evidence-based points over confident or agreeable wording, and do not rank a critique higher because others make the same point.
 
 Draft report (for context):
 {report}
@@ -245,7 +271,9 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
     feedback = "\n\n".join(f"[{lbl}, score {score:.2f}]\n{format_critique(by_label[lbl])}" for lbl, score in tally)
     if flagged_urls:
         feedback += "\n\n[Citation check]\nThese cited URLs do not appear in the research notes; remove or replace them:\n" + "\n".join(f"- {u}" for u in flagged_urls)
-    writer = build_reviewer(configurable.final_report_model, configurable.final_report_model_max_tokens, config)
+    reviser_model = configurable.review_reviser_model or configurable.final_report_model
+    same_vendor = reviser_conflicts(reviser_model, list(critiques))
+    writer = build_reviewer(reviser_model, configurable.final_report_model_max_tokens, config)
     try:
         revised = await writer.ainvoke([HumanMessage(content=REVISE_PROMPT.format(date=get_today_str(), notes=notes_for_prompt, report=report, feedback=feedback))])
         revised_text = revised.content if isinstance(revised.content, str) else str(revised.content)
@@ -268,6 +296,11 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
         notes_items.append("Dissent: " + "; ".join(dissent))
     if flagged_urls:
         notes_items.append("Citations not found in research notes (flagged for removal): " + ", ".join(flagged_urls))
+    if same_vendor:
+        notes_items.append(
+            f"Warning: the reviser ({reviser_model}) shares a vendor with reviewer(s) {', '.join(same_vendor)}; "
+            "set REVIEW_REVISER_MODEL to a model from another vendor for a fully independent revision."
+        )
     if failed:
         notes_items.append("Reviewers that failed: " + ", ".join(failed))
     final = revised_text.rstrip() + "\n\n---\n\n## Review notes\n\n" + "\n".join(f"- {item}" for item in notes_items) + "\n"
@@ -279,6 +312,8 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
             "status": "ok",
             "reviewers": list(critiques),
             "failed": failed,
+            "reviser": reviser_model,
+            "reviser_shares_vendor_with": same_vendor,
             "labels": label_to_model,
             "tally": tally,
             "ballots": len(ballots),

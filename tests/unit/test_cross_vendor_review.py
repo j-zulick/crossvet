@@ -144,3 +144,52 @@ def test_build_reviewer_supports_local_and_ollama(monkeypatch):
     assert str(local.openai_api_base).startswith("http://127.0.0.1:1234")
     ollama = rc.build_reviewer("ollama:gemma3", 500, {"configurable": {}})
     assert type(ollama).__name__ == "ChatOllama" and ollama.model == "gemma3"
+
+
+# ---- Reviser independence ----
+
+@pytest.mark.parametrize(
+    "model, vendor",
+    [
+        ("openai:gpt-4.1", "openai"),
+        ("anthropic:claude-sonnet-4-5", "anthropic"),
+        ("google_genai:gemini-2.5-pro", "google"),
+        ("openrouter:anthropic/claude-sonnet-4.5", "anthropic"),
+        ("ollama:gemma3", "self-hosted"),
+        ("local:qwen", "self-hosted"),
+    ],
+)
+def test_vendor_of(model, vendor):
+    assert rc.vendor_of(model) == vendor
+
+
+def test_reviser_conflicts_detects_same_vendor_across_routes():
+    reviewers = ["openrouter:openai/gpt-5", "anthropic:claude-sonnet-4-5"]
+    assert rc.reviser_conflicts("openai:gpt-4.1", reviewers) == ["openrouter:openai/gpt-5"]
+    assert rc.reviser_conflicts("google_genai:gemini-2.5-pro", reviewers) == []
+
+
+def test_node_warns_when_reviser_shares_vendor(monkeypatch, enabled_env):
+    monkeypatch.setenv("REVIEW_MODELS", "openai:a,anthropic:b")
+    monkeypatch.setenv("FINAL_REPORT_MODEL", "openai:writer")
+    monkeypatch.setattr(rc, "build_reviewer", lambda m, t, c: FakeModel(m, critique=_c(7)))
+    out = asyncio.run(rc.cross_vendor_review(_state(), {"configurable": {}}))
+    assert out["review"]["reviser_shares_vendor_with"] == ["openai:a"]
+    assert "shares a vendor" in out["final_report"]
+
+
+def test_independent_reviser_has_no_warning(monkeypatch, enabled_env):
+    monkeypatch.setenv("REVIEW_MODELS", "openai:a,anthropic:b")
+    monkeypatch.setenv("REVIEW_REVISER_MODEL", "google_genai:writer")
+    used = []
+
+    def build(m, t, c):
+        used.append(m)
+        return FakeModel(m, critique=_c(7))
+
+    monkeypatch.setattr(rc, "build_reviewer", build)
+    out = asyncio.run(rc.cross_vendor_review(_state(), {"configurable": {}}))
+    assert out["review"]["reviser"] == "google_genai:writer"
+    assert out["review"]["reviser_shares_vendor_with"] == []
+    assert "shares a vendor" not in out["final_report"]
+    assert used[-1] == "google_genai:writer"
