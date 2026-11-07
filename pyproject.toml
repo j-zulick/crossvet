@@ -46,15 +46,22 @@ dependencies = [
     "langchain-aws>=0.2.28",
     "pandas>=2.3.1",
     "langchain-ollama>=1.0",
+    "langgraph-checkpoint-sqlite>=3",
+    "langfuse>=3",
 ]
 
 [project.scripts]
 crossvet-setup = "open_deep_research.setup_wizard:main"
 crossvet-try = "open_deep_research.quickrun:main"
+crossvet = "open_deep_research.cli:main"
 crossvet-mcp = "open_deep_research.mcp_server:main"
 
 [project.optional-dependencies]
 dev = ["mypy>=1.11.1", "ruff>=0.6.1"]
+postgres = [
+    "langgraph-checkpoint-postgres>=3",
+    "psycopg[binary,pool]>=3.2",
+]
 
 [build-system]
 requires = ["setuptools>=73.0.0", "wheel"]
@@ -91,6 +98,7 @@ lint.ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["D", "UP"]
+"src/open_deep_research/cli.py" = ["T201"]  # a CLI prints by design
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

@@ -76,3 +76,6 @@ first-run/
 
 # Exported run records
 runs/
+
+# Local checkpoints
+.crossvet/
