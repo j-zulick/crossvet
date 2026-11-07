@@ -20,7 +20,7 @@ jobs:
       - name: Install (locked)
         run: uv sync --locked
       - name: Lint (new modules)
-        run: uvx ruff check src/open_deep_research/cross_vendor_review.py src/open_deep_research/configuration.py tests/unit
+        run: uvx ruff check src/open_deep_research/cross_vendor_review.py src/open_deep_research/doctor.py src/open_deep_research/configuration.py tests/unit
       - name: Graph builds
         run: uv run python -c "import open_deep_research.deep_researcher as d; assert 'cross_vendor_review' in d.deep_researcher.get_graph().nodes"
       - name: Unit tests (no API keys, no network)

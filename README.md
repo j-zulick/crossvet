@@ -28,6 +28,7 @@ Python 3.13 · uv · **LangGraph 1.2** · LangChain 1.x (`init_chat_model`, any 
 ```bash
 cp .env.example .env            # add model keys, search key, REVIEW_MODELS
 uv sync
+uv run python -m open_deep_research.doctor           # checks keys, reviewers, search; never prints key values
 uv run langgraph dev --config langgraph.local.json   # API on :2024, opens LangGraph Studio
 
 # optional web UI
