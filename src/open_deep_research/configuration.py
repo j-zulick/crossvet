@@ -217,6 +217,16 @@ class Configuration(BaseModel):
             }
         }
     )
+    require_approval: bool = Field(
+        default=False,
+        json_schema_extra={
+            "x_oap_ui_config": {
+                "type": "boolean",
+                "default": False,
+                "description": "Pause after research so a person can approve, steer or reject the final report before it is written."
+            }
+        }
+    )
     # Cross-vendor review council (runs after the draft report)
     cross_vendor_review_enabled: bool = Field(
         default=False,
