@@ -118,14 +118,24 @@ Each setup is a named set of configuration overrides. Results go to `compare-res
 claude mcp add crossvet -- uv --directory /path/to/crossvet run crossvet-mcp
 ```
 
-## Run export
-Set `RUN_EXPORT_PATH=runs/review.jsonl` to append every reviewed run (draft, critiques, critic verdicts, ballots, revision) as one JSON line, for evaluation or fine-tuning.
+## Run export and fine-tuning data
+Set `RUN_EXPORT_PATH=runs/review.jsonl` to append every reviewed run (research notes, draft, critiques, critic verdicts, deliberation, ballots, feedback, revision) as one JSON line.
+
+`crossvet-dataset` turns those runs into chat-format datasets that `mlx_lm.lora` reads directly, so a model on your own Mac can learn from the hosted panel:
+```bash
+uv run crossvet-dataset --runs runs/review.jsonl --task critique --out data/critique   # notes + draft -> peer-voted, evidence-checked critique
+uv run crossvet-dataset --runs runs/review.jsonl --task revise --out data/revise       # notes + draft + feedback -> citation-clean revision
+mlx_lm.lora --model <model> --train --data data/critique --iters 600 --mask-prompt
+mlx_lm.lora --model <model> --adapter-path adapters --data data/critique --test
+mlx_lm.fuse --model <model> && mlx_lm.server --model fused_model                      # OpenAI-style API on localhost:8080
+```
+Splits are by research brief, so a question never appears in both training and test data. Only top-voted critiques that survived the critic, and only revisions that cite nothing the research did not read, become training targets. Then compare the base and fine-tuned model as a `local:` reviewer with `crossvet-compare`. Exports contain web content: check your sources' terms and keep datasets private.
 
 ## Tests
 ```bash
 uv run pytest tests/unit -q     # offline: no API keys, no network
 ```
-Covers anonymization (no vendor leaks into labels), Borda tallying, citation flagging, the critic protocol (fabricated evidence quotes are never trusted), quorum and failure handling, run export, the MCP tools, self-hosted model wiring, the approval step with real LangGraph interrupts, the comparison harness, deliberation and the sycophancy guard, the Deep Agents edition (search capture and report file), and crash-and-resume across two processes (a completed step is never re-run).
+Covers anonymization (no vendor leaks into labels), Borda tallying, citation flagging, the critic protocol (fabricated evidence quotes are never trusted), quorum and failure handling, run export, the MCP tools, self-hosted model wiring, the approval step with real LangGraph interrupts, the comparison harness, deliberation and the sycophancy guard, the Deep Agents edition (search capture and report file), fine-tuning dataset building, and crash-and-resume across two processes (a completed step is never re-run).
 
 ## Roadmap
 - [x] **v0.1** — cross-vendor review, LangGraph 1.2 / LangChain 1.x upgrade, self-hosted model support, web UI, CI
@@ -134,7 +144,7 @@ Covers anonymization (no vendor leaks into labels), Borda tallying, citation fla
 - [x] **v0.4** — model comparison harness: any cloud or local model in any role, compared on citation support, critic outcomes, failures, latency and tokens
 - [x] **v0.5** — deeper deliberation: rotating challenger, capped rebuttal rounds, position-change tracking with sycophancy flags
 - [x] **v0.6** — Deep Agents edition (planning, sub-agents, virtual filesystem), compared against the LangGraph edition
-- [ ] **v0.7** — fine-tuning data path: run exports to MLX LoRA datasets for a self-hosted model, measured before/after
+- [x] **v0.7** — fine-tuning data path: run exports to MLX LoRA datasets for a self-hosted model, measured before/after
 - [ ] **v0.8** — grounded search on self-hosted infrastructure (metasearch, layered page reading, saved evidence, SSRF protection) via MCP
 - [ ] **v1.0** — one-command Docker Compose, security scanning in CI, architecture and evaluation docs
 

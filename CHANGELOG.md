@@ -2,6 +2,14 @@
 
 All notable changes to Crossvet. Versions follow [Semantic Versioning](https://semver.org/); dates are release dates.
 
+## [0.7.0]
+
+### Added
+- **Fine-tuning data path** `crossvet-dataset`: converts run exports into `mlx_lm.lora` chat datasets (`train/valid/test.jsonl`, split by research brief) for two tasks — `critique` (target: the peer-voted critique after the critic and deliberation) and `revise` (target: a successful revision that cites only URLs the research read). Deduplicates, skips malformed lines and reports why each run was skipped.
+
+### Changed
+- Run export `schema_version` 2 adds the research notes, critique labels, revision feedback and whether the revision succeeded.
+
 ## [0.6.0]
 
 ### Added

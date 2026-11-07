@@ -20,6 +20,7 @@ This project builds on open-source work. Original copyright and license notices 
 - `src/open_deep_research/approval.py`, `cli.py`, `tracing.py`, `mcp_server.py` — approval step, durable CLI, Langfuse tracing, MCP server.
 - `src/open_deep_research/compare.py` — model setup comparison harness.
 - `src/open_deep_research/deep_agent.py` — Deep Agents edition with captured search results and the shared review.
+- `src/open_deep_research/dataset.py` — MLX LoRA dataset builder from run exports.
 - `src/open_deep_research/deliberation.py` — deliberation rounds with rotating challengers and grounded position changes.
 - Upgraded to LangGraph 1.2 / LangChain 1.x; Pydantic v2 configuration idioms; Python 3.13.
 - `tests/unit/` — offline tests; `.github/workflows/ci.yml`; `langgraph.local.json`.

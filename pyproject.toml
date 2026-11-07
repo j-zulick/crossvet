@@ -1,6 +1,6 @@
 [project]
 name = "crossvet"
-version = "0.6.0"
+version = "0.7.0"
 description = "Deep research whose reports are checked by models from several AI vendors before you read them. Built on LangChain Open Deep Research."
 authors = [
     { name = "Joseph Zulick" },
@@ -57,6 +57,7 @@ crossvet-try = "open_deep_research.quickrun:main"
 crossvet = "open_deep_research.cli:main"
 crossvet-mcp = "open_deep_research.mcp_server:main"
 crossvet-compare = "open_deep_research.compare:main"
+crossvet-dataset = "open_deep_research.dataset:main"
 
 [project.optional-dependencies]
 dev = ["mypy>=1.11.1", "ruff>=0.6.1"]
@@ -102,6 +103,7 @@ lint.ignore = [
 "tests/*" = ["D", "UP"]
 "src/open_deep_research/cli.py" = ["T201"]  # a CLI prints by design
 "src/open_deep_research/compare.py" = ["T201"]  # a CLI prints by design
+"src/open_deep_research/dataset.py" = ["T201"]  # a CLI prints by design
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

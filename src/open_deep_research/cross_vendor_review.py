@@ -502,7 +502,12 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
         try:
             await asyncio.to_thread(export_run, configurable.run_export_path, {
                 "exported_at": datetime.now(UTC).isoformat(),
+                "schema_version": 2,
                 "research_brief": brief,
+                "research_notes": notes_for_prompt,
+                "labels": label_to_model,
+                "revision_feedback": feedback,
+                "revision_ok": revised_text != report,
                 "draft_report": report,
                 "revised_report": revised_text,
                 "critiques": {label_to_model[lbl]: c.model_dump() for lbl, c in by_label.items()},

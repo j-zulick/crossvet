@@ -80,3 +80,6 @@ runs/
 # Local checkpoints
 .crossvet/
 compare-results/
+/data/
+adapters/
+fused_model/
