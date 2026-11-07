@@ -1,6 +1,6 @@
 [project]
 name = "crossvet"
-version = "0.1.0"
+version = "0.2.0"
 description = "Deep research whose reports are checked by models from several AI vendors before you read them. Built on LangChain Open Deep Research."
 authors = [
     { name = "Joseph Zulick" },
