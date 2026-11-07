@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import contextvars
 import csv
 import hashlib
 import json
@@ -89,6 +90,7 @@ class RunResult:
     critic_dropped: int = 0
     critic_disputed: int = 0
     report_path: str = ""
+    langfuse_trace_id: str = ""
 
 
 def config_fields() -> set[str]:
@@ -201,21 +203,84 @@ def score(result: RunResult, out: dict[str, Any]) -> RunResult:
 Runner = Callable[[str, list[Any]], Awaitable[dict[str, Any]]]
 
 
+RUN_METADATA: contextvars.ContextVar[dict[str, Any]] = contextvars.ContextVar("crossvet_run_metadata", default={})
+
+
 async def default_runner(question: str, callbacks: list[Any]) -> dict[str, Any]:
     """Run the research graph once without a checkpointer."""
     from open_deep_research.deep_researcher import deep_researcher
 
-    return await deep_researcher.ainvoke({"messages": [HumanMessage(content=question)]}, {"callbacks": callbacks, "recursion_limit": 200})
+    config = {"callbacks": callbacks, "recursion_limit": 200, "metadata": RUN_METADATA.get()}
+    return await deep_researcher.ainvoke({"messages": [HumanMessage(content=question)]}, config)
 
 
-async def run_one(setup: Setup, question: str, repeat: int, reports_dir: Path, runner: Runner = default_runner) -> RunResult:
+# ---------------------------------------------------------------------------
+# Langfuse: every run becomes a trace, grouped by comparison, tagged by setup and scored
+# ---------------------------------------------------------------------------
+LANGFUSE_SCORES = {
+    "cited_urls": "cited_urls",
+    "flagged_urls": "flagged_urls",
+    "mean_reviewer_score": "reviewer_score",
+    "critic_dropped": "critic_dropped",
+    "critic_disputed": "critic_disputed",
+    "seconds": "seconds",
+}
+
+
+def langfuse_metadata(session_id: str, setup: Setup, question: str, repeat: int) -> dict[str, Any]:
+    """Trace metadata Langfuse reads: one session per comparison, tags per setup."""
+    return {
+        "langfuse_session_id": session_id,
+        "langfuse_tags": ["crossvet-compare", f"setup:{setup.name}", f"edition:{getattr(setup, 'edition', 'langgraph')}"],
+        "crossvet_setup": setup.name,
+        "crossvet_question": question,
+        "crossvet_repeat": repeat,
+    }
+
+
+def push_scores(result: RunResult, client: Any) -> None:
+    """Attach the run's metrics to its Langfuse trace (best effort, never raises)."""
+    if not result.langfuse_trace_id or client is None:
+        return
+    try:
+        client.create_score(name="finished", value=1 if result.status == "ok" else 0, trace_id=result.langfuse_trace_id, data_type="BOOLEAN")
+        for attr, name in LANGFUSE_SCORES.items():
+            value = getattr(result, attr)
+            if isinstance(value, (int, float)):
+                client.create_score(name=name, value=float(value), trace_id=result.langfuse_trace_id, data_type="NUMERIC")
+        if result.cited_urls:
+            client.create_score(name="flagged_url_rate", value=round(result.flagged_urls / result.cited_urls, 4),
+                                trace_id=result.langfuse_trace_id, data_type="NUMERIC")
+    except Exception:
+        pass  # tracing must never break a comparison
+
+
+def langfuse_client() -> Any:
+    """Return the Langfuse client when tracing is configured, else None."""
+    from open_deep_research import tracing
+
+    if not tracing.langfuse_enabled():
+        return None
+    try:
+        from langfuse import get_client
+
+        return get_client()
+    except Exception:
+        return None
+
+
+async def run_one(setup: Setup, question: str, repeat: int, reports_dir: Path, runner: Runner = default_runner, session_id: str = "") -> RunResult:
     """Run one question under one setup and record the result."""
+    from open_deep_research import tracing
+
     result = RunResult(setup=setup.name, question=question, repeat=repeat)
     counter = UsageCounter()
+    tracers = tracing.get_callbacks()
+    token = RUN_METADATA.set(langfuse_metadata(session_id, setup, question, repeat) if tracers else {})
     start = time.perf_counter()
     try:
         with applied(setup):
-            out = await runner(question, [counter])
+            out = await runner(question, [counter, *tracers])
         score(result, out)
         path = reports_dir / setup.name / f"{hashlib.sha1(question.encode()).hexdigest()[:10]}-r{repeat}.md"
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -224,7 +289,10 @@ async def run_one(setup: Setup, question: str, repeat: int, reports_dir: Path, r
     except Exception as exc:  # one failed run must not stop the comparison
         result.status = "error"
         result.error = f"{type(exc).__name__}: {str(exc)[:300]}"
+    finally:
+        RUN_METADATA.reset(token)
     result.seconds = round(time.perf_counter() - start, 2)
+    result.langfuse_trace_id = next((t for t in (getattr(h, "last_trace_id", None) for h in tracers) if t), "")
     result.tokens_by_model = counter.usage
     result.input_tokens = sum(v["input"] for v in counter.usage.values())
     result.output_tokens = sum(v["output"] for v in counter.usage.values())
@@ -287,13 +355,22 @@ async def compare(setups: list[Setup], questions: list[str], repeats: int, out_d
     results = []
     total = len(setups) * len(questions) * repeats
     n = 0
+    session_id = f"crossvet-compare-{time.strftime('%Y%m%d-%H%M%S')}"
+    client = langfuse_client()
     for setup in setups:
         for question in questions:
             for rep in range(1, repeats + 1):
                 n += 1
                 print(f"[{n}/{total}] {setup.name}: {question[:70]}", file=sys.stderr)
-                results.append(await run_one(setup, question, rep, out_dir / "reports", runner))
+                result = await run_one(setup, question, rep, out_dir / "reports", runner, session_id)
+                push_scores(result, client)
+                results.append(result)
     write_outputs(results, out_dir)
+    if client is not None:
+        from open_deep_research import tracing
+
+        tracing.flush()
+        print(f"Langfuse: traces in session {session_id} (filter by tag setup:<name>)", file=sys.stderr)
     return results
 
 

@@ -116,3 +116,52 @@ def test_usage_counter_sums_tokens_per_model():
         msg = AIMessage(content="", usage_metadata={"input_tokens": i, "output_tokens": o, "total_tokens": i + o})
         asyncio.run(counter.on_llm_end(LLMResult(generations=[[ChatGeneration(message=msg)]]), run_id=rid))
     assert counter.usage == {"gpt-x": {"input": 150, "output": 25}, "claude-y": {"input": 10, "output": 1}}
+
+
+def test_langfuse_traces_are_tagged_and_scored(monkeypatch, tmp_path):
+    from open_deep_research import tracing
+
+    class FakeHandler:
+        last_trace_id = "trace-123"
+
+    class FakeClient:
+        def __init__(self):
+            self.scores = []
+
+        def create_score(self, **kw):
+            self.scores.append(kw)
+
+    client = FakeClient()
+    monkeypatch.setattr(tracing, "get_callbacks", lambda: [FakeHandler()])
+    monkeypatch.setattr(tracing, "flush", lambda: None)
+    monkeypatch.setattr(compare, "langfuse_client", lambda: client)
+    seen = {}
+
+    async def runner(question, callbacks):
+        seen["metadata"] = compare.RUN_METADATA.get()
+        seen["handlers"] = callbacks
+        return {"final_report": "See https://a.org and https://b.org", "review": {"status": "ok", "flagged_urls": ["https://b.org"], "scores": {"m": 8}}}
+
+    results = asyncio.run(compare.compare([Setup("panel", {})], ["Q?"], 1, tmp_path, runner=runner))
+    meta = seen["metadata"]
+    assert meta["langfuse_session_id"].startswith("crossvet-compare-") and "setup:panel" in meta["langfuse_tags"]
+    assert any(isinstance(h, FakeHandler) for h in seen["handlers"])
+    assert results[0].langfuse_trace_id == "trace-123"
+    by_name = {s["name"]: s["value"] for s in client.scores}
+    assert by_name["finished"] == 1 and by_name["cited_urls"] == 2 and by_name["flagged_url_rate"] == 0.5 and by_name["reviewer_score"] == 8
+    assert all(s["trace_id"] == "trace-123" for s in client.scores)
+    assert compare.RUN_METADATA.get() == {}
+
+
+def test_no_langfuse_means_no_metadata(monkeypatch, tmp_path):
+    from open_deep_research import tracing
+
+    monkeypatch.setattr(tracing, "get_callbacks", lambda: [])
+    seen = {}
+
+    async def runner(question, callbacks):
+        seen["metadata"] = compare.RUN_METADATA.get()
+        return {"final_report": ""}
+
+    r = asyncio.run(compare.run_one(Setup("a", {}), "q", 1, tmp_path, runner=runner))
+    assert seen["metadata"] == {} and r.langfuse_trace_id == ""
