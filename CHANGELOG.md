@@ -14,6 +14,7 @@ First release, built on LangChain's Open Deep Research (upstream `1b7d2e8`).
 - Security policy (`SECURITY.md`) and release notes in `docs/releases/`.
 - Setup checker (`python -m open_deep_research.doctor`): reports missing API keys, too few or single-vendor reviewers, a reviser sharing a vendor with the panel, and missing search settings — without printing key values.
 - `crossvet-setup`: asks each provider which models the key can use, picks a cross-vendor panel and an independent reviser, replaces stage models the key cannot use, optionally tests every chosen model with one tiny request, and writes `.env` (keys hidden, permissions 600). `crossvet-try` runs one question and saves the report, review summary and a key-free `share.md`. `scripts/quickstart.sh` chains tools check, install, setup, doctor and a first run.
+- Built-in web search works without a Tavily key: OpenAI uses the current `web_search` tool and returns every consulted source into the research notes; native search is detected in current langchain-openai content blocks; the citation check ignores tracking parameters, scheme, `www.` and trailing slashes. `crossvet-setup` falls back to built-in search when no Tavily key is set.
 - Offline end-to-end test: a scripted model drives the full research graph and review.
 - Offline unit tests (no API keys, no network) and a GitHub Actions CI workflow (lint, graph build, tests, web build); Dependabot for uv, npm and GitHub Actions.
 

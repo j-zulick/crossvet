@@ -42,6 +42,7 @@ from open_deep_research.state import (
 )
 from open_deep_research.utils import (
     anthropic_websearch_called,
+    get_config_value,
     get_all_tools,
     get_api_key_for_model,
     get_model_token_limit,
@@ -404,9 +405,14 @@ async def researcher(state: ResearcherState, config: RunnableConfig) -> Command[
     )
     
     # Configure model with tools, retry logic, and settings
+    # With OpenAI's built-in search, also return every source the search consulted, so the
+    # research notes (and the review's citation check) see them, not only the cited ones.
+    bind_kwargs = {}
+    if get_config_value(configurable.search_api) == "openai" and configurable.research_model.startswith("openai:"):
+        bind_kwargs["include"] = ["web_search_call.action.sources"]
     research_model = (
         configurable_model
-        .bind_tools(tools)
+        .bind_tools(tools, **bind_kwargs)
         .with_retry(stop_after_attempt=configurable.max_structured_output_retries)
         .with_config(research_model_config)
     )

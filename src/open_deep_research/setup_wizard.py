@@ -283,6 +283,24 @@ def plan(found: Discovery, env: dict[str, str], panel_size: int = 3) -> Plan:
     return Plan(panel, reviser, stages, warnings)
 
 
+def choose_search(env: dict[str, str], found: Discovery, chosen: Plan) -> tuple[dict[str, str], str]:
+    """Keep the configured search if it can work; otherwise fall back to a model's built-in search."""
+    current = env.get("SEARCH_API") or "tavily"
+    if current != "tavily" or env.get(SEARCH_KEY):
+        return {}, ""
+    for provider in ("openai", "anthropic"):
+        ranked = rank(provider, found.models.get(provider, []))
+        if ranked:
+            research = env.get("RESEARCH_MODEL") or STAGE_DEFAULTS["RESEARCH_MODEL"]
+            research = chosen.stages.get("RESEARCH_MODEL", research)
+            updates = {"SEARCH_API": provider}
+            if not research.startswith(f"{provider}:"):
+                updates["RESEARCH_MODEL"] = f"{provider}:{ranked[0]}"
+            return updates, (f"No TAVILY_API_KEY: using {provider}'s built-in web search (SEARCH_API={provider}). "
+                             "Add a Tavily key or a research gateway later to also capture full page text.")
+    return {}, "TAVILY_API_KEY is not set; research needs it (or SEARCH_API=gateway / openai / anthropic)."
+
+
 # ---------------------------------------------------------------------------
 # Live check
 # ---------------------------------------------------------------------------
@@ -381,8 +399,10 @@ def main(argv: list[str] | None = None) -> int:
         review_updates["RUN_EXPORT_PATH"] = "runs/review.jsonl"  # every run becomes evaluation data
     if found.notes.get("local_base_url") and not env.get("LOCAL_LLM_BASE_URL"):
         review_updates["LOCAL_LLM_BASE_URL"] = found.notes["local_base_url"]
-    if not env.get(SEARCH_KEY) and env.get("SEARCH_API", "tavily") == "tavily":
-        chosen.warnings.append("TAVILY_API_KEY is not set; research needs it (or SEARCH_API=gateway / openai / anthropic).")
+    search_updates, search_note = choose_search(env, found, chosen)
+    review_updates.update(search_updates)
+    if search_note:
+        chosen.warnings.append(search_note)
     updates.update(review_updates)
 
     say("\nReview panel:  " + (", ".join(chosen.panel) or "(none)"))

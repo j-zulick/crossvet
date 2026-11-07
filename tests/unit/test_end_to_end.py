@@ -51,6 +51,7 @@ class ScriptedModel(BaseChatModel):
     """Chat model that answers according to the role implied by its bound tools."""
 
     tool_names: list[str] = []
+    bound: dict = {}
     calls: list[str] = []
 
     @property
@@ -58,6 +59,8 @@ class ScriptedModel(BaseChatModel):
         return "scripted"
 
     def bind_tools(self, tools: Any, **kwargs: Any) -> "ScriptedModel":  # noqa: D102
+        if kwargs:
+            self.bound.update(kwargs)
         return self.model_copy(update={"tool_names": [_tool_name(t) for t in tools]})
 
     def with_structured_output(self, schema: Any, **kwargs: Any) -> Any:  # noqa: D102
@@ -80,6 +83,17 @@ class ScriptedModel(BaseChatModel):
             self.calls.append("researcher")
             if tools_seen == 0:
                 msg = AIMessage(content="", tool_calls=[{"name": "tavily_search", "args": {"queries": ["solar capacity 2025"]}, "id": "res-1"}])
+            else:
+                msg = AIMessage(content="I have enough information.")
+        elif "web_search" in self.tool_names:  # researcher with OpenAI's built-in search
+            self.calls.append("researcher-native")
+            if not any(isinstance(m, AIMessage) for m in messages):
+                msg = AIMessage(content=[
+                    {"type": "web_search_call", "id": "ws_1", "status": "completed",
+                     "action": {"type": "search", "query": "solar 2025", "sources": [{"type": "url", "url": SOURCE_URL + "?utm_source=openai"}]}},
+                    {"type": "text", "text": "Solar additions grew strongly in 2025.",
+                     "annotations": [{"type": "url_citation", "url": SOURCE_URL + "?utm_source=openai", "title": "Solar capacity report"}]},
+                ])
             else:
                 msg = AIMessage(content="I have enough information.")
         else:  # compression, final report, revision
@@ -140,3 +154,17 @@ def test_full_pipeline_with_cross_vendor_review(scripted, monkeypatch):
     assert review["reviser_shares_vendor_with"] == []
     assert "## Review notes" in out["final_report"]
     assert "structured:Critique" in scripted.calls and "structured:Ballot" in scripted.calls
+
+
+def test_full_pipeline_with_openai_native_search(scripted, monkeypatch):
+    """OpenAI's built-in search: sources reach the notes, so cited URLs are not flagged."""
+    monkeypatch.setenv("SEARCH_API", "openai")
+    monkeypatch.setenv("RESEARCH_MODEL", "openai:gpt-5.5")
+    monkeypatch.setenv("CROSS_VENDOR_REVIEW_ENABLED", "true")
+    monkeypatch.setenv("REVIEW_MODELS", "openai:a,anthropic:b")
+    scripted.bound.clear()
+    out = _run(deep_researcher.deep_researcher, "How much solar capacity was added in 2025?")
+    assert "researcher-native" in scripted.calls
+    assert scripted.bound.get("include") == ["web_search_call.action.sources"]
+    assert any(SOURCE_URL in n for n in out.get("raw_notes", []))
+    assert out["review"]["flagged_urls"] == []

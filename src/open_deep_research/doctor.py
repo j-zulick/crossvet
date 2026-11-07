@@ -96,7 +96,7 @@ def check(config: Configuration | None = None) -> list[Finding]:
         if not cfg.research_model.startswith(f"{search}:"):
             out.append(Finding("FAIL", f"search: native {search} web search needs a {search}: research model (got {cfg.research_model})"))
         else:
-            out.append(Finding("OK", f"search: native {search} web search"))
+            out.append(Finding("OK", f"search: {search} built-in web search (cited sources are checked; Tavily or a gateway also captures page text)"))
     else:
         out.append(Finding("WARN", f"search: '{search}': research will run without web search"))
 

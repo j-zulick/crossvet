@@ -546,8 +546,8 @@ async def get_search_tool(search_api: SearchAPI):
         }]
         
     elif search_api == SearchAPI.OPENAI:
-        # OpenAI's web search preview functionality
-        return [{"type": "web_search_preview"}]
+        # OpenAI's built-in web search (Responses API)
+        return [{"type": "web_search"}]
         
     elif search_api == SearchAPI.TAVILY:
         # Configure Tavily search tool with metadata
@@ -645,17 +645,11 @@ def openai_websearch_called(response):
     Returns:
         True if web search was called, False otherwise
     """
-    # Check for tool outputs in the response metadata
-    tool_outputs = response.additional_kwargs.get("tool_outputs")
-    if not tool_outputs:
-        return False
-    
-    # Look for web search calls in the tool outputs
-    for tool_output in tool_outputs:
-        if tool_output.get("type") == "web_search_call":
-            return True
-    
-    return False
+    # Current langchain-openai puts Responses API items in the content blocks;
+    # older versions put them in additional_kwargs["tool_outputs"].
+    content = response.content if isinstance(response.content, list) else []
+    blocks = list(content) + list(response.additional_kwargs.get("tool_outputs") or [])
+    return any(isinstance(b, dict) and b.get("type") == "web_search_call" for b in blocks)
 
 
 ##########################

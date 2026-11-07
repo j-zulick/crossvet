@@ -208,3 +208,20 @@ def test_failed_revision_keeps_draft_and_says_so(monkeypatch, enabled_env):
     out = asyncio.run(rc.cross_vendor_review(_state(), {"configurable": {}}))
     assert out["final_report"].startswith(_state()["final_report"])
     assert "Revision by google_genai:missing-key failed (ValueError)" in out["final_report"]
+
+
+def test_citation_check_ignores_tracking_params_scheme_and_www():
+    notes = "Source: https://www.example.org/a/?utm_source=openai&id=7 and http://b.org/x#top"
+    report = "See https://example.org/a?id=7 and https://b.org/x/ and https://c.org/missing."
+    assert rc.check_citations(report, notes) == ["https://c.org/missing"]
+    assert rc.check_citations("https://example.org/a?id=8", notes) == ["https://example.org/a?id=8"]
+
+
+def test_openai_websearch_detected_in_content_blocks():
+    from langchain_core.messages import AIMessage
+
+    from open_deep_research.utils import openai_websearch_called
+
+    assert openai_websearch_called(AIMessage(content=[{"type": "web_search_call", "id": "ws"}, {"type": "text", "text": "x"}]))
+    assert openai_websearch_called(AIMessage(content="", additional_kwargs={"tool_outputs": [{"type": "web_search_call"}]}))
+    assert not openai_websearch_called(AIMessage(content="plain"))

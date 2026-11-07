@@ -22,6 +22,7 @@ import random
 import re
 from collections import defaultdict
 from typing import Any
+from urllib.parse import parse_qsl, urlencode, urlsplit
 
 from langchain.chat_models import init_chat_model
 from langchain_core.language_models import BaseChatModel
@@ -116,14 +117,22 @@ def weighted_borda(ballots: list[Ballot], labels: list[str]) -> list[tuple[str, 
 def check_citations(report: str, research_text: str) -> list[str]:
     """Return URLs cited in the report that do not appear anywhere in the research notes."""
     def norm(u: str) -> str:
-        return u.rstrip(".,;:").rstrip("/")
+        # Compare URLs the way a reader would: ignore scheme, "www.", fragments, trailing
+        # slashes and tracking parameters (search tools add e.g. utm_source=openai).
+        u = u.rstrip(".,;:)")
+        parts = urlsplit(u)
+        query = [(k, v) for k, v in parse_qsl(parts.query, keep_blank_values=True) if not k.lower().startswith("utm_")]
+        host = parts.netloc.lower().removeprefix("www.")
+        path = parts.path.rstrip("/")
+        q = urlencode(query)
+        return f"{host}{path}" + (f"?{q}" if q else "")
 
     known = {norm(u) for u in URL_RE.findall(research_text or "")}
     flagged: list[str] = []
     for u in URL_RE.findall(report or ""):
-        nu = norm(u)
-        if nu not in known and nu not in flagged:
-            flagged.append(nu)
+        u = u.rstrip(".,;:)")
+        if norm(u) not in known and u not in flagged:
+            flagged.append(u)
     return flagged
 
 

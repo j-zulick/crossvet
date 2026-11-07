@@ -140,7 +140,7 @@ def test_main_dry_run_never_prints_keys(monkeypatch, tmp_path, capsys):
     code = sw.main(["--env", str(tmp_path / ".env"), "--dry-run", "--no-prompt"])
     out = capsys.readouterr().out
     assert code == 0 and "openai:gpt-5.6-sol" in out and "anthropic-secret" not in out and "ok-openai" not in out
-    assert "TAVILY_API_KEY is not set" in out
+    assert "using openai's built-in web search" in out
 
 
 def test_main_writes_env(monkeypatch, tmp_path):
@@ -160,3 +160,16 @@ def test_main_writes_env(monkeypatch, tmp_path):
     assert values["REVIEW_REVISER_MODEL"] == "google_genai:gemini-3.8-flash"
     assert values["TAVILY_API_KEY"] == "t"
     assert json.dumps(values)  # file still parses
+
+
+def test_choose_search_falls_back_to_builtin_search():
+    found = Discovery(models={"openai": OPENAI_IDS, "anthropic": ANTHROPIC_IDS})
+    chosen = sw.plan(found, {"OPENAI_API_KEY": "x"})
+    assert sw.choose_search({}, found, chosen)[0] == {"SEARCH_API": "openai"}  # gpt-4.1 research model is OpenAI
+    assert sw.choose_search({"TAVILY_API_KEY": "t"}, found, chosen) == ({}, "")
+    assert sw.choose_search({"SEARCH_API": "gateway"}, found, chosen) == ({}, "")
+    only_anthropic = Discovery(models={"anthropic": ANTHROPIC_IDS})
+    plan2 = sw.plan(only_anthropic, {"ANTHROPIC_API_KEY": "x"})
+    ups, _ = sw.choose_search({}, only_anthropic, plan2)
+    assert ups == {"SEARCH_API": "anthropic"}  # research model already switched to anthropic by plan()
+    assert "not set" in sw.choose_search({}, Discovery(), plan2)[1]
