@@ -44,6 +44,10 @@ def _structured(schema: type) -> Any:
         return schema(ranking=["C1", "C2"], confidence=0.8)
     if name == "CriticReport":
         return schema(verdicts=[])
+    if name == "ChallengeSet":
+        return schema(challenges=[{"finding_id": "C1-U1", "objection": "The notes say it grew strongly.", "evidence_quote": "Solar additions grew strongly in 2025."}])
+    if name == "ResponseSet":
+        return schema(responses=[{"finding_id": "C1-U1", "stance": "WITHDRAW", "evidence_quote": "Solar additions grew strongly in 2025."}])
     raise AssertionError(f"unexpected structured output request: {name}")
 
 
@@ -119,7 +123,7 @@ def scripted(monkeypatch):
     monkeypatch.setattr(utils, "tavily_search_async", fake_search)
     monkeypatch.setattr(utils, "init_chat_model", lambda **kwargs: model)
     monkeypatch.setattr(cross_vendor_review, "build_reviewer", lambda *args, **kwargs: model)
-    for key in ("REQUIRE_APPROVAL", "RUN_EXPORT_PATH"):
+    for key in ("REQUIRE_APPROVAL", "RUN_EXPORT_PATH", "REVIEW_DELIBERATION_ROUNDS"):
         monkeypatch.delenv(key, raising=False)
     monkeypatch.setenv("SEARCH_API", "tavily")
     monkeypatch.setenv("MAX_RESEARCHER_ITERATIONS", "2")
@@ -168,3 +172,16 @@ def test_full_pipeline_with_openai_native_search(scripted, monkeypatch):
     assert scripted.bound.get("include") == ["web_search_call.action.sources"]
     assert any(SOURCE_URL in n for n in out.get("raw_notes", []))
     assert out["review"]["flagged_urls"] == []
+
+
+def test_full_pipeline_with_deliberation(scripted, monkeypatch):
+    monkeypatch.setenv("CROSS_VENDOR_REVIEW_ENABLED", "true")
+    monkeypatch.setenv("REVIEW_MODELS", "openai:a,anthropic:b")
+    monkeypatch.setenv("REVIEW_REVISER_MODEL", "google_genai:c")
+    monkeypatch.setenv("REVIEW_DELIBERATION_ROUNDS", "2")
+    out = _run(deep_researcher.deep_researcher, "How much solar capacity was added in 2025?")
+    d = out["review"]["deliberation"]
+    assert d["rounds_requested"] == 2 and d["rounds_run"] >= 1
+    assert d["changed_with_evidence"] >= 1 and d["unsupported_changes"] == 0
+    assert "Deliberation:" in out["final_report"]
+    assert "structured:ChallengeSet" in scripted.calls and "structured:ResponseSet" in scripted.calls

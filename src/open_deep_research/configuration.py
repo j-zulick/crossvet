@@ -268,6 +268,19 @@ class Configuration(BaseModel):
             }
         }
     )
+    review_deliberation_rounds: int = Field(
+        default=0,
+        json_schema_extra={
+            "x_oap_ui_config": {
+                "type": "slider",
+                "default": 0,
+                "min": 0,
+                "max": 3,
+                "step": 1,
+                "description": "Deliberation rounds before voting (0 = off). Each round a rotating challenger contests findings and the author answers; a change of position counts only with a passage from the research notes, and ungrounded changes are flagged as possible sycophancy."
+            }
+        }
+    )
     run_export_path: str = Field(
         default="",
         json_schema_extra={

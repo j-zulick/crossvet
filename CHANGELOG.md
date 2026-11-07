@@ -2,6 +2,12 @@
 
 All notable changes to Crossvet. Versions follow [Semantic Versioning](https://semver.org/); dates are release dates.
 
+## [0.5.0]
+
+### Added
+- **Deliberation rounds** (`REVIEW_DELIBERATION_ROUNDS`, 0 = off, capped at 3): after the critic, a rotating challenger (never the author) contests findings with optional quotes from the notes; authors maintain, revise or withdraw. A change of position is applied only when a quote from the challenger or the author is verified in code to appear in the research notes; ungrounded changes are ignored, the original finding is kept and the change is flagged as possible sycophancy. Rounds stop early when nothing is contested. Results appear in the Review notes, the review state and the run export.
+- `crossvet-compare` records grounded and ungrounded position changes; `examples/compare/deliberation.toml` compares a single round with two deliberation rounds.
+
 ## [0.4.0]
 
 ### Added

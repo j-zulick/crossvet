@@ -10,7 +10,8 @@ Crossvet extends LangChain's [Open Deep Research](https://github.com/langchain-a
 2. the critiques are **anonymized and shuffled**, and every reviewer ranks them — combined with a **confidence-weighted Borda count**;
 3. a **deterministic citation check** flags any URL the report cites that never appeared in the research notes;
 4. an **independent critic** (always a different model from the finding's author) checks every reviewer finding against the research notes: *agree*, *disagree with evidence* (an exact quote, verified in code before it can overrule anything), or *disagree concern*. Contradicted findings are dropped; unresolved ones go to a **Disputed** section for a human;
-5. the report is revised with the top-ranked feedback and ends with **Review notes**: per-model scores, the peer-voted best critique, dissent, critic outcome, flagged citations, and any reviewer that failed.
+5. optionally, reviewers **deliberate** for up to three rounds (`REVIEW_DELIBERATION_ROUNDS`): a rotating challenger contests findings and the author holds, revises or withdraws them. A change of position counts only with a passage from the research notes, verified in code; changes without one are ignored and flagged as possible sycophancy;
+6. the report is revised with the top-ranked feedback and ends with **Review notes**: per-model scores, the peer-voted best critique, dissent, critic outcome, flagged citations, and any reviewer that failed.
 
 **See it on a real run:** [docs/examples/jwst-mirror.md](docs/examples/jwst-mirror.md): an OpenAI + Claude panel scored the first draft 4/10; the revised report and its Review notes are reproduced unedited.
 
@@ -25,6 +26,8 @@ flowchart LR
     F --> X{{Cross-vendor review}}
     X -->|critique in parallel| M1[OpenAI] & M2[Anthropic] & M3[Google / local]
     M1 & M2 & M3 --> K[Independent critic<br/>agree / evidence / concern]
+    K -.->|optional| D[Deliberation rounds<br/>rotating challenger]
+    D -.-> V
     K -->|anonymized ranking| V[Weighted Borda + citation check]
     V --> FR[Revised report + Review notes]
 ```
@@ -42,6 +45,7 @@ Each design choice addresses a documented failure mode of using LLMs to judge LL
 | Hold positions without new evidence | Reviewer and vote prompts reward evidence over confident or agreeable wording | Models trained on human feedback show sycophancy [5] |
 | Deterministic citation check | URLs cited in the report are matched against what research actually read | Even strong models often lack complete citation support [6] |
 | Evidence-grounded critic | Each finding goes to a critic from a different model than its author; a disagreement counts only with a quote that is verified, in code, to appear in the research notes; unresolved findings go to a *Disputed* section | Structured disagreement between reviewers, with explicit guards against capitulation [7] |
+| Position changes need evidence | In deliberation rounds a reviewer may revise or withdraw a finding only with a passage from the notes, verified in code; other changes are ignored and flagged | Models shift answers to agree with a user or a confident challenger [5]; guards against capitulation in reviewer debate [7] |
 
 [1] Chen, Saha & Bansal, *ReConcile: Round-Table Conference Improves Reasoning via Consensus among Diverse LLMs*, ACL 2024. https://aclanthology.org/2024.acl-long.381/
 [2] Zheng et al., *Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena*, NeurIPS 2023 (Datasets & Benchmarks). https://arxiv.org/abs/2306.05685
@@ -115,14 +119,14 @@ Set `RUN_EXPORT_PATH=runs/review.jsonl` to append every reviewed run (draft, cri
 ```bash
 uv run pytest tests/unit -q     # offline: no API keys, no network
 ```
-Covers anonymization (no vendor leaks into labels), Borda tallying, citation flagging, the critic protocol (fabricated evidence quotes are never trusted), quorum and failure handling, run export, the MCP tools, self-hosted model wiring, the approval step with real LangGraph interrupts, the comparison harness, and crash-and-resume across two processes (a completed step is never re-run).
+Covers anonymization (no vendor leaks into labels), Borda tallying, citation flagging, the critic protocol (fabricated evidence quotes are never trusted), quorum and failure handling, run export, the MCP tools, self-hosted model wiring, the approval step with real LangGraph interrupts, the comparison harness, deliberation and the sycophancy guard, and crash-and-resume across two processes (a completed step is never re-run).
 
 ## Roadmap
 - [x] **v0.1** — cross-vendor review, LangGraph 1.2 / LangChain 1.x upgrade, self-hosted model support, web UI, CI
 - [x] **v0.2** — evidence-grounded critic and *Disputed* section, JSONL run export, MCP server (`ask_model`, `compare_models`)
 - [x] **v0.3** — durable CLI runs (SQLite / Postgres checkpoints, resume), human approval before the final report, Langfuse tracing
 - [x] **v0.4** — model comparison harness: any cloud or local model in any role, compared on citation support, critic outcomes, failures, latency and tokens
-- [ ] **v0.5** — deeper deliberation: rotating challenger, capped rebuttal rounds, position-change tracking with sycophancy flags
+- [x] **v0.5** — deeper deliberation: rotating challenger, capped rebuttal rounds, position-change tracking with sycophancy flags
 - [ ] **v0.6** — Deep Agents edition (planning, sub-agents, virtual filesystem), compared against the LangGraph edition
 - [ ] **v0.7** — fine-tuning data path: run exports to MLX LoRA datasets for a self-hosted model, measured before/after
 - [ ] **v0.8** — grounded search on self-hosted infrastructure (metasearch, layered page reading, saved evidence, SSRF protection) via MCP

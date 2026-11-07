@@ -54,12 +54,14 @@ def test_score_reads_review_state():
     out = {
         "final_report": "See https://a.org/x and https://b.org/y. Again https://a.org/x.",
         "review": {"status": "ok", "flagged_urls": ["https://b.org/y"], "failed": ["x:y"], "scores": {"m1": 6, "m2": 8},
-                   "critic": {"status": "ok", "dropped": 2, "disputed": [{"id": "C1-U1"}]}},
+                   "critic": {"status": "ok", "dropped": 2, "disputed": [{"id": "C1-U1"}]},
+                   "deliberation": {"changed_with_evidence": 3, "unsupported_changes": 1}},
     }
     r = compare.score(RunResult("s", "q", 1), out)
     assert (r.cited_urls, r.flagged_urls, r.failed_reviewers) == (2, 1, 1)
     assert r.mean_reviewer_score == 7
     assert (r.critic_dropped, r.critic_disputed, r.review_status) == (2, 1, "ok")
+    assert (r.position_changes, r.unsupported_changes) == (3, 1)
 
 
 def test_summary_rates_and_errors(tmp_path):

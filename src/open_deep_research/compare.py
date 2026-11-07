@@ -6,6 +6,7 @@ local models in any role) and records what each run produced:
 - whether it finished, how long it took, and input/output tokens per model
 - how many URLs the report cites and how many the citation check flagged
 - reviewer scores, critic outcomes (findings dropped or disputed), failed reviewers
+- with deliberation on: position changes backed by the notes, and ungrounded ones
 
     crossvet-compare --setups setups.toml --questions questions.txt [--repeats 2] [--out compare-results]
 
@@ -89,6 +90,8 @@ class RunResult:
     failed_reviewers: int = 0
     critic_dropped: int = 0
     critic_disputed: int = 0
+    position_changes: int = 0
+    unsupported_changes: int = 0
     report_path: str = ""
     langfuse_trace_id: str = ""
 
@@ -197,6 +200,9 @@ def score(result: RunResult, out: dict[str, Any]) -> RunResult:
     dropped = critic.get("dropped", 0)
     result.critic_dropped = dropped if isinstance(dropped, int) else len(dropped or [])
     result.critic_disputed = len(critic.get("disputed") or [])
+    deliberation = review.get("deliberation") or {}
+    result.position_changes = int(deliberation.get("changed_with_evidence", 0))
+    result.unsupported_changes = int(deliberation.get("unsupported_changes", 0))
     return result
 
 
@@ -323,6 +329,8 @@ def summarize(results: list[RunResult]) -> list[dict[str, Any]]:
             "critic_dropped": sum(r.critic_dropped for r in ok),
             "critic_disputed": sum(r.critic_disputed for r in ok),
             "failed_reviewers": sum(r.failed_reviewers for r in ok),
+            "grounded_position_changes": sum(r.position_changes for r in ok),
+            "ungrounded_position_changes": sum(r.unsupported_changes for r in ok),
         })
     return rows
 

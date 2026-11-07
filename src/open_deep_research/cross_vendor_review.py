@@ -5,6 +5,9 @@ After the draft report is written, reviewer models from different vendors:
 1. **Critique** the draft independently (in parallel), as typed ``Critique`` objects.
 2. **Vote**: critiques are anonymized and shuffled, then every reviewer ranks
    them by usefulness. Rankings are combined with a confidence-weighted Borda count.
+   Optionally, reviewers first **deliberate** (see ``deliberation.py``): rotating
+   challengers contest findings and authors may change position only with a
+   passage from the research notes.
 3. **Citation check**: a deterministic pass flags URLs cited in the report that
    never appeared in the gathered research notes.
 4. **Revise**: the report writer applies the top-ranked critiques, and a
@@ -416,6 +419,18 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
             dropped.extend(x)
         critic_status = "ok" if unavailable == 0 else f"partial ({unavailable} critic call(s) failed; those findings kept unchecked)"
 
+    # 2b. Optional deliberation: rotating challengers, author responses, grounded changes only.
+    deliberation = None
+    if configurable.review_deliberation_rounds > 0:
+        from open_deep_research.deliberation import deliberate
+
+        async def ask(model: str, schema: type, prompt: str) -> Any:
+            llm = build_reviewer(model, max_tokens, config).with_structured_output(schema).with_retry(stop_after_attempt=retries)
+            return await llm.ainvoke([HumanMessage(content=prompt)])
+
+        deliberation = await deliberate(by_label, label_to_model, notes_for_prompt, report, configurable.review_deliberation_rounds, ask)
+        by_label = deliberation.critiques
+
     # 3. Anonymized vote by every successful reviewer over the checked critiques.
     critique_text = "\n\n".join(f"[{lbl}]\n{format_critique(c)}" for lbl, c in by_label.items())
 
@@ -465,6 +480,10 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
         notes_items.append("Citations not found in research notes (flagged for removal): " + ", ".join(flagged_urls))
     if configurable.review_critic_enabled:
         notes_items.append(f"Independent critic: {critic_status}; {len(dropped)} finding(s) dropped as contradicted by the notes, {len(disputed)} disputed.")
+    if deliberation is not None:
+        from open_deep_research.deliberation import notes_line
+
+        notes_items.append(notes_line(deliberation))
     if same_vendor:
         notes_items.append(
             f"Warning: the reviser ({reviser_model}) shares a vendor with reviewer(s) {', '.join(same_vendor)}; "
@@ -492,6 +511,7 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
                 "tally": tally,
                 "flagged_urls": flagged_urls,
                 "failed_reviewers": failed,
+                "deliberation": {**deliberation.summary(), "log": deliberation.log} if deliberation else None,
             })
         except OSError:
             pass  # export is best-effort and must never break a run
@@ -511,5 +531,6 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
             "flagged_urls": flagged_urls,
             "scores": scores,
             "critic": {"status": critic_status, "dropped": len(dropped), "disputed": disputed},
+            "deliberation": deliberation.summary() if deliberation else None,
         },
     }
