@@ -2,6 +2,13 @@
 
 All notable changes to Crossvet. Versions follow [Semantic Versioning](https://semver.org/); dates are release dates.
 
+## [0.2.0]
+
+### Added
+- **Evidence-grounded critic** before the vote: each reviewer finding is judged by a different model as AGREE, DISAGREE_EVIDENCE (exact quote from the research notes, verified in code; unverifiable quotes are downgraded) or DISAGREE_CONCERN. Contradicted findings are dropped; unresolved ones appear in a new **Disputed** section. Critic failures keep findings unchecked and are reported.
+- **Run export**: `RUN_EXPORT_PATH` appends each reviewed run (draft, critiques, verdicts, ballots, revision) as JSONL.
+- **MCP server** `crossvet-mcp` (stdio) with `ask_model` and `compare_models`, input limits and per-model error isolation.
+
 ## [0.1.0]
 
 First release, built on LangChain's Open Deep Research (upstream `1b7d2e8`).

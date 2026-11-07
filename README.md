@@ -9,7 +9,8 @@ Crossvet extends LangChain's [Open Deep Research](https://github.com/langchain-a
 1. reviewers from different vendors (e.g. OpenAI, Anthropic, Google, or a self-hosted model) critique it **independently and in parallel**, as typed objects;
 2. the critiques are **anonymized and shuffled**, and every reviewer ranks them — combined with a **confidence-weighted Borda count**;
 3. a **deterministic citation check** flags any URL the report cites that never appeared in the research notes;
-4. the report is revised with the top-ranked feedback and ends with **Review notes**: per-model scores, the peer-voted best critique, dissent, flagged citations, and any reviewer that failed.
+4. an **independent critic** (always a different model from the finding's author) checks every reviewer finding against the research notes: *agree*, *disagree with evidence* (an exact quote, verified in code before it can overrule anything), or *disagree concern*. Contradicted findings are dropped; unresolved ones go to a **Disputed** section for a human;
+5. the report is revised with the top-ranked feedback and ends with **Review notes**: per-model scores, the peer-voted best critique, dissent, critic outcome, flagged citations, and any reviewer that failed.
 
 **See it on a real run:** [docs/examples/jwst-mirror.md](docs/examples/jwst-mirror.md): an OpenAI + Claude panel scored the first draft 4/10; the revised report and its Review notes are reproduced unedited.
 
@@ -21,7 +22,8 @@ flowchart LR
     S --> F[Draft report]
     F --> X{{Cross-vendor review}}
     X -->|critique in parallel| M1[OpenAI] & M2[Anthropic] & M3[Google / local]
-    M1 & M2 & M3 -->|anonymized ranking| V[Weighted Borda + citation check]
+    M1 & M2 & M3 --> K[Independent critic<br/>agree / evidence / concern]
+    K -->|anonymized ranking| V[Weighted Borda + citation check]
     V --> FR[Revised report + Review notes]
 ```
 
@@ -71,15 +73,27 @@ cd web && cp .env.example .env && pnpm install && pnpm dev   # http://localhost:
 
 **Models:** every stage is configurable (`RESEARCH_MODEL`, `SUMMARIZATION_MODEL`, `COMPRESSION_MODEL`, `FINAL_REPORT_MODEL`). Reviewers are set with `REVIEW_MODELS` as `provider:model` strings — `openai:…`, `anthropic:…`, `google_genai:…`, `openrouter:<model>` (with `OPENROUTER_API_KEY`), `ollama:<model>`, or `local:<model>` for any OpenAI-compatible server (llama.cpp, LM Studio, MLX, vLLM) at `LOCAL_LLM_BASE_URL`. At least two reviewers must respond (quorum); failures are reported, not fatal. Set `REVIEW_REVISER_MODEL` to a model from a vendor that is *not* on the panel, so no lab grades and then rewrites its own work; Crossvet adds a warning to the Review notes when the reviser shares a vendor with a reviewer. Turn the stage off with `CROSS_VENDOR_REVIEW_ENABLED=false`.
 
+## Use it from Claude Code, Codex or Cursor (MCP)
+`crossvet-mcp` is an MCP server (stdio) with two tools:
+- `ask_model(model, prompt)` — ask any configured model, cloud or local;
+- `compare_models(prompt, models?)` — ask several models in parallel; per-model failures are reported, never hidden.
+
+```bash
+claude mcp add crossvet -- uv --directory /path/to/crossvet run crossvet-mcp
+```
+
+## Run export
+Set `RUN_EXPORT_PATH=runs/review.jsonl` to append every reviewed run (draft, critiques, critic verdicts, ballots, revision) as one JSON line, for evaluation or fine-tuning.
+
 ## Tests
 ```bash
 uv run pytest tests/unit -q     # offline: no API keys, no network
 ```
-Covers anonymization (no vendor leaks into labels), Borda tallying, citation flagging, quorum and failure handling, and self-hosted model wiring.
+Covers anonymization (no vendor leaks into labels), Borda tallying, citation flagging, the critic protocol (fabricated evidence quotes are never trusted), quorum and failure handling, run export, the MCP tools and self-hosted model wiring.
 
 ## Roadmap
 - [x] **v0.1** — cross-vendor review, LangGraph 1.2 / LangChain 1.x upgrade, self-hosted model support, web UI, CI
-- [ ] **v0.2** — evidence-grounded critic and *Disputed* section, JSONL run export, MCP server (`ask_model`, `compare_models`)
+- [x] **v0.2** — evidence-grounded critic and *Disputed* section, JSONL run export, MCP server (`ask_model`, `compare_models`)
 - [ ] **v0.3** — durable CLI runs (SQLite / Postgres checkpoints, resume), human approval before the final report, Langfuse tracing
 - [ ] **v0.4** — model comparison harness: any cloud or local model in any role, compared on citation support, critic outcomes, failures, latency and tokens
 - [ ] **v0.5** — deeper deliberation: rotating challenger, capped rebuttal rounds, position-change tracking with sycophancy flags
@@ -89,7 +103,7 @@ Covers anonymization (no vendor leaks into labels), Borda tallying, citation fla
 - [ ] **v1.0** — one-command Docker Compose, security scanning in CI, architecture and evaluation docs
 
 ## Credits
-Built on [Open Deep Research](https://github.com/langchain-ai/open_deep_research) and [Agent Chat UI](https://github.com/langchain-ai/agent-chat-ui) (both MIT). Anonymized model peer review is inspired by Andrej Karpathy's *llm-council*. Details in [NOTICES.md](NOTICES.md); the original upstream README is in [docs/UPSTREAM-README.md](docs/UPSTREAM-README.md).
+Built on [Open Deep Research](https://github.com/langchain-ai/open_deep_research) and [Agent Chat UI](https://github.com/langchain-ai/agent-chat-ui) (both MIT). Anonymized model peer review is inspired by Andrej Karpathy's *llm-council*; the critic's agree / disagree-with-evidence / disagree-concern protocol is adapted from the MIT-licensed *review-council* skill and the research it cites. Details in [NOTICES.md](NOTICES.md); the original upstream README is in [docs/UPSTREAM-README.md](docs/UPSTREAM-README.md).
 
 ## License
 MIT — see [LICENSE](LICENSE) (upstream) and [NOTICES.md](NOTICES.md).
