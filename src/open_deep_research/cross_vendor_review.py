@@ -328,7 +328,8 @@ For every finding id return exactly one verdict:
 - AGREE: the finding is correct and the notes support it.
 - DISAGREE_EVIDENCE: a passage in the notes contradicts the finding. Put an EXACT quote from the notes in evidence_quote.
 - DISAGREE_CONCERN: the finding is speculative, over-stated or unsupported, but no passage settles it.
-Do not invent quotes. Do not add new findings."""
+Do not invent quotes. Do not add new findings.
+Hold an evidence-based position: do not AGREE because a finding sounds plausible, is confidently worded or was raised by several reviewers, and do not disagree without a reason grounded in the notes."""
 
 REVISE_PROMPT = """Revise the research report below using the reviewer feedback, which is listed in order of peer-voted usefulness. Today is {date}.
 
