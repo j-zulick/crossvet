@@ -1,9 +1,10 @@
 [project]
-name = "open_deep_research"
-version = "0.0.16"
-description = "Planning, research, and report generation."
+name = "crossvet"
+version = "0.1.0"
+description = "Deep research grounded in a self-hosted search gateway and checked by a cross-vendor review council. Built on LangChain Open Deep Research."
 authors = [
-    { name = "Lance Martin" }
+    { name = "Joseph Zulick" },
+    { name = "Lance Martin (Open Deep Research)" }
 ]
 readme = "README.md"
 license = { text = "MIT" }
@@ -44,6 +45,7 @@ dependencies = [
     "mcp>=1.9.4",
     "langchain-aws>=0.2.28",
     "pandas>=2.3.1",
+    "langchain-ollama>=1.0",
 ]
 
 [project.optional-dependencies]
