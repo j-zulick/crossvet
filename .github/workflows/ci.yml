@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.13"
+          enable-cache: true
+      - name: Install (locked)
+        run: uv sync --locked
+      - name: Lint (new modules)
+        run: uvx ruff check src/open_deep_research/cross_vendor_review.py src/open_deep_research/configuration.py tests/unit
+      - name: Graph builds
+        run: uv run python -c "import open_deep_research.deep_researcher as d; assert 'cross_vendor_review' in d.deep_researcher.get_graph().nodes"
+      - name: Unit tests (no API keys, no network)
+        run: uv run pytest tests/unit -q
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
