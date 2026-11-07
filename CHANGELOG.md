@@ -2,6 +2,16 @@
 
 All notable changes to Crossvet. Versions follow [Semantic Versioning](https://semver.org/); dates are release dates.
 
+## [1.0.0]
+
+### Added
+- **Docker Compose**: `docker compose up --build` runs the API (both graphs) and the web UI, bound to localhost; the API image runs as a non-root user and reads keys only at runtime.
+- **CI**: Docker image builds with a smoke test of both graphs, gitleaks secret scanning over full history, an SPDX SBOM artifact, and CodeQL for Python and TypeScript (public repositories).
+- **Docs**: [Architecture](docs/ARCHITECTURE.md), [Design decisions](docs/DESIGN-DECISIONS.md) and an [Evaluations](docs/EVALS.md) protocol (results are published only from real runs).
+
+### Changed
+- Web UI title is now Crossvet.
+
 ## [0.8.0]
 
 ### Added

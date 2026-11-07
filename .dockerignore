@@ -1,0 +1,15 @@
+.git
+.venv
+.env
+.env.*
+!.env.example
+**/__pycache__
+*.egg-info
+.crossvet/
+runs/
+compare-results/
+/data/
+adapters/
+fused_model/
+web/node_modules
+web/.next
