@@ -559,6 +559,16 @@ async def get_search_tool(search_api: SearchAPI):
         }
         return [search_tool]
         
+    elif search_api == SearchAPI.GATEWAY:
+        # Self-hosted research gateway over MCP (SearXNG discovery + layered page reading)
+        from open_deep_research.gateway_search import gateway_search
+        gateway_search.metadata = {
+            **(gateway_search.metadata or {}),
+            "type": "search",
+            "name": "web_search"
+        }
+        return [gateway_search]
+
     elif search_api == SearchAPI.NONE:
         # No search functionality configured
         return []

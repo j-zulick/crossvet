@@ -144,7 +144,7 @@ You can use any of the tools provided to you to find resources that can help ans
 
 <Available Tools>
 You have access to two main tools:
-1. **Web search tool** (e.g. `tavily_search`, whichever is available): For conducting web searches to gather information
+1. **Web search tool** (`tavily_search` or `gateway_search`, whichever is available): For conducting web searches to gather information
 2. **think_tool**: For reflection and strategic planning during research
 {mcp_prompt}
 

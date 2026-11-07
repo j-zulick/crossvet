@@ -2,6 +2,11 @@
 
 All notable changes to Crossvet. Versions follow [Semantic Versioning](https://semver.org/); dates are release dates.
 
+## [0.8.0]
+
+### Added
+- **Grounded search on self-hosted infrastructure**: `SEARCH_API=gateway` uses a research gateway over MCP (Streamable HTTP, bearer auth) — SearXNG discovery, layered page reading, per-source engine and read status, tolerant payload parsing, per-query failure isolation. Contract tests mirror the gateway's `search_and_read` reply (per-source rank, engine, snippet and read result with extractor, outcome and truncation); `num_read` is sent when the gateway advertises it.
+
 ## [0.7.0]
 
 ### Added

@@ -21,7 +21,7 @@ Crossvet extends LangChain's [Open Deep Research](https://github.com/langchain-a
 flowchart LR
     Q[Question] --> C[Clarify] --> B[Research brief] --> S[Supervisor]
     S -->|parallel| R1[Researcher] & R2[Researcher] & R3[Researcher]
-    R1 & R2 & R3 --> W[(Web search)]
+    R1 & R2 & R3 -->|MCP| W[(Self-hosted gateway<br/>SearXNG · HTTP · Firecrawl · headless browser)]
     S --> F[Draft report]
     F --> X{{Cross-vendor review}}
     X -->|critique in parallel| M1[OpenAI] & M2[Anthropic] & M3[Google / local]
@@ -55,6 +55,25 @@ Each design choice addresses a documented failure mode of using LLMs to judge LL
 [6] Gao, Yen, Yu & Chen, *Enabling Large Language Models to Generate Text with Citations*, EMNLP 2023. https://arxiv.org/abs/2305.14627
 [7] Qiu & Gill, *Adversarial Review: Structured Disagreement for Grounded Agentic Code Review*, ICML 2026 DL4C Workshop. https://arxiv.org/abs/2608.18167
 
+## Grounded search on self-hosted infrastructure
+
+Research can run on a search stack I operate instead of a paid search API (`SEARCH_API=gateway`). The agent talks to a **research gateway over MCP** (Streamable HTTP, bearer token):
+
+- **Discovery** — SearXNG metasearch across several engines, with merged ranks and the engine recorded for every result, plus a private crawl index.
+- **Layered reading** — plain HTTP first, then Firecrawl for JavaScript-heavy pages, then a headless browser. Every source reports which reader handled it and an honest status (`ok`, `partial`, `blocked`, `failed`); nothing is silently dropped.
+- **Saved evidence** — pages are stored with final URL, fetch time and content hash, so claims can be traced back to exact passages.
+- **Safety** — private and cloud-metadata addresses are refused before any fetch (SSRF protection); every call is authenticated.
+- **Checked twice** — the cross-vendor review flags unsupported claims, and the deterministic citation check flags any URL the research never read.
+
+| | Self-hosted gateway | Hosted search API | Model-native web search |
+|---|---|---|---|
+| Per-query cost | infrastructure only | per call | bundled in model tokens |
+| Data leaves your infrastructure | no | yes | yes |
+| Per-source provenance and read status | yes | partial | limited |
+| Control over engines and readers | full | none | none |
+
+The adapter (`src/open_deep_research/gateway_search.py`) tolerates schema differences between gateway releases and isolates per-query failures.
+
 ## Stack
 Python 3.13 · uv · **LangGraph 1.2** (interrupts, SQLite / Postgres checkpointers) · LangChain 1.x (`init_chat_model`, any provider) · **Pydantic v2** typed outputs · **self-hosted models** via Ollama or any OpenAI-compatible server · **Deep Agents** (`deepagents`) edition · **Langfuse** tracing · **MCP** server · pytest · ruff · GitHub Actions · **Agent Chat UI** (Next.js 16, React 19, Tailwind 4) in `web/`.
 
@@ -77,7 +96,7 @@ uv run langgraph dev --config langgraph.local.json   # API on :2024, opens LangG
 cd web && cp .env.example .env && pnpm install && pnpm dev   # http://localhost:3000
 ```
 
-**Search:** `SEARCH_API=tavily` (with `TAVILY_API_KEY`), or `openai` / `anthropic` to use the model's built-in web search with no extra key (`crossvet-setup` picks this when no Tavily key is set). With built-in search, every source the search consulted is added to the research notes, so the citation check still works; Tavily also captures each page's text for the critic to quote.
+**Search:** `SEARCH_API=gateway` (with `RESEARCH_GATEWAY_URL` and `RESEARCH_GATEWAY_TOKEN`), `tavily` (with `TAVILY_API_KEY`), or `openai` / `anthropic` to use the model's built-in web search with no extra key (`crossvet-setup` picks this when no Tavily key is set). With built-in search, every source the search consulted is added to the research notes, so the citation check still works; the gateway and Tavily also capture each page's text for the critic to quote.
 
 **Models:** every stage is configurable (`RESEARCH_MODEL`, `SUMMARIZATION_MODEL`, `COMPRESSION_MODEL`, `FINAL_REPORT_MODEL`). Reviewers are set with `REVIEW_MODELS` as `provider:model` strings — `openai:…`, `anthropic:…`, `google_genai:…`, `openrouter:<model>` (with `OPENROUTER_API_KEY`), `ollama:<model>`, or `local:<model>` for any OpenAI-compatible server (llama.cpp, LM Studio, MLX, vLLM) at `LOCAL_LLM_BASE_URL`. At least two reviewers must respond (quorum); failures are reported, not fatal. Set `REVIEW_REVISER_MODEL` to a model from a vendor that is *not* on the panel, so no lab grades and then rewrites its own work; Crossvet adds a warning to the Review notes when the reviser shares a vendor with a reviewer. Turn the stage off with `CROSS_VENDOR_REVIEW_ENABLED=false`.
 
@@ -135,7 +154,7 @@ Splits are by research brief, so a question never appears in both training and t
 ```bash
 uv run pytest tests/unit -q     # offline: no API keys, no network
 ```
-Covers anonymization (no vendor leaks into labels), Borda tallying, citation flagging, the critic protocol (fabricated evidence quotes are never trusted), quorum and failure handling, run export, the MCP tools, self-hosted model wiring, the approval step with real LangGraph interrupts, the comparison harness, deliberation and the sycophancy guard, the Deep Agents edition (search capture and report file), fine-tuning dataset building, and crash-and-resume across two processes (a completed step is never re-run).
+Covers anonymization (no vendor leaks into labels), Borda tallying, citation flagging, the critic protocol (fabricated evidence quotes are never trusted), quorum and failure handling, run export, the MCP tools, gateway parsing, self-hosted model wiring, the approval step with real LangGraph interrupts, the comparison harness, deliberation and the sycophancy guard, the Deep Agents edition (search capture and report file), fine-tuning dataset building, and crash-and-resume across two processes (a completed step is never re-run).
 
 ## Roadmap
 - [x] **v0.1** — cross-vendor review, LangGraph 1.2 / LangChain 1.x upgrade, self-hosted model support, web UI, CI
@@ -145,7 +164,7 @@ Covers anonymization (no vendor leaks into labels), Borda tallying, citation fla
 - [x] **v0.5** — deeper deliberation: rotating challenger, capped rebuttal rounds, position-change tracking with sycophancy flags
 - [x] **v0.6** — Deep Agents edition (planning, sub-agents, virtual filesystem), compared against the LangGraph edition
 - [x] **v0.7** — fine-tuning data path: run exports to MLX LoRA datasets for a self-hosted model, measured before/after
-- [ ] **v0.8** — grounded search on self-hosted infrastructure (metasearch, layered page reading, saved evidence, SSRF protection) via MCP
+- [x] **v0.8** — grounded search on self-hosted infrastructure (metasearch, layered page reading, saved evidence, SSRF protection) via MCP
 - [ ] **v1.0** — one-command Docker Compose, security scanning in CI, architecture and evaluation docs
 
 ## Credits

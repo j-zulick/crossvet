@@ -12,7 +12,7 @@ critic and deliberation are verified against.
 
 Graph id: ``deep_agent`` (see ``langgraph.json``). Configuration is shared with the
 LangGraph edition: ``RESEARCH_MODEL`` drives the agent, ``SEARCH_API`` picks search
-(``tavily``, or the model's built-in ``openai`` / ``anthropic`` search, whose
+(``tavily``, ``gateway``, or the model's built-in ``openai`` / ``anthropic`` search, whose
 sources are read from the model's replies),
 and every ``REVIEW_*`` setting applies unchanged.
 """
