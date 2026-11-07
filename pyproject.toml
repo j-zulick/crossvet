@@ -48,6 +48,10 @@ dependencies = [
     "langchain-ollama>=1.0",
 ]
 
+[project.scripts]
+crossvet-setup = "open_deep_research.setup_wizard:main"
+crossvet-try = "open_deep_research.quickrun:main"
+
 [project.optional-dependencies]
 dev = ["mypy>=1.11.1", "ruff>=0.6.1"]
 

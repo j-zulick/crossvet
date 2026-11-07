@@ -46,9 +46,15 @@ Python 3.13 · uv · **LangGraph 1.2** · LangChain 1.x (`init_chat_model`, any 
 
 ## Quickstart
 ```bash
-cp .env.example .env            # add model keys, search key, REVIEW_MODELS
+scripts/quickstart.sh     # checks tools, installs, asks for keys (hidden), picks models your keys can use,
+                          # tests each model with one tiny request, runs the setup check and a first research run
+```
+Or step by step:
+```bash
 uv sync
+uv run crossvet-setup --check                        # writes .env: cross-vendor panel + independent reviser from available models
 uv run python -m open_deep_research.doctor           # checks keys, reviewers, search; never prints key values
+uv run crossvet-try                                  # one run; saves report, review and a key-free share.md
 uv run langgraph dev --config langgraph.local.json   # API on :2024, opens LangGraph Studio
 
 # optional web UI

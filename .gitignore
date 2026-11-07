@@ -70,3 +70,4 @@ temp/
 .venv
 .next
 .ruff_cache
+first-run/
