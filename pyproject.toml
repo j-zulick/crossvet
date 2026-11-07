@@ -1,7 +1,7 @@
 [project]
 name = "crossvet"
 version = "0.1.0"
-description = "Deep research grounded in a self-hosted search gateway and checked by a cross-vendor review council. Built on LangChain Open Deep Research."
+description = "Deep research whose reports are checked by models from several AI vendors before you read them. Built on LangChain Open Deep Research."
 authors = [
     { name = "Joseph Zulick" },
     { name = "Lance Martin (Open Deep Research)" }

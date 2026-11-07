@@ -273,12 +273,14 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
         feedback += "\n\n[Citation check]\nThese cited URLs do not appear in the research notes; remove or replace them:\n" + "\n".join(f"- {u}" for u in flagged_urls)
     reviser_model = configurable.review_reviser_model or configurable.final_report_model
     same_vendor = reviser_conflicts(reviser_model, list(critiques))
-    writer = build_reviewer(reviser_model, configurable.final_report_model_max_tokens, config)
+    revision_error = ""
     try:
+        writer = build_reviewer(reviser_model, configurable.final_report_model_max_tokens, config)
         revised = await writer.ainvoke([HumanMessage(content=REVISE_PROMPT.format(date=get_today_str(), notes=notes_for_prompt, report=report, feedback=feedback))])
         revised_text = revised.content if isinstance(revised.content, str) else str(revised.content)
-    except Exception:
+    except Exception as exc:  # keep the draft and say so in the Review notes
         revised_text = report
+        revision_error = type(exc).__name__
 
     scores = {label_to_model[lbl]: c.overall_score for lbl, c in by_label.items()}
     top_label = tally[0][0] if tally else None
@@ -301,6 +303,8 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
             f"Warning: the reviser ({reviser_model}) shares a vendor with reviewer(s) {', '.join(same_vendor)}; "
             "set REVIEW_REVISER_MODEL to a model from another vendor for a fully independent revision."
         )
+    if revision_error:
+        notes_items.append(f"Revision by {reviser_model} failed ({revision_error}); the draft is shown unrevised, with the review above for a human to apply.")
     if failed:
         notes_items.append("Reviewers that failed: " + ", ".join(failed))
     final = revised_text.rstrip() + "\n\n---\n\n## Review notes\n\n" + "\n".join(f"- {item}" for item in notes_items) + "\n"

@@ -193,3 +193,18 @@ def test_independent_reviser_has_no_warning(monkeypatch, enabled_env):
     assert out["review"]["reviser_shares_vendor_with"] == []
     assert "shares a vendor" not in out["final_report"]
     assert used[-1] == "google_genai:writer"
+
+
+def test_failed_revision_keeps_draft_and_says_so(monkeypatch, enabled_env):
+    monkeypatch.setenv("REVIEW_MODELS", "openai:a,anthropic:b")
+    monkeypatch.setenv("REVIEW_REVISER_MODEL", "google_genai:missing-key")
+
+    def build(m, t, c):
+        if m == "google_genai:missing-key":
+            raise ValueError("no API key")
+        return FakeModel(m, critique=_c(7))
+
+    monkeypatch.setattr(rc, "build_reviewer", build)
+    out = asyncio.run(rc.cross_vendor_review(_state(), {"configurable": {}}))
+    assert out["final_report"].startswith(_state()["final_report"])
+    assert "Revision by google_genai:missing-key failed (ValueError)" in out["final_report"]
