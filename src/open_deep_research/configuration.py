@@ -249,12 +249,12 @@ class Configuration(BaseModel):
         }
     )
     review_model_max_tokens: int = Field(
-        default=4000,
+        default=8000,
         json_schema_extra={
             "x_oap_ui_config": {
                 "type": "number",
-                "default": 4000,
-                "description": "Maximum output tokens per reviewer call"
+                "default": 8000,
+                "description": "Maximum output tokens per reviewer call (reasoning models count their thinking against this limit)"
             }
         }
     )

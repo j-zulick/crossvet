@@ -303,7 +303,7 @@ async def check_models(models: list[str], env: dict[str, str]) -> dict[str, str]
 
     async def one(m: str) -> tuple[str, str]:
         try:
-            llm = build_reviewer(m, 200, {"configurable": {}}).with_structured_output(_Ping)
+            llm = build_reviewer(m, 2000, {"configurable": {}}).with_structured_output(_Ping)  # room for reasoning tokens
             r = await asyncio.wait_for(llm.ainvoke([HumanMessage(content="Return ok=true and word='ready'.")]), 90)
             return m, "OK" if r and r.ok else "answered, but not in the expected format"
         except Exception as exc:
