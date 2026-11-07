@@ -23,7 +23,7 @@ import platform
 import sys
 import time
 import traceback
-from datetime import datetime, timezone
+from datetime import datetime
 from importlib import metadata
 from pathlib import Path
 from typing import Any
@@ -96,8 +96,8 @@ def main(argv: list[str] | None = None, invoke: Any = None) -> int:
     os.environ["REQUIRE_APPROVAL"] = "false"
     os.environ["ALLOW_CLARIFICATION"] = "false"
 
-    started = datetime.now(timezone.utc)
-    folder = Path(args.out) / started.strftime("%Y%m%dT%H%M%SZ")
+    started = datetime.now().astimezone()
+    folder = Path(args.out) / started.strftime("%Y%m%dT%H%M%S")
     folder.mkdir(parents=True, exist_ok=True)
     sys.stderr.write(f"Researching: {args.question}\n(this usually takes a few minutes)\n")
     t0 = time.perf_counter()
