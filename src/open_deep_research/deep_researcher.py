@@ -589,7 +589,7 @@ async def compress_research(state: ResearcherState, config: RunnableConfig):
 # Creates individual researcher workflow for conducting focused research on specific topics
 researcher_builder = StateGraph(
     ResearcherState, 
-    output=ResearcherOutputState, 
+    output_schema=ResearcherOutputState,
     config_schema=Configuration
 )
 
@@ -701,7 +701,7 @@ async def final_report_generation(state: AgentState, config: RunnableConfig):
 # Creates the complete deep research workflow from user input to final report
 deep_researcher_builder = StateGraph(
     AgentState, 
-    input=AgentInputState, 
+    input_schema=AgentInputState,
     config_schema=Configuration
 )
 
