@@ -11,6 +11,7 @@ First release, built on LangChain's Open Deep Research (upstream `1b7d2e8`).
 - Reviewer independence: `REVIEW_REVISER_MODEL` selects the model that revises the report, with a warning in the Review notes when it shares a vendor with a reviewer (vendor detection covers direct, OpenRouter and self-hosted routes). Reviewer and vote prompts tell models to keep evidence-based positions rather than defer to confident wording or to other reviewers.
 - Self-hosted models: `ollama:<model>` for any pipeline stage, and `local:<model>` reviewers on any OpenAI-compatible server (llama.cpp, LM Studio, MLX, vLLM). `openrouter:<model>` reviewers with one key.
 - Agent Chat UI web frontend (`web/`, Next.js 16 / React 19 / Tailwind 4) and `langgraph.local.json` for local development without auth.
+- Security policy (`SECURITY.md`) and release notes in `docs/releases/`.
 - Setup checker (`python -m open_deep_research.doctor`): reports missing API keys, too few or single-vendor reviewers, a reviser sharing a vendor with the panel, and missing search settings — without printing key values.
 - Offline end-to-end test: a scripted model drives the full research graph and review.
 - Offline unit tests (no API keys, no network) and a GitHub Actions CI workflow (lint, graph build, tests, web build); Dependabot for uv, npm and GitHub Actions.
