@@ -16,5 +16,6 @@ This project builds on open-source work. Original copyright and license notices 
 ## What is new in this repository
 - `src/open_deep_research/cross_vendor_review.py` — cross-vendor review node (critique, anonymized ranking, citation check, revision).
 - Self-hosted model support (`ollama:<model>`, `local:<model>`).
+- `src/open_deep_research/approval.py`, `cli.py`, `tracing.py`, `mcp_server.py` — approval step, durable CLI, Langfuse tracing, MCP server.
 - Upgraded to LangGraph 1.2 / LangChain 1.x; Pydantic v2 configuration idioms; Python 3.13.
 - `tests/unit/` — offline tests; `.github/workflows/ci.yml`; `langgraph.local.json`.

@@ -2,6 +2,13 @@
 
 All notable changes to Crossvet. Versions follow [Semantic Versioning](https://semver.org/); dates are release dates.
 
+## [0.3.0]
+
+### Added
+- **Human approval step** (`REQUIRE_APPROVAL`): the run pauses after research with a LangGraph interrupt in Agent Chat UI's HITL format (approve / edit instructions / reject). Rejection stops before report generation; unrecognized answers are treated as reject.
+- **Durable CLI** `crossvet run | resume | status` with SQLite checkpoints by default or Postgres (`DATABASE_URL`, extra `postgres`); crashed runs resume without repeating completed model calls.
+- **Langfuse tracing** for CLI runs when credentials are set (tokens and cost per model); off and silent otherwise.
+
 ## [0.2.0]
 
 ### Added
