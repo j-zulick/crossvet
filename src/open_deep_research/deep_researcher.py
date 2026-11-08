@@ -42,6 +42,7 @@ from open_deep_research.state import (
 )
 from open_deep_research.utils import (
     anthropic_websearch_called,
+    flatten_native_search,
     get_config_value,
     structured_output_kwargs,
     get_all_tools,
@@ -421,6 +422,9 @@ async def researcher(state: ResearcherState, config: RunnableConfig) -> Command[
     # Step 3: Generate researcher response with system context
     messages = [SystemMessage(content=researcher_prompt)] + researcher_messages
     response = await research_model.ainvoke(messages)
+    if openai_websearch_called(response) or anthropic_websearch_called(response):
+        # Keep the evidence in a form every later model (and the raw notes) can use.
+        response = flatten_native_search(response)
     
     # Step 4: Update state and proceed to tool execution
     return Command(

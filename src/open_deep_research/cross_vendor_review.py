@@ -303,7 +303,7 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
         if abs(c.overall_score - (sum(scores.values()) / len(scores))) >= 3
     ]
     notes_items = [
-        f"Reviewed by {len(critiques)} models from different vendors ({', '.join(critiques)}); critiques were anonymized before voting.",
+        f"Reviewed by {len(critiques)} models from {len({vendor_of(m) for m in critiques})} vendor(s) ({', '.join(critiques)}); critiques were anonymized before voting.",
         "Draft scores: " + ", ".join(f"{m} {s}/10" for m, s in scores.items()),
         f"Most useful critique (peer vote): {label_to_model[top_label]}" if top_label else "No ballots were returned.",
     ]

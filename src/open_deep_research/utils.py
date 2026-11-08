@@ -647,9 +647,65 @@ def openai_websearch_called(response):
     """
     # Current langchain-openai puts Responses API items in the content blocks;
     # older versions put them in additional_kwargs["tool_outputs"].
+    if response.additional_kwargs.get("native_search_flattened"):
+        return True
     content = response.content if isinstance(response.content, list) else []
     blocks = list(content) + list(response.additional_kwargs.get("tool_outputs") or [])
     return any(isinstance(b, dict) and b.get("type") == "web_search_call" for b in blocks)
+
+
+def flatten_native_search(message: AIMessage) -> AIMessage:
+    """Turn a reply with built-in web search blocks into plain text with its sources.
+
+    OpenAI's Responses API and Anthropic return search calls, citations and results as
+    content blocks that other models (and the Chat Completions API) reject when the
+    conversation is passed on. Keep the text, list every consulted and cited source as
+    plain lines, and keep tool calls, so later steps see the evidence in a portable form.
+    """
+    content = message.content
+    if not isinstance(content, list):
+        return message
+    text: list[str] = []
+    sources: list[str] = []
+    for block in content:
+        if isinstance(block, str):
+            text.append(block)
+            continue
+        if not isinstance(block, dict):
+            continue
+        kind = block.get("type")
+        if kind == "text":
+            text.append(block.get("text", ""))
+            for ann in block.get("annotations") or []:
+                if isinstance(ann, dict) and ann.get("url"):
+                    sources.append(f"Cited: {ann.get('title', '')} {ann['url']}".strip())
+            for cit in block.get("citations") or []:
+                if isinstance(cit, dict) and cit.get("url"):
+                    quote = cit.get("cited_text", "")
+                    sources.append(f"Cited: {cit.get('title', '')} {cit['url']}" + (f' — "{quote}"' if quote else ""))
+        elif kind == "web_search_call":
+            action = block.get("action") or {}
+            queries = action.get("queries") or ([action["query"]] if action.get("query") else [])
+            if queries:
+                sources.append("Searched: " + "; ".join(queries))
+            for src in action.get("sources") or []:
+                if isinstance(src, dict) and src.get("url"):
+                    sources.append(f"Source consulted: {src['url']}")
+        elif kind == "web_search_tool_result":
+            for item in block.get("content") or []:
+                if isinstance(item, dict) and item.get("url"):
+                    sources.append(f"Source consulted: {item.get('title', '')} {item['url']}".strip())
+    flat = "\n".join(t for t in text if t).strip()
+    if sources:
+        flat += "\n\nSources from built-in web search:\n" + "\n".join(f"- {s}" for s in dict.fromkeys(sources))
+    return AIMessage(
+        content=flat,
+        tool_calls=message.tool_calls,
+        id=message.id,
+        response_metadata=message.response_metadata,
+        usage_metadata=message.usage_metadata,
+        additional_kwargs={"native_search_flattened": True},
+    )
 
 
 def structured_output_kwargs(model: str) -> dict:

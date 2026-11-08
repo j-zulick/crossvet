@@ -234,3 +234,32 @@ def test_structured_output_kwargs_per_provider():
     assert structured_output_kwargs("openai:gpt-5.5") == {}
     assert structured_output_kwargs("ollama:qwen3:32b") == {}
     assert structured_output_kwargs("") == {}
+
+
+def test_flatten_native_search_keeps_text_sources_and_tool_calls():
+    from langchain_core.messages import AIMessage
+
+    from open_deep_research.utils import flatten_native_search, openai_websearch_called
+
+    msg = AIMessage(content=[
+        {"type": "web_search_call", "action": {"query": "jwst launch", "sources": [{"type": "url", "url": "https://science.nasa.gov/webb?utm_source=openai"}]}},
+        {"type": "text", "text": "Launched Dec 25, 2021.", "annotations": [{"type": "url_citation", "url": "https://esa.int/webb", "title": "ESA"}]},
+        {"type": "function_call", "name": "think_tool", "arguments": "{}"},
+    ], tool_calls=[{"name": "think_tool", "args": {"reflection": "ok"}, "id": "c1"}])
+    flat = flatten_native_search(msg)
+    assert isinstance(flat.content, str)
+    assert "Launched Dec 25, 2021." in flat.content and "https://science.nasa.gov/webb" in flat.content and "https://esa.int/webb" in flat.content
+    assert "Searched: jwst launch" in flat.content
+    assert flat.tool_calls[0]["name"] == "think_tool"
+    assert openai_websearch_called(flat)
+    assert flatten_native_search(AIMessage(content="plain")).content == "plain"
+
+
+def test_empty_env_values_fall_back_to_defaults(monkeypatch):
+    from open_deep_research.configuration import Configuration
+
+    monkeypatch.setenv("RESEARCH_MODEL", "")
+    monkeypatch.setenv("SEARCH_API", "")
+    cfg = Configuration.from_runnable_config({"configurable": {}})
+    assert cfg.research_model == Configuration.model_fields["research_model"].default
+    assert cfg.search_api == Configuration.model_fields["search_api"].default
