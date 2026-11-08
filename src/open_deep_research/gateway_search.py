@@ -172,7 +172,11 @@ async def gateway_search(queries: List[str], config: RunnableConfig = None) -> s
 
     from open_deep_research.configuration import Configuration
     from open_deep_research.state import Summary
-    from open_deep_research.utils import get_api_key_for_model, summarize_webpage
+    from open_deep_research.utils import (
+        get_api_key_for_model,
+        structured_output_kwargs,
+        summarize_webpage,
+    )
 
     batches = await gateway_search_raw(queries)
     unique: dict[str, tuple[str, GatewaySource]] = {}
@@ -195,7 +199,7 @@ async def gateway_search(queries: List[str], config: RunnableConfig = None) -> s
         max_tokens=configurable.summarization_model_max_tokens,
         api_key=get_api_key_for_model(configurable.summarization_model, config),
         tags=["langsmith:nostream"],
-    ).with_structured_output(Summary).with_retry(stop_after_attempt=configurable.max_structured_output_retries)
+    ).with_structured_output(Summary, **structured_output_kwargs(configurable.summarization_model)).with_retry(stop_after_attempt=configurable.max_structured_output_retries)
 
     async def summarize(s: GatewaySource) -> str | None:
         if not s.content:
