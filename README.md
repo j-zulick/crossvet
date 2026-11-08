@@ -45,6 +45,8 @@ Each design choice addresses a documented failure mode of using LLMs to judge LL
 Python 3.13 · uv · **LangGraph 1.2** · LangChain 1.x (`init_chat_model`, any provider) · **Pydantic v2** typed outputs · **self-hosted models** via Ollama or any OpenAI-compatible server · pytest · ruff · GitHub Actions · **Agent Chat UI** (Next.js 16, React 19, Tailwind 4) in `web/`.
 
 ## Quickstart
+Requires Python 3.11–3.13 (the repo pins 3.13 in `.python-version`; `uv` downloads it if needed). Newer Python versions may lack prebuilt packages for some dependencies.
+
 ```bash
 scripts/quickstart.sh     # checks tools, installs, asks for keys (hidden), picks models your keys can use,
                           # tests each model with one tiny request, runs the setup check and a first research run
