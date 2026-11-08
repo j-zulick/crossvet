@@ -88,7 +88,7 @@ async def tavily_search(
         max_tokens=configurable.summarization_model_max_tokens,
         api_key=model_api_key,
         tags=["langsmith:nostream"]
-    ).with_structured_output(Summary).with_retry(
+    ).with_structured_output(Summary, **structured_output_kwargs(configurable.summarization_model)).with_retry(
         stop_after_attempt=configurable.max_structured_output_retries
     )
     
@@ -650,6 +650,18 @@ def openai_websearch_called(response):
     content = response.content if isinstance(response.content, list) else []
     blocks = list(content) + list(response.additional_kwargs.get("tool_outputs") or [])
     return any(isinstance(b, dict) and b.get("type") == "web_search_call" for b in blocks)
+
+
+def structured_output_kwargs(model: str) -> dict:
+    """Extra arguments for ``with_structured_output`` that a provider needs.
+
+    Current Claude models reject structured output through forced tool calling; they use
+    Anthropic's native JSON-schema output instead. Other providers keep their defaults.
+    """
+    provider = (model or "").split(":", 1)[0].lower()
+    if provider == "anthropic" or (model or "").lower().startswith("claude"):
+        return {"method": "json_schema"}
+    return {}
 
 
 ##########################

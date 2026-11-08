@@ -43,6 +43,7 @@ from open_deep_research.state import (
 from open_deep_research.utils import (
     anthropic_websearch_called,
     get_config_value,
+    structured_output_kwargs,
     get_all_tools,
     get_api_key_for_model,
     get_model_token_limit,
@@ -90,7 +91,7 @@ async def clarify_with_user(state: AgentState, config: RunnableConfig) -> Comman
     # Configure model with structured output and retry logic
     clarification_model = (
         configurable_model
-        .with_structured_output(ClarifyWithUser)
+        .with_structured_output(ClarifyWithUser, **structured_output_kwargs(configurable.research_model))
         .with_retry(stop_after_attempt=configurable.max_structured_output_retries)
         .with_config(model_config)
     )
@@ -143,7 +144,7 @@ async def write_research_brief(state: AgentState, config: RunnableConfig) -> Com
     # Configure model for structured research question generation
     research_model = (
         configurable_model
-        .with_structured_output(ResearchQuestion)
+        .with_structured_output(ResearchQuestion, **structured_output_kwargs(configurable.research_model))
         .with_retry(stop_after_attempt=configurable.max_structured_output_retries)
         .with_config(research_model_config)
     )

@@ -77,7 +77,7 @@ class FakeModel:
     def __init__(self, name, critique=None, fail=False):
         self.name, self.critique, self.fail = name, critique, fail
 
-    def with_structured_output(self, schema):
+    def with_structured_output(self, schema, **kwargs):
         if self.fail:
             return FakeStructured(RuntimeError("provider down"))
         if schema is Critique:
@@ -225,3 +225,12 @@ def test_openai_websearch_detected_in_content_blocks():
     assert openai_websearch_called(AIMessage(content=[{"type": "web_search_call", "id": "ws"}, {"type": "text", "text": "x"}]))
     assert openai_websearch_called(AIMessage(content="", additional_kwargs={"tool_outputs": [{"type": "web_search_call"}]}))
     assert not openai_websearch_called(AIMessage(content="plain"))
+
+
+def test_structured_output_kwargs_per_provider():
+    from open_deep_research.utils import structured_output_kwargs
+
+    assert structured_output_kwargs("anthropic:claude-sonnet-5-5") == {"method": "json_schema"}
+    assert structured_output_kwargs("openai:gpt-5.5") == {}
+    assert structured_output_kwargs("ollama:qwen3:32b") == {}
+    assert structured_output_kwargs("") == {}

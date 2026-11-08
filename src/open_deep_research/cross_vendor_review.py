@@ -31,7 +31,11 @@ from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, Field
 
 from open_deep_research.configuration import Configuration
-from open_deep_research.utils import get_api_key_for_model, get_today_str
+from open_deep_research.utils import (
+    get_api_key_for_model,
+    get_today_str,
+    structured_output_kwargs,
+)
 
 URL_RE = re.compile(r"https?://[^\s\)\]>\"']+")
 
@@ -247,7 +251,7 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
     # 1. Independent critiques in parallel; a failing reviewer is dropped (quorum >= 2).
     async def critique(model: str) -> tuple[str, Critique | None]:
         try:
-            llm = build_reviewer(model, max_tokens, config).with_structured_output(Critique).with_retry(stop_after_attempt=retries)
+            llm = build_reviewer(model, max_tokens, config).with_structured_output(Critique, **structured_output_kwargs(model)).with_retry(stop_after_attempt=retries)
             prompt = CRITIQUE_PROMPT.format(date=get_today_str(), brief=brief, notes=notes_for_prompt, report=report)
             return model, await llm.ainvoke([HumanMessage(content=prompt)])
         except Exception:
@@ -265,7 +269,7 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
 
     async def vote(model: str) -> Ballot | None:
         try:
-            llm = build_reviewer(model, max_tokens, config).with_structured_output(Ballot).with_retry(stop_after_attempt=retries)
+            llm = build_reviewer(model, max_tokens, config).with_structured_output(Ballot, **structured_output_kwargs(model)).with_retry(stop_after_attempt=retries)
             return await llm.ainvoke([HumanMessage(content=VOTE_PROMPT.format(report=report[:20000], critiques=critique_text))])
         except Exception:
             return None

@@ -277,9 +277,12 @@ def plan(found: Discovery, env: dict[str, str], panel_size: int = 3) -> Plan:
         if listed is not None and name not in listed and replacement:
             stages[var] = replacement
             warnings.append(f"{var}={current} is not available to your key; using {replacement}.")
-        elif listed is None and provider in KEY_VARS and replacement and not env.get(KEY_VARS[provider]):
-            stages[var] = replacement
-            warnings.append(f"{var}={current} needs {KEY_VARS[provider]}; using {replacement}.")
+        elif listed is None and provider in KEY_VARS and replacement and replacement != current:
+            rejected = "rejected" in found.notes.get(provider, "")
+            if rejected or not env.get(KEY_VARS[provider]):
+                stages[var] = replacement
+                why = "was rejected" if rejected else "is not set"
+                warnings.append(f"{var}={current}: {KEY_VARS[provider]} {why}; using {replacement}.")
     return Plan(panel, reviser, stages, warnings)
 
 
@@ -316,12 +319,13 @@ async def check_models(models: list[str], env: dict[str, str]) -> dict[str, str]
     from langchain_core.messages import HumanMessage
 
     from open_deep_research.cross_vendor_review import build_reviewer
+    from open_deep_research.utils import structured_output_kwargs
 
     os.environ.update({k: v for k, v in env.items() if v})
 
     async def one(m: str) -> tuple[str, str]:
         try:
-            llm = build_reviewer(m, 2000, {"configurable": {}}).with_structured_output(_Ping)  # room for reasoning tokens
+            llm = build_reviewer(m, 2000, {"configurable": {}}).with_structured_output(_Ping, **structured_output_kwargs(m))  # room for reasoning tokens
             r = await asyncio.wait_for(llm.ainvoke([HumanMessage(content="Return ok=true and word='ready'.")]), 90)
             return m, "OK" if r and r.ok else "answered, but not in the expected format"
         except Exception as exc:

@@ -77,7 +77,7 @@ def test_plan_replaces_unavailable_stage_models():
     chosen = sw.plan(found, {"ANTHROPIC_API_KEY": "x", "GOOGLE_API_KEY": "x"})
     assert chosen.stages["RESEARCH_MODEL"] == "anthropic:claude-sonnet-5-5"
     assert chosen.stages["SUMMARIZATION_MODEL"] == "anthropic:claude-haiku-5-5"
-    assert any("needs OPENAI_API_KEY" in w for w in chosen.warnings)
+    assert any("OPENAI_API_KEY is not set" in w for w in chosen.warnings)
     found = Discovery(models={"openai": ["gpt-5.6-sol", "gpt-5.6-mini"], "anthropic": ANTHROPIC_IDS})
     chosen = sw.plan(found, {"OPENAI_API_KEY": "x"})
     assert chosen.stages["FINAL_REPORT_MODEL"] == "openai:gpt-5.6-sol"  # gpt-4.1 retired for this key
@@ -110,7 +110,7 @@ def test_check_models_reports_ok_and_redacted_failures(monkeypatch):
     from open_deep_research import cross_vendor_review
 
     class Good:
-        def with_structured_output(self, schema):
+        def with_structured_output(self, schema, **kwargs):
             class R:
                 async def ainvoke(self, _m):
                     return schema(ok=True, word="ready")
@@ -173,3 +173,11 @@ def test_choose_search_falls_back_to_builtin_search():
     ups, _ = sw.choose_search({}, only_anthropic, plan2)
     assert ups == {"SEARCH_API": "anthropic"}  # research model already switched to anthropic by plan()
     assert "not set" in sw.choose_search({}, Discovery(), plan2)[1]
+
+
+def test_plan_replaces_stage_models_when_key_is_rejected():
+    found = Discovery(models={"anthropic": ANTHROPIC_IDS}, notes={"openai": "key rejected (HTTP 401)"})
+    chosen = sw.plan(found, {"OPENAI_API_KEY": "bad", "ANTHROPIC_API_KEY": "x"})
+    assert chosen.stages["FINAL_REPORT_MODEL"] == "anthropic:claude-sonnet-5-5"
+    assert chosen.stages["SUMMARIZATION_MODEL"] == "anthropic:claude-haiku-5-5"
+    assert any("OPENAI_API_KEY was rejected" in w for w in chosen.warnings)
