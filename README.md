@@ -77,11 +77,14 @@ Covers anonymization (no vendor leaks into labels), Borda tallying, citation fla
 
 ## Roadmap
 - [x] **v0.1** — cross-vendor review, LangGraph 1.2 / LangChain 1.x upgrade, self-hosted model support, web UI, CI
-- [ ] **v0.2** — grounded search on self-hosted infrastructure (SearXNG metasearch → HTTP / Firecrawl / headless-browser reading, saved evidence, SSRF protection) via MCP
-- [ ] **v0.3** — evidence-grounded critic (agree / disagree-with-evidence / disagree-concern) and a *Disputed* section; Postgres checkpointer (crash-and-resume), human approval before the final report, Langfuse tracing with cost per model, MCP server for Claude Code / Codex / Cursor
-- [ ] **v0.4** — model comparison harness: any cloud or local model in any role, scored on quality, citation support, cost, latency
-- [ ] **v0.5** — Deep Agents edition (planning, sub-agents, virtual filesystem, context management), benchmarked against the LangGraph edition
-- [ ] **v0.6** — fine-tuning a self-hosted model (MLX LoRA) on exported runs, measured before/after
+- [ ] **v0.2** — evidence-grounded critic and *Disputed* section, JSONL run export, MCP server (`ask_model`, `compare_models`)
+- [ ] **v0.3** — durable CLI runs (SQLite / Postgres checkpoints, resume), human approval before the final report, Langfuse tracing
+- [ ] **v0.4** — model comparison harness: any cloud or local model in any role, compared on citation support, critic outcomes, failures, latency and tokens
+- [ ] **v0.5** — deeper deliberation: rotating challenger, capped rebuttal rounds, position-change tracking with sycophancy flags
+- [ ] **v0.6** — Deep Agents edition (planning, sub-agents, virtual filesystem), compared against the LangGraph edition
+- [ ] **v0.7** — fine-tuning data path: run exports to MLX LoRA datasets for a self-hosted model, measured before/after
+- [ ] **v0.8** — grounded search on self-hosted infrastructure (metasearch, layered page reading, saved evidence, SSRF protection) via MCP
+- [ ] **v1.0** — one-command Docker Compose, security scanning in CI, architecture and evaluation docs
 
 ## Credits
 Built on [Open Deep Research](https://github.com/langchain-ai/open_deep_research) and [Agent Chat UI](https://github.com/langchain-ai/agent-chat-ui) (both MIT). Anonymized model peer review is inspired by Andrej Karpathy's *llm-council*. Details in [NOTICES.md](NOTICES.md); the original upstream README is in [docs/UPSTREAM-README.md](docs/UPSTREAM-README.md).
