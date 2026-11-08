@@ -11,6 +11,8 @@ Crossvet extends LangChain's [Open Deep Research](https://github.com/langchain-a
 3. a **deterministic citation check** flags any URL the report cites that never appeared in the research notes;
 4. the report is revised with the top-ranked feedback and ends with **Review notes**: per-model scores, the peer-voted best critique, dissent, flagged citations, and any reviewer that failed.
 
+**See it on a real run:** [docs/examples/jwst-mirror.md](docs/examples/jwst-mirror.md): an OpenAI + Claude panel scored the first draft 4/10; the revised report and its Review notes are reproduced unedited.
+
 ```mermaid
 flowchart LR
     Q[Question] --> C[Clarify] --> B[Research brief] --> S[Supervisor]
