@@ -83,12 +83,9 @@ class FakeModel:
     def __init__(self, name, critique=None, fail=False):
         self.name, self.critique, self.fail = name, critique, fail
 
-    def with_structured_output(self, schema, **kwargs):
-
-
     critic_report = None  # class-level default: critic agrees with everything
 
-    def with_structured_output(self, schema):
+    def with_structured_output(self, schema, **kwargs):
         if self.fail:
             return FakeStructured(RuntimeError("provider down"))
         if schema is Critique:
@@ -363,7 +360,7 @@ def test_critic_failure_keeps_findings_and_is_reported(monkeypatch, enabled_env)
     monkeypatch.setenv("REVIEW_MODELS", "openai:a,anthropic:b")
 
     class CriticDown(FakeModel):
-        def with_structured_output(self, schema):
+        def with_structured_output(self, schema, **kwargs):
             if schema is CriticReport:
                 return FakeStructured(RuntimeError("critic down"))
             return super().with_structured_output(schema)

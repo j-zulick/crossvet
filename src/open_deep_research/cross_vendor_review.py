@@ -398,7 +398,7 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
                 return lbl, []
             critic_model = critic_for(label_to_model[lbl], reviewer_models)
             try:
-                llm = build_reviewer(critic_model, max_tokens, config).with_structured_output(CriticReport).with_retry(stop_after_attempt=retries)
+                llm = build_reviewer(critic_model, max_tokens, config).with_structured_output(CriticReport, **structured_output_kwargs(critic_model)).with_retry(stop_after_attempt=retries)
                 listing = "\n".join(f"{fid}: {text}" for fid, text in findings.items())
                 result = await llm.ainvoke([HumanMessage(content=CRITIC_PROMPT.format(notes=notes_for_prompt, report=report[:20000], findings=listing))])
                 return lbl, result.verdicts
