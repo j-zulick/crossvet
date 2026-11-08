@@ -22,7 +22,7 @@ import random
 import re
 from collections import defaultdict
 from typing import Any
-from urllib.parse import parse_qsl, urlencode, urlsplit
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from langchain.chat_models import init_chat_model
 from langchain_core.language_models import BaseChatModel
@@ -38,6 +38,23 @@ from open_deep_research.utils import (
 )
 
 URL_RE = re.compile(r"https?://[^\s\)\]>\"']+")
+
+
+def strip_tracking(text: str) -> str:
+    """Remove utm_* tracking parameters (e.g. OpenAI's utm_source=openai) from every URL."""
+
+    def clean(match: re.Match) -> str:
+        url = match.group(0)
+        trail = ""
+        while url and url[-1] in ".,;:":
+            trail, url = url[-1] + trail, url[:-1]
+        parts = urlsplit(url)
+        if "utm_" not in parts.query:
+            return match.group(0)
+        query = urlencode([(k, v) for k, v in parse_qsl(parts.query, keep_blank_values=True) if not k.lower().startswith("utm_")])
+        return urlunsplit((parts.scheme, parts.netloc, parts.path, query, parts.fragment)) + trail
+
+    return URL_RE.sub(clean, text or "")
 
 
 ###################
@@ -215,6 +232,7 @@ REVISE_PROMPT = """Revise the research report below using the reviewer feedback,
 
 Rules:
 - Only keep claims supported by the research notes; remove or qualify unsupported ones.
+- Write for the reader of the final report. Do not mention the draft, the reviewers, the feedback, "the notes", "the supplied research" or what you removed or changed; simply leave out what is unsupported. Where a fact is genuinely uncertain or disputed, say so in plain language as part of the explanation.
 - Keep the original structure, citations and source list format unless a fix requires a change.
 - Do not invent new sources or URLs.
 - Do not add a review section; it is appended separately.
@@ -323,7 +341,7 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
     final = revised_text.rstrip() + "\n\n---\n\n## Review notes\n\n" + "\n".join(f"- {item}" for item in notes_items) + "\n"
 
     return {
-        "final_report": final,
+        "final_report": strip_tracking(final),
         "messages": [AIMessage(content=final)],
         "review": {
             "status": "ok",

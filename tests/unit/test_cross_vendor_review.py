@@ -263,3 +263,10 @@ def test_empty_env_values_fall_back_to_defaults(monkeypatch):
     cfg = Configuration.from_runnable_config({"configurable": {}})
     assert cfg.research_model == Configuration.model_fields["research_model"].default
     assert cfg.search_api == Configuration.model_fields["search_api"].default
+
+
+def test_strip_tracking_removes_only_utm_params():
+    text = "See [A](https://a.org/x?utm_source=openai) and https://b.org/y?id=3&utm_medium=x&z=1 and https://c.org/p?utm_source=openai#top."
+    out = rc.strip_tracking(text)
+    assert "utm_" not in out
+    assert "https://a.org/x)" in out and "https://b.org/y?id=3&z=1" in out and "https://c.org/p#top" in out

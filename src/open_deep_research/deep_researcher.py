@@ -28,7 +28,7 @@ from open_deep_research.prompts import (
     research_system_prompt,
     transform_messages_into_research_topic_prompt,
 )
-from open_deep_research.cross_vendor_review import cross_vendor_review
+from open_deep_research.cross_vendor_review import cross_vendor_review, strip_tracking
 from open_deep_research.state import (
     AgentInputState,
     AgentState,
@@ -665,7 +665,7 @@ async def final_report_generation(state: AgentState, config: RunnableConfig):
             
             # Return successful report generation
             return {
-                "final_report": final_report.content, 
+                "final_report": strip_tracking(final_report.content if isinstance(final_report.content, str) else str(final_report.content)), 
                 "messages": [final_report],
                 **cleared_state
             }
