@@ -14,6 +14,8 @@ Crossvet extends LangChain's [Open Deep Research](https://github.com/langchain-a
 
 **See it on a real run:** [docs/examples/jwst-mirror.md](docs/examples/jwst-mirror.md): an OpenAI + Claude panel scored the first draft 4/10; the revised report and its Review notes are reproduced unedited.
 
+![Review notes in the Crossvet web UI after a live run: two vendors, an independent critic and a same-vendor reviser warning](docs/images/web-ui-review-notes.png)
+
 ```mermaid
 flowchart LR
     Q[Question] --> C[Clarify] --> B[Research brief] --> S[Supervisor]
