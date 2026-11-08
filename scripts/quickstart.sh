@@ -25,7 +25,15 @@ if ((${#missing[@]})); then
 fi
 
 step "2/5 Python dependencies"
+py="$(cat .python-version 2>/dev/null || echo 3.13)"
+if [[ -n "${UV_PYTHON:-}" && "${UV_PYTHON}" != "$py" ]]; then
+  echo "Ignoring UV_PYTHON=${UV_PYTHON}; Crossvet is tested on Python $py."
+fi
+export UV_PYTHON="$py"   # newest Pythons can lack prebuilt wheels (e.g. tiktoken), forcing a Rust build
+uv python install "$py"
 uv sync --locked
+uv run python -c "import sys; v=sys.version_info; assert (v.major, v.minor) == tuple(map(int, '$py'.split('.'))), f'expected Python $py, got {sys.version}'" \
+  || { echo "The environment is not on Python $py. Run: rm -rf .venv && scripts/quickstart.sh"; exit 1; }
 
 step "3/5 Keys and models (hidden input; Enter skips a key)"
 uv run crossvet-setup --check
