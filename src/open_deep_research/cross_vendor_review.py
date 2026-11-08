@@ -425,7 +425,7 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
         from open_deep_research.deliberation import deliberate
 
         async def ask(model: str, schema: type, prompt: str) -> Any:
-            llm = build_reviewer(model, max_tokens, config).with_structured_output(schema).with_retry(stop_after_attempt=retries)
+            llm = build_reviewer(model, max_tokens, config).with_structured_output(schema, **structured_output_kwargs(model)).with_retry(stop_after_attempt=retries)
             return await llm.ainvoke([HumanMessage(content=prompt)])
 
         deliberation = await deliberate(by_label, label_to_model, notes_for_prompt, report, configurable.review_deliberation_rounds, ask)
