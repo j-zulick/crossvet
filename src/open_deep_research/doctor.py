@@ -99,6 +99,14 @@ def check(config: Configuration | None = None) -> list[Finding]:
             out.append(Finding("OK", f"search: {search} built-in web search (cited sources are checked; Tavily or a gateway also captures page text)"))
     else:
         out.append(Finding("WARN", f"search: '{search}': research will run without web search"))
+    if cfg.search_also:
+        also = cfg.search_also.strip().lower()
+        if also not in ("openai", "anthropic"):
+            out.append(Finding("FAIL", f"search: SEARCH_ALSO must be openai or anthropic (got {cfg.search_also})"))
+        elif not cfg.research_model.startswith(f"{also}:"):
+            out.append(Finding("WARN", f"search: SEARCH_ALSO={also} is ignored because the research model is {cfg.research_model}"))
+        else:
+            out.append(Finding("OK", f"search: {also} built-in web search is added next to {search}"))
 
     if review_on:
         vendors = {vendor_of(m) for m in reviewers}

@@ -90,6 +90,21 @@ class Configuration(BaseModel):
             }
         }
     )
+    search_also: str = Field(
+        default="",
+        json_schema_extra={
+            "x_oap_ui_config": {
+                "type": "select",
+                "default": "",
+                "description": "Also give researchers a model's built-in web search next to the main search (e.g. your gateway plus OpenAI search). The researcher model must be from the same vendor.",
+                "options": [
+                    {"label": "None", "value": ""},
+                    {"label": "OpenAI built-in web search", "value": "openai"},
+                    {"label": "Anthropic built-in web search", "value": "anthropic"}
+                ]
+            }
+        }
+    )
     max_researcher_iterations: int = Field(
         default=6,
         json_schema_extra={

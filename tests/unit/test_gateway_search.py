@@ -105,3 +105,32 @@ def test_contract_matches_gateway_search_and_read_shape():
 
 def test_tool_args_use_num_read_when_advertised():
     assert _tool_args(FakeTool({"query": {}, "num_read": {}, "render": {}}, {}), "q", 4) == {"query": "q", "num_read": 4}
+
+
+def test_search_also_adds_builtin_search_next_to_gateway(monkeypatch):
+    from open_deep_research import utils
+
+    monkeypatch.setenv("SEARCH_API", "gateway")
+    monkeypatch.setenv("SEARCH_ALSO", "openai")
+    monkeypatch.setenv("RESEARCH_MODEL", "openai:gpt-5.5")
+    monkeypatch.setenv("MCP_CONFIG", "")
+    tools = asyncio.run(utils.get_all_tools({"configurable": {}}))
+    names = [getattr(t, "name", None) or t.get("type") for t in tools]
+    assert "gateway_search" in names and "web_search" in names
+
+    monkeypatch.setenv("RESEARCH_MODEL", "anthropic:claude-sonnet-5-5")  # vendor mismatch: ignored
+    names = [getattr(t, "name", None) or t.get("type") for t in asyncio.run(utils.get_all_tools({"configurable": {}}))]
+    assert "web_search" not in names
+
+
+def test_doctor_reports_search_also(monkeypatch):
+    from open_deep_research import doctor
+    from open_deep_research.configuration import Configuration
+
+    monkeypatch.setenv("RESEARCH_GATEWAY_URL", "https://example.org/research/mcp")
+    monkeypatch.setenv("RESEARCH_GATEWAY_TOKEN", "t")
+    cfg = Configuration(search_api="gateway", search_also="openai", research_model="openai:gpt-5.5")
+    msgs = [f.message for f in doctor.check(cfg)]
+    assert any("openai built-in web search is added next to gateway" in m for m in msgs)
+    cfg = Configuration(search_api="gateway", search_also="openai", research_model="anthropic:claude-sonnet-5-5")
+    assert any("is ignored" in f.message for f in doctor.check(cfg))

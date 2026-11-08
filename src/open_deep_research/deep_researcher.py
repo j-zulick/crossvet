@@ -411,7 +411,8 @@ async def researcher(state: ResearcherState, config: RunnableConfig) -> Command[
     # With OpenAI's built-in search, also return every source the search consulted, so the
     # research notes (and the review's citation check) see them, not only the cited ones.
     bind_kwargs = {}
-    if get_config_value(configurable.search_api) == "openai" and configurable.research_model.startswith("openai:"):
+    builtin = {get_config_value(configurable.search_api), (configurable.search_also or "").strip().lower()}
+    if "openai" in builtin and configurable.research_model.startswith("openai:"):
         bind_kwargs["include"] = ["web_search_call.action.sources"]
     research_model = (
         configurable_model

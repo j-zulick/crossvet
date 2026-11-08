@@ -6,6 +6,7 @@ All notable changes to Crossvet. Versions follow [Semantic Versioning](https://s
 
 ### Added
 - **Grounded search on self-hosted infrastructure**: `SEARCH_API=gateway` uses a research gateway over MCP (Streamable HTTP, bearer auth) — SearXNG discovery, layered page reading, per-source engine and read status, tolerant payload parsing, per-query failure isolation. Contract tests mirror the gateway's `search_and_read` reply (per-source rank, engine, snippet and read result with extractor, outcome and truncation); `num_read` is sent when the gateway advertises it.
+- **Combined search**: `SEARCH_ALSO=openai|anthropic` adds a model's built-in web search next to the gateway or Tavily, so researchers can use both; the setup checker reports when it is ignored because the research model is from another vendor.
 
 ## [0.7.0]
 

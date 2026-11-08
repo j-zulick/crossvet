@@ -593,6 +593,11 @@ async def get_all_tools(config: RunnableConfig):
     search_api = SearchAPI(get_config_value(configurable.search_api))
     search_tools = await get_search_tool(search_api)
     tools.extend(search_tools)
+
+    # Combined search: add a model's built-in web search next to the main search.
+    also = (get_config_value(configurable.search_also) or "").strip().lower()
+    if also in ("openai", "anthropic") and also != search_api.value and configurable.research_model.startswith(f"{also}:"):
+        tools.extend(await get_search_tool(SearchAPI(also)))
     
     # Track existing tool names to prevent conflicts
     existing_tool_names = {
