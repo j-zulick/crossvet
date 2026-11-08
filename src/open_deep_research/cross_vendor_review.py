@@ -481,7 +481,7 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
 
     if configurable.run_export_path:
         try:
-            export_run(configurable.run_export_path, {
+            await asyncio.to_thread(export_run, configurable.run_export_path, {
                 "exported_at": datetime.now(timezone.utc).isoformat(),
                 "research_brief": brief,
                 "draft_report": report,
