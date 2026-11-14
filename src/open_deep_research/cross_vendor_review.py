@@ -371,17 +371,45 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
     max_tokens = configurable.review_model_max_tokens
     retries = configurable.max_structured_output_retries
 
+    # 0. Optional blind pass: each reviewer outlines the answer from the notes before seeing the draft.
+    blind = None
+    outlines: dict[str, Any] = {}
+    if configurable.review_blind_pass_enabled:
+        from open_deep_research.blind_pass import (
+            BLIND_PROMPT,
+            BlindOutline,
+            outline_all,
+        )
+
+        max_points = configurable.review_blind_max_points
+
+        async def ask_outline(model: str) -> Any:
+            llm = build_reviewer(model, configurable.review_blind_max_tokens, config).with_structured_output(BlindOutline, **structured_output_kwargs(model)).with_retry(stop_after_attempt=retries)
+            return await llm.ainvoke([HumanMessage(content=BLIND_PROMPT.format(brief=brief, notes=notes_for_prompt, max_points=max_points))])
+
+        outlines, blind_failed = await outline_all(models, ask_outline, max_points)
+
     # 1. Independent critiques in parallel; a failing reviewer is dropped (quorum >= 2).
     async def critique(model: str) -> tuple[str, Critique | None]:
         try:
             llm = build_reviewer(model, max_tokens, config).with_structured_output(Critique, **structured_output_kwargs(model)).with_retry(stop_after_attempt=retries)
             prompt = CRITIQUE_PROMPT.format(date=get_today_str(), brief=brief, notes=notes_for_prompt, report=report)
+            if model in outlines:
+                from open_deep_research.blind_pass import reminder
+
+                prompt += reminder(outlines[model])
             return model, await llm.ainvoke([HumanMessage(content=prompt)])
         except Exception:
             return model, None
 
     results = await asyncio.gather(*(critique(m) for m in models))
     critiques = {m: c for m, c in results if c is not None}
+    if configurable.review_blind_pass_enabled:
+        from open_deep_research.blind_pass import add_omissions, assess
+
+        blind = assess({m: p for m, p in outlines.items() if m in critiques}, notes, report)
+        blind.failed = blind_failed
+        critiques = add_omissions(critiques, blind)
     failed = [m for m, c in results if c is None]
     if len(critiques) < 2:
         return {"review": {"status": "skipped_no_quorum", "reviewers": models, "failed": failed}}
@@ -486,6 +514,10 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
         notes_items.append("Citations not found in research notes (flagged for removal): " + ", ".join(flagged_urls))
     if configurable.review_critic_enabled:
         notes_items.append(f"Independent critic: {critic_status}; {len(dropped)} finding(s) dropped as contradicted by the notes, {len(disputed)} disputed.")
+    if blind is not None:
+        from open_deep_research.blind_pass import notes_line as blind_line
+
+        notes_items.append(blind_line(blind))
     if deliberation is not None:
         from open_deep_research.deliberation import notes_line
 
@@ -523,6 +555,7 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
                 "flagged_urls": flagged_urls,
                 "failed_reviewers": failed,
                 "deliberation": {**deliberation.summary(), "log": deliberation.log} if deliberation else None,
+                "blind_pass": {**blind.summary(), "outlines": {m: [p.model_dump() for p in pts] for m, pts in blind.outlines.items()}} if blind else None,
             })
         except OSError:
             pass  # export is best-effort and must never break a run
@@ -543,5 +576,6 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
             "scores": scores,
             "critic": {"status": critic_status, "dropped": len(dropped), "disputed": disputed},
             "deliberation": deliberation.summary() if deliberation else None,
+            "blind_pass": blind.summary() if blind else None,
         },
     }

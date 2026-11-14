@@ -338,6 +338,9 @@ def compare_plan(found: Discovery, chosen: Plan, max_local: int = 4) -> list[dic
                            "config": {"cross_vendor_review_enabled": True, "review_deliberation_rounds": 3, "review_deliberation_early_stop": False}})
             setups.append({"name": "deliberation-3-early-stop", "comment": "three rounds with early stopping: compare tokens and outcomes with the fixed baseline",
                            "config": {"cross_vendor_review_enabled": True, "review_deliberation_rounds": 3, "review_deliberation_early_stop": True}})
+    if "review_blind_pass_enabled" in fields:
+        setups.append({"name": "blind-pass", "comment": "reviewers outline the answer before reading the draft: compare with 'review'",
+                       "config": {"cross_vendor_review_enabled": True, "review_blind_pass_enabled": True}})
     try:
         import open_deep_research.deep_agent  # noqa: F401
 

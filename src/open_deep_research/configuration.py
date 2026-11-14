@@ -285,6 +285,36 @@ class Configuration(BaseModel):
             }
         }
     )
+    review_blind_pass_enabled: bool = Field(
+        default=False,
+        json_schema_extra={
+            "x_oap_ui_config": {
+                "type": "boolean",
+                "default": False,
+                "description": "Before reading the draft, each reviewer outlines the answer from the research notes alone. Grounded points the draft omits are added to the feedback (one short extra call per reviewer)."
+            }
+        }
+    )
+    review_blind_max_points: int = Field(
+        default=6,
+        json_schema_extra={
+            "x_oap_ui_config": {
+                "type": "number",
+                "default": 6,
+                "description": "Points per blind outline."
+            }
+        }
+    )
+    review_blind_max_tokens: int = Field(
+        default=1500,
+        json_schema_extra={
+            "x_oap_ui_config": {
+                "type": "number",
+                "default": 1500,
+                "description": "Maximum output tokens for a blind outline (keeps the extra call cheap; reasoning models count their thinking against it)."
+            }
+        }
+    )
     review_deliberation_rounds: int = Field(
         default=0,
         json_schema_extra={

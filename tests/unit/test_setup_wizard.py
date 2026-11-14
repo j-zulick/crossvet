@@ -196,6 +196,7 @@ def test_compare_plan_uses_available_models(tmp_path):
     assert names[:2] == ["review", "no-review"]
     fixed = next(s for s in data["setup"] if s["name"] == "deliberation-3-fixed")
     early = next(s for s in data["setup"] if s["name"] == "deliberation-3-early-stop")
+    assert "blind-pass" in names
     assert fixed["config"]["review_deliberation_early_stop"] is False and early["config"]["review_deliberation_early_stop"] is True
     assert "writer-qwen3-32b" in names and "reviewer-qwen3-32b" in names and "writer-we-ird-1b" in names
     reviewer = next(s for s in data["setup"] if s["name"] == "reviewer-qwen3-32b")

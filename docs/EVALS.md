@@ -8,7 +8,8 @@ This page records how Crossvet is evaluated and what the results were. **No resu
 2. Does deliberation (`REVIEW_DELIBERATION_ROUNDS=2`) improve on a single review round, and how often do reviewers change position without evidence?
 3. How does the Deep Agents edition compare with the LangGraph edition on the same models?
 4. Does early stopping (v1.1) cut deliberation calls and tokens without changing what review finds? (`deliberation-3-fixed` vs `deliberation-3-early-stop`: compare `deliberation_calls`, tokens, `flagged_url_rate`, critic outcomes and grounded position changes.)
-5. Does a LoRA-tuned local reviewer (from `crossvet-dataset`) review better than its base model?
+5. Does the blind pass (v1.2) surface omissions that human graders confirm, and what does it cost? (`review` vs `blind-pass`: `blind_omissions`, tokens, grader agreement on a sample of omissions.)
+6. Does a LoRA-tuned local reviewer (from `crossvet-dataset`) review better than its base model?
 
 ## Protocol
 
@@ -27,6 +28,7 @@ This page records how Crossvet is evaluated and what the results were. **No resu
 | Deliberation vs single round | not run |
 | Deep Agents vs LangGraph edition | not run |
 | Early stopping vs fixed rounds | not run |
+| Blind pass vs review | not run |
 | Fine-tuned vs base local reviewer | not run |
 
 ## Limitations

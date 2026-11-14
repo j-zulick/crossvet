@@ -2,6 +2,12 @@
 
 All notable changes to Crossvet. Versions follow [Semantic Versioning](https://semver.org/); dates are release dates.
 
+## [1.2.0]
+
+### Added
+- **Blind first pass** (`REVIEW_BLIND_PASS_ENABLED`, off by default): before reading the draft, each reviewer outlines the answer from the research notes, with a supporting passage per point (`REVIEW_BLIND_MAX_POINTS`, `REVIEW_BLIND_MAX_TOKENS`). Code drops points whose passage is not in the notes, checks which grounded points the draft covers, and adds the omissions to that reviewer's critique. Each reviewer sees its own outline while critiquing.
+- Review notes, review state and run export (`blind_pass`, with every outline); `crossvet-compare` column and Langfuse score `blind_omissions`; a `blind-pass` setup in `crossvet-setup --compare-plan`.
+
 ## [1.1.0]
 
 ### Added

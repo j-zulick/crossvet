@@ -198,3 +198,8 @@ def test_push_scores_sends_stop_reason_as_category():
     by_name = {s["name"]: s for s in client.scores}
     assert by_name["stop_reason"]["value"] == "stable" and by_name["stop_reason"]["data_type"] == "CATEGORICAL"
     assert by_name["rounds_saved"]["value"] == 1.0
+
+
+def test_score_reads_blind_pass_omissions():
+    r = compare.score(RunResult("b", "q", 1), {"final_report": "x", "review": {"status": "ok", "blind_pass": {"omitted": 2}}})
+    assert r.blind_omissions == 2
