@@ -15,8 +15,25 @@ most 3). In each round:
    a model). An ungrounded change is ignored, the original finding is kept, and the
    change is flagged as possible sycophancy.
 
-Rounds stop early when no challenger contests anything. Everything that happened is
-returned as a log for the Review notes, the run export and the comparison harness.
+Engagement (v1.1). The challenger labels **every** finding AGREE, DISAGREE or BUILD_ON,
+referring to it by its anonymous id. DISAGREE is a challenge. BUILD_ON adds to a finding
+and is applied only when its quote appears in the notes; otherwise it is ignored and
+counted. AGREE may cite the passage that supports the finding.
+
+Stopping (v1.1). With early stopping on, code decides after each round, with no model
+call:
+
+- **no findings**: nothing is left to review;
+- **consensus**: no finding moved this round and the share of findings the challengers
+  endorsed reaches ``consensus_threshold``. A **false-consensus guard** runs one more
+  round (with the next challenger) when too few endorsements cite a passage that is in
+  the notes, or when the challengers were silent;
+- **stable**: two rounds in a row in which no finding moved, even though some were still
+  contested; further rounds are unlikely to change anything.
+
+With early stopping off, rounds stop only when no challenger contests anything (the v0.5
+rule) or at the cap. Everything that happened is returned as a log for the Review notes,
+the run export and the comparison harness.
 """
 
 from __future__ import annotations
@@ -45,10 +62,30 @@ class Challenge(BaseModel):
     evidence_quote: str = Field(default="", description="An EXACT quote from the research notes that settles the objection, if one exists.")
 
 
-class ChallengeSet(BaseModel):
-    """All challenges against one critique (may be empty)."""
+class Assessment(BaseModel):
+    """A challenger's explicit position on one finding."""
 
-    challenges: list[Challenge] = Field(default_factory=list)
+    finding_id: str = Field(description="Id of the finding, e.g. 'C2-U1'.")
+    verdict: Literal["AGREE", "DISAGREE", "BUILD_ON"] = Field(
+        description="AGREE: the notes support the finding. DISAGREE: it is wrong, overstated or unsupported. BUILD_ON: it is right but incomplete; give the addition in note."
+    )
+    note: str = Field(default="", description="DISAGREE: the objection. BUILD_ON: what to add to the finding. AGREE: optional.")
+    evidence_quote: str = Field(default="", description="An EXACT quote from the research notes that supports this verdict, if one exists.")
+
+
+class ChallengeSet(BaseModel):
+    """A challenger's assessment of one critique: a verdict per finding (may be empty)."""
+
+    assessments: list[Assessment] = Field(default_factory=list)
+    challenges: list[Challenge] = Field(default_factory=list, description="Optional; DISAGREE assessments are challenges too.")
+
+    def all_challenges(self) -> list[Challenge]:
+        """Explicit challenges plus DISAGREE assessments, one per finding id."""
+        out: dict[str, Challenge] = {c.finding_id: c for c in self.challenges}
+        for a in self.assessments:
+            if a.verdict == "DISAGREE" and a.finding_id not in out:
+                out[a.finding_id] = Challenge(finding_id=a.finding_id, objection=a.note or "disagrees", evidence_quote=a.evidence_quote)
+        return list(out.values())
 
 
 class ChallengeResponse(BaseModel):
@@ -69,7 +106,7 @@ class ResponseSet(BaseModel):
     responses: list[ChallengeResponse] = Field(default_factory=list)
 
 
-CHALLENGE_PROMPT = """You are the challenger in round {round} of a review of a research report. Another reviewer wrote critique {label}. Contest only findings you believe are wrong, overstated or not supported by the research notes.
+CHALLENGE_PROMPT = """You are the challenger in round {round} of a review of a research report. Another reviewer wrote critique {label}. Take an explicit position on every finding below, referring to it by its id.
 
 Research notes:
 {notes}
@@ -80,7 +117,11 @@ Draft report:
 Findings in critique {label} (id: finding):
 {findings}
 
-For each finding you contest, give the finding id, your objection and, when a passage in the notes settles it, an EXACT quote from the notes. Contesting nothing is a valid answer when the findings hold up. Do not contest a finding just to disagree, and do not invent quotes."""
+For each finding give one assessment:
+- AGREE: the research notes support the finding. Put the passage that supports it in evidence_quote when there is one.
+- DISAGREE: the finding is wrong, overstated or not supported by the notes. Explain why in note and, when a passage settles it, put an EXACT quote from the notes in evidence_quote.
+- BUILD_ON: the finding is right but incomplete. Put the addition in note and the EXACT passage from the notes that supports it in evidence_quote; an addition without a passage from the notes is ignored.
+Do not disagree just to disagree, do not agree because a finding sounds plausible, and do not invent quotes."""
 
 RESPONSE_PROMPT = """Earlier you reviewed a research report. Another reviewer has challenged some of your findings. Answer each challenge.
 
@@ -105,6 +146,11 @@ class DeliberationResult:
     rounds_requested: int = 0
     rounds_run: int = 0
     log: list[dict[str, Any]] = field(default_factory=list)
+    engagement: list[dict[str, Any]] = field(default_factory=list)
+    rounds: list[dict[str, Any]] = field(default_factory=list)
+    stop_reason: str = ""
+    guard_rounds: int = 0
+    model_calls: int = 0
 
     def counts(self) -> dict[str, int]:
         """Totals by outcome."""
@@ -113,9 +159,101 @@ class DeliberationResult:
             out[entry["outcome"]] += 1
         return out
 
+    def engagement_counts(self) -> dict[str, int]:
+        """Totals of the challengers' explicit verdicts."""
+        out = {"agree": 0, "agree_grounded": 0, "disagree": 0, "build_on_applied": 0, "build_on_ignored": 0}
+        for e in self.engagement:
+            if e["verdict"] == "AGREE":
+                out["agree"] += 1
+                out["agree_grounded"] += int(bool(e.get("grounded")))
+            elif e["verdict"] == "DISAGREE":
+                out["disagree"] += 1
+            elif e.get("applied"):
+                out["build_on_applied"] += 1
+            else:
+                out["build_on_ignored"] += 1
+        return out
+
+    @property
+    def rounds_saved(self) -> int:
+        """Rounds requested but not needed."""
+        return max(0, self.rounds_requested - self.rounds_run)
+
+    @property
+    def agreement_rate(self) -> float | None:
+        """Share of findings endorsed in the last round that assessed any."""
+        for r in reversed(self.rounds):
+            if r["findings"]:
+                return r["agreement_rate"]
+        return None
+
     def summary(self) -> dict[str, Any]:
         """Compact form for the review state."""
-        return {"rounds_requested": self.rounds_requested, "rounds_run": self.rounds_run, **self.counts()}
+        return {
+            "rounds_requested": self.rounds_requested,
+            "rounds_run": self.rounds_run,
+            "rounds_saved": self.rounds_saved,
+            "stop_reason": self.stop_reason,
+            "guard_rounds": self.guard_rounds,
+            "agreement_rate": self.agreement_rate,
+            "model_calls": self.model_calls,
+            **self.counts(),
+            **self.engagement_counts(),
+        }
+
+
+@dataclass(frozen=True)
+class StopPolicy:
+    """When deliberation may stop before the round cap (decided in code, no model call).
+
+    ``early_stop=False`` keeps the v0.5 rule: stop only when no challenger contests anything.
+    """
+
+    early_stop: bool = False
+    consensus_threshold: float = 1.0
+    min_rounds: int = 1
+    min_grounded_share: float = 0.5
+
+
+def round_stats(round_no: int, findings: int, assessments: list[dict[str, Any]], log: list[dict[str, Any]]) -> dict[str, Any]:
+    """Per-round numbers the stop decision uses."""
+    agree = [a for a in assessments if a["verdict"] == "AGREE"]
+    moved = sum(1 for e in log if e["outcome"] == "changed_with_evidence") + sum(1 for a in assessments if a.get("applied"))
+    return {
+        "round": round_no,
+        "findings": findings,
+        "assessed": len(assessments),
+        "agree": len(agree),
+        "agree_grounded": sum(1 for a in agree if a.get("grounded")),
+        "challenges": len(log),
+        "moved": moved,
+        "agreement_rate": round(len(agree) / findings, 3) if findings else 1.0,
+    }
+
+
+def decide_stop(stats: list[dict[str, Any]], rounds: int, policy: StopPolicy, guard_used: bool) -> tuple[str | None, bool]:
+    """Return (stop reason or None to continue, whether the guard forced this continuation)."""
+    cur = stats[-1]
+    round_no = cur["round"]
+    if cur["findings"] == 0:
+        return "no_findings", False
+    if not policy.early_stop:
+        if cur["challenges"] == 0:
+            return "no_challenges", False
+        return ("max_rounds", False) if round_no >= rounds else (None, False)
+    if round_no >= rounds:
+        return "max_rounds", False
+    if round_no < policy.min_rounds or cur["moved"]:
+        return None, False
+    if cur["agreement_rate"] >= policy.consensus_threshold or (cur["challenges"] == 0 and cur["assessed"] == 0):
+        silent = cur["assessed"] == 0
+        grounded_share = cur["agree_grounded"] / cur["agree"] if cur["agree"] else 0.0
+        if not guard_used and (silent or grounded_share < policy.min_grounded_share):
+            return None, True
+        return "consensus", False
+    if len(stats) >= 2 and stats[-2]["moved"] == 0:
+        return "stable", False
+    return None, False
 
 
 def challenger_for(author: str, models: list[str], round_no: int) -> str:
@@ -180,6 +318,38 @@ def apply_responses(
     return critique.model_copy(update=updated), log
 
 
+def apply_engagement(
+    critique: Critique, label: str, assessments: list[Assessment], notes: str, changed: set[str]
+) -> tuple[Critique, list[dict[str, Any]]]:
+    """Record AGREE / DISAGREE / BUILD_ON verdicts; apply BUILD_ON only with a quote found in the notes.
+
+    ``changed`` holds finding ids already revised or withdrawn this round; additions to
+    those are not applied. Returns (updated critique, one log entry per assessed finding).
+    """
+    findings = enumerate_findings(critique, label)
+    additions: dict[str, str] = {}
+    log: list[dict[str, Any]] = []
+    for a in {a.finding_id: a for a in assessments if a.finding_id in findings}.values():
+        grounded = quote_in_notes(a.evidence_quote, notes)
+        entry: dict[str, Any] = {"finding_id": a.finding_id, "verdict": a.verdict, "grounded": grounded}
+        if a.verdict == "BUILD_ON":
+            ok = grounded and bool(a.note.strip()) and a.finding_id not in changed
+            entry["applied"] = ok
+            if ok:
+                additions[a.finding_id] = a.note.strip()
+                entry["addition"] = a.note.strip()
+        log.append(entry)
+    if not additions:
+        return critique, log
+    updated: dict[str, list[str]] = {}
+    for code, attr in FINDING_FIELDS.items():
+        updated[attr] = [
+            f"{text} Also: {additions[f'{label}-{code}{i}']}" if f"{label}-{code}{i}" in additions else text
+            for i, text in enumerate(getattr(critique, attr), start=1)
+        ]
+    return critique.model_copy(update=updated), log
+
+
 Ask = Callable[[str, type[BaseModel], str], Awaitable[BaseModel]]
 """ask(model, schema, prompt) -> structured answer; raises on failure."""
 
@@ -191,47 +361,66 @@ async def deliberate(
     report: str,
     rounds: int,
     ask: Ask,
+    policy: StopPolicy | None = None,
 ) -> DeliberationResult:
     """Run up to ``rounds`` (capped at MAX_ROUNDS) challenge/response rounds."""
+    policy = policy or StopPolicy()
     rounds = max(0, min(int(rounds or 0), MAX_ROUNDS))
     result = DeliberationResult(critiques=dict(by_label), rounds_requested=rounds)
     models = list(dict.fromkeys(label_to_model.values()))
     if rounds == 0 or len(models) < 2:
+        result.stop_reason = "off" if rounds == 0 else "single_model"
         return result
 
-    async def one(round_no: int, lbl: str, crit: Critique) -> tuple[str, Critique, list[dict[str, Any]]]:
+    async def counted(model: str, schema: type[BaseModel], prompt: str) -> BaseModel:
+        result.model_calls += 1
+        return await ask(model, schema, prompt)
+
+    async def one(round_no: int, lbl: str, crit: Critique) -> tuple[str, Critique, list[dict[str, Any]], list[dict[str, Any]], int]:
         findings = enumerate_findings(crit, lbl)
         if not findings:
-            return lbl, crit, []
+            return lbl, crit, [], [], 0
         author = label_to_model[lbl]
         challenger = challenger_for(author, models, round_no)
         listing = "\n".join(f"{fid}: {text}" for fid, text in findings.items())
         try:
-            cs = await ask(challenger, ChallengeSet, CHALLENGE_PROMPT.format(round=round_no, label=lbl, notes=notes, report=report[:20000], findings=listing))
-            challenges = [c for c in cs.challenges if c.finding_id in findings]
+            cs = await counted(challenger, ChallengeSet, CHALLENGE_PROMPT.format(round=round_no, label=lbl, notes=notes, report=report[:20000], findings=listing))
+            assessments = [a for a in cs.assessments if a.finding_id in findings]
+            challenges = [c for c in cs.all_challenges() if c.finding_id in findings]
         except Exception:
-            return lbl, crit, []
-        if not challenges:
-            return lbl, crit, []
-        text = "\n".join(f"{c.finding_id}: {findings[c.finding_id]} / {c.objection} / {c.evidence_quote or '(no quote)'}" for c in challenges)
-        try:
-            rs = await ask(author, ResponseSet, RESPONSE_PROMPT.format(notes=notes, challenges=text))
-            responses = rs.responses
-        except Exception:
-            responses = []
-        updated, log = apply_responses(crit, lbl, challenges, responses, notes)
-        for entry in log:
+            return lbl, crit, [], [], len(findings)
+        updated, log = crit, []
+        if challenges:
+            text = "\n".join(f"{c.finding_id}: {findings[c.finding_id]} / {c.objection} / {c.evidence_quote or '(no quote)'}" for c in challenges)
+            try:
+                rs = await counted(author, ResponseSet, RESPONSE_PROMPT.format(notes=notes, challenges=text))
+                responses = rs.responses
+            except Exception:
+                responses = []
+            updated, log = apply_responses(crit, lbl, challenges, responses, notes)
+        changed = {e["finding_id"] for e in log if e["outcome"] == "changed_with_evidence"}
+        updated, engagement = apply_engagement(updated, lbl, assessments, notes, changed)
+        for entry in log + engagement:
             entry.update({"round": round_no, "challenger": challenger, "author": author})
-        return lbl, updated, log
+        return lbl, updated, log, engagement, len(findings)
 
+    guard_used = False
     for round_no in range(1, rounds + 1):
         outcomes = await asyncio.gather(*(one(round_no, lbl, c) for lbl, c in result.critiques.items()))
-        round_log = [e for _, _, log in outcomes for e in log]
-        for lbl, crit, _ in outcomes:
+        round_log = [e for _, _, log, _, _ in outcomes for e in log]
+        round_eng = [e for _, _, _, eng, _ in outcomes for e in eng]
+        for lbl, crit, _, _, _ in outcomes:
             result.critiques[lbl] = crit
         result.rounds_run = round_no
         result.log.extend(round_log)
-        if not round_log:
+        result.engagement.extend(round_eng)
+        result.rounds.append(round_stats(round_no, sum(n for *_, n in outcomes), round_eng, round_log))
+        reason, guard = decide_stop(result.rounds, rounds, policy, guard_used)
+        if guard:
+            guard_used = True
+            result.guard_rounds += 1
+        if reason:
+            result.stop_reason = reason
             break
     return result
 
@@ -247,4 +436,23 @@ def notes_line(result: DeliberationResult) -> str:
         line += f", {c['unsupported_changes']} position change(s) without supporting evidence ignored (possible sycophancy)"
     if c["no_response"]:
         line += f", {c['no_response']} unanswered"
+    e = result.engagement_counts()
+    if result.engagement:
+        line += (f". Challenger verdicts: {e['agree']} agree ({e['agree_grounded']} citing the notes), {e['disagree']} disagree, "
+                 f"{e['build_on_applied']} build-on applied")
+        if e["build_on_ignored"]:
+            line += f", {e['build_on_ignored']} build-on ignored (no passage from the notes)"
+    reason = STOP_REASONS.get(result.stop_reason, "").format(rate=result.agreement_rate or 0)
+    if reason and result.rounds_saved:
+        line += f". Stopped after round {result.rounds_run} of {result.rounds_requested}: {reason}"
+    if result.guard_rounds:
+        line += "; one extra round was run because the agreement was not backed by the notes"
     return line + "."
+
+
+STOP_REASONS = {
+    "no_findings": "no findings left to review",
+    "no_challenges": "no challenger contested anything",
+    "consensus": "challengers endorsed {rate:.0%} of the findings and none moved",
+    "stable": "no finding moved in two consecutive rounds",
+}

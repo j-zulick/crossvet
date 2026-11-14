@@ -123,7 +123,7 @@ def scripted(monkeypatch):
     monkeypatch.setattr(utils, "tavily_search_async", fake_search)
     monkeypatch.setattr(utils, "init_chat_model", lambda **kwargs: model)
     monkeypatch.setattr(cross_vendor_review, "build_reviewer", lambda *args, **kwargs: model)
-    for key in ("REQUIRE_APPROVAL", "RUN_EXPORT_PATH", "REVIEW_DELIBERATION_ROUNDS"):
+    for key in ("REQUIRE_APPROVAL", "RUN_EXPORT_PATH", "REVIEW_DELIBERATION_ROUNDS", "REVIEW_DELIBERATION_EARLY_STOP"):
         monkeypatch.delenv(key, raising=False)
     monkeypatch.setenv("SEARCH_API", "tavily")
     monkeypatch.setenv("MAX_RESEARCHER_ITERATIONS", "2")
@@ -185,3 +185,18 @@ def test_full_pipeline_with_deliberation(scripted, monkeypatch):
     assert d["changed_with_evidence"] >= 1 and d["unsupported_changes"] == 0
     assert "Deliberation:" in out["final_report"]
     assert "structured:ChallengeSet" in scripted.calls and "structured:ResponseSet" in scripted.calls
+
+
+def test_stop_policy_is_read_from_configuration(scripted, monkeypatch):
+    monkeypatch.setenv("CROSS_VENDOR_REVIEW_ENABLED", "true")
+    monkeypatch.setenv("REVIEW_MODELS", "openai:a,anthropic:b")
+    monkeypatch.setenv("REVIEW_REVISER_MODEL", "google_genai:c")
+    monkeypatch.setenv("REVIEW_DELIBERATION_ROUNDS", "3")
+    # The scripted challenger withdraws C1-U1 in round 1 and is silent afterwards.
+    monkeypatch.setenv("REVIEW_DELIBERATION_EARLY_STOP", "false")
+    legacy = _run(deep_researcher.deep_researcher, "How much solar capacity was added in 2025?")["review"]["deliberation"]
+    assert (legacy["rounds_run"], legacy["stop_reason"]) == (2, "no_challenges")
+    # With early stopping, silence is not taken as consensus: the guard runs one more round.
+    monkeypatch.setenv("REVIEW_DELIBERATION_EARLY_STOP", "true")
+    early = _run(deep_researcher.deep_researcher, "How much solar capacity was added in 2025?")["review"]["deliberation"]
+    assert early["guard_rounds"] == 1 and early["rounds_run"] == 3 and early["stop_reason"] == "max_rounds"

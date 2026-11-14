@@ -333,6 +333,11 @@ def compare_plan(found: Discovery, chosen: Plan, max_local: int = 4) -> list[dic
     if "review_deliberation_rounds" in fields:
         setups.append({"name": "deliberation-2", "comment": "two deliberation rounds before the vote",
                        "config": {"cross_vendor_review_enabled": True, "review_deliberation_rounds": 2}})
+        if "review_deliberation_early_stop" in fields:
+            setups.append({"name": "deliberation-3-fixed", "comment": "three rounds, no early stop: the baseline for early stopping",
+                           "config": {"cross_vendor_review_enabled": True, "review_deliberation_rounds": 3, "review_deliberation_early_stop": False}})
+            setups.append({"name": "deliberation-3-early-stop", "comment": "three rounds with early stopping: compare tokens and outcomes with the fixed baseline",
+                           "config": {"cross_vendor_review_enabled": True, "review_deliberation_rounds": 3, "review_deliberation_early_stop": True}})
     try:
         import open_deep_research.deep_agent  # noqa: F401
 

@@ -422,13 +422,19 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
     # 2b. Optional deliberation: rotating challengers, author responses, grounded changes only.
     deliberation = None
     if configurable.review_deliberation_rounds > 0:
-        from open_deep_research.deliberation import deliberate
+        from open_deep_research.deliberation import StopPolicy, deliberate
 
         async def ask(model: str, schema: type, prompt: str) -> Any:
             llm = build_reviewer(model, max_tokens, config).with_structured_output(schema, **structured_output_kwargs(model)).with_retry(stop_after_attempt=retries)
             return await llm.ainvoke([HumanMessage(content=prompt)])
 
-        deliberation = await deliberate(by_label, label_to_model, notes_for_prompt, report, configurable.review_deliberation_rounds, ask)
+        policy = StopPolicy(
+            early_stop=configurable.review_deliberation_early_stop,
+            consensus_threshold=configurable.review_consensus_threshold,
+            min_rounds=configurable.review_deliberation_min_rounds,
+            min_grounded_share=configurable.review_consensus_min_grounded_share,
+        )
+        deliberation = await deliberate(by_label, label_to_model, notes_for_prompt, report, configurable.review_deliberation_rounds, ask, policy)
         by_label = deliberation.critiques
 
     # 3. Anonymized vote by every successful reviewer over the checked critiques.

@@ -54,3 +54,9 @@ Short records of the choices that shape Crossvet: the context, the decision, and
 
 ## 11. Secrets never leave `.env`
 **Decision.** Keys come only from the environment. The setup checker reports presence, never values; Docker images contain no keys; CI scans history for secrets on every push.
+
+## 12. Stop deliberation in code, not by a model's say-so
+**Context.** Fixed rounds spend two model calls per critique per round even after reviewers have converged. Debate that adapts how long it runs performs better than fixed debate (Liang et al., EMNLP 2024). Similar ideas appear in [*consilium*](https://github.com/terry-li-hm/consilium-py) (Terry Li, MIT): debaters say AGREE, DISAGREE or BUILD ON, and a debate ends early when most non-challengers agree.
+**Decision.** Reimplemented, not copied. Challengers label every finding AGREE, DISAGREE or BUILD_ON with an optional quote. The stop is a pure function of those typed verdicts and of what changed (`deliberation.decide_stop`): consensus needs a round in which nothing moved and enough endorsements; a stable disagreement ends after two rounds without movement. A BUILD_ON is applied only with a quote found in the notes. Agreement is not trusted on its own: if too few endorsements cite the notes, or the challenger was silent, a guard runs one more round with the next challenger. The challenger is never the author, so the author's own view never counts toward consensus.
+**Cost.** The guard can make a run longer than v1.0's (a silent challenger used to end deliberation at once). Unanimity is the default, so early stops happen less often than with a majority rule; `REVIEW_CONSENSUS_THRESHOLD` trades cost against caution. The saving is measured, not assumed: compare `deliberation-3-fixed` and `deliberation-3-early-stop`.
+

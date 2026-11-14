@@ -172,3 +172,29 @@ def test_no_langfuse_means_no_metadata(monkeypatch, tmp_path):
 
     r = asyncio.run(compare.run_one(Setup("a", {}), "q", 1, tmp_path, runner=runner))
     assert seen["metadata"] == {} and r.langfuse_trace_id == ""
+
+
+def test_score_and_summary_read_early_stopping_fields(tmp_path):
+    out = {"final_report": "x", "review": {"status": "ok", "deliberation": {
+        "rounds_run": 1, "rounds_saved": 2, "stop_reason": "consensus", "agreement_rate": 1.0, "model_calls": 3}}}
+    r = compare.score(RunResult("early", "q", 1), out)
+    assert (r.deliberation_rounds, r.rounds_saved, r.stop_reason, r.agreement_rate, r.deliberation_calls) == (1, 2, "consensus", 1.0, 3)
+    fixed = RunResult("fixed", "q", 1, deliberation_rounds=3, deliberation_calls=9, agreement_rate=0.5)
+    rows = {row["setup"]: row for row in compare.write_outputs([r, fixed], tmp_path)}
+    assert rows["early"]["rounds_saved"] == 2 and rows["early"]["deliberation_calls"] == 3
+    assert rows["fixed"]["mean_deliberation_rounds"] == 3 and rows["fixed"]["mean_agreement_rate"] == 0.5
+
+
+def test_push_scores_sends_stop_reason_as_category():
+    class FakeClient:
+        def __init__(self):
+            self.scores = []
+
+        def create_score(self, **kw):
+            self.scores.append(kw)
+
+    client = FakeClient()
+    compare.push_scores(RunResult("s", "q", 1, langfuse_trace_id="t1", stop_reason="stable", rounds_saved=1), client)
+    by_name = {s["name"]: s for s in client.scores}
+    assert by_name["stop_reason"]["value"] == "stable" and by_name["stop_reason"]["data_type"] == "CATEGORICAL"
+    assert by_name["rounds_saved"]["value"] == 1.0

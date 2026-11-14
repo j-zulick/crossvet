@@ -2,6 +2,17 @@
 
 All notable changes to Crossvet. Versions follow [Semantic Versioning](https://semver.org/); dates are release dates.
 
+## [1.1.0]
+
+### Added
+- **Engagement labels in deliberation**: challengers label every finding AGREE, DISAGREE or BUILD_ON by its anonymous id. DISAGREE is a challenge to the author; BUILD_ON extends a finding only when its quote is found in the research notes, and is otherwise ignored and counted.
+- **Early stopping, decided in code**: deliberation stops on `consensus` (no finding moved and enough findings endorsed, `REVIEW_CONSENSUS_THRESHOLD`) or when it is `stable` (nothing moved for two rounds). `REVIEW_DELIBERATION_MIN_ROUNDS` sets a floor.
+- **False-consensus guard**: endorsements that mostly cite nothing in the notes (`REVIEW_CONSENSUS_MIN_GROUNDED_SHARE`), or a silent challenger, buy one more round with the next challenger instead of ending deliberation.
+- **Measurement**: the Review notes give the stop reason and rounds saved; the run export and review state add `stop_reason`, `rounds_saved`, `agreement_rate`, `guard_rounds`, `model_calls` and per-round stats; `crossvet-compare` adds `mean_deliberation_rounds`, `rounds_saved`, `mean_agreement_rate` and `deliberation_calls`; Langfuse gets matching scores plus a categorical `stop_reason`; `crossvet-setup --compare-plan` adds a fixed vs early-stop pair.
+
+### Changed
+- `REVIEW_DELIBERATION_EARLY_STOP` defaults to `true`. Set it to `false` for the v1.0 rule (stop only when no challenger contests anything). With it on, a silent challenger no longer ends deliberation at once.
+
 ## [1.0.0]
 
 ### Added

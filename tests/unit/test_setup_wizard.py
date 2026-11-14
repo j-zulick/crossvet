@@ -194,6 +194,9 @@ def test_compare_plan_uses_available_models(tmp_path):
     data = tomllib.loads(text)
     names = [s["name"] for s in data["setup"]]
     assert names[:2] == ["review", "no-review"]
+    fixed = next(s for s in data["setup"] if s["name"] == "deliberation-3-fixed")
+    early = next(s for s in data["setup"] if s["name"] == "deliberation-3-early-stop")
+    assert fixed["config"]["review_deliberation_early_stop"] is False and early["config"]["review_deliberation_early_stop"] is True
     assert "writer-qwen3-32b" in names and "reviewer-qwen3-32b" in names and "writer-we-ird-1b" in names
     reviewer = next(s for s in data["setup"] if s["name"] == "reviewer-qwen3-32b")
     assert reviewer["config"]["review_models"] == "openai:gpt-5.6-sol,ollama:qwen3:32b"

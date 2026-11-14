@@ -6,7 +6,9 @@ local models in any role) and records what each run produced:
 - whether it finished, how long it took, and input/output tokens per model
 - how many URLs the report cites and how many the citation check flagged
 - reviewer scores, critic outcomes (findings dropped or disputed), failed reviewers
-- with deliberation on: position changes backed by the notes, and ungrounded ones
+- with deliberation on: position changes backed by the notes, and ungrounded ones;
+  rounds run and saved by early stopping, why deliberation stopped, and how many
+  findings the challengers endorsed
 
     crossvet-compare --setups setups.toml --questions questions.txt [--repeats 2] [--out compare-results]
 
@@ -97,6 +99,11 @@ class RunResult:
     critic_disputed: int = 0
     position_changes: int = 0
     unsupported_changes: int = 0
+    deliberation_rounds: int = 0
+    rounds_saved: int = 0
+    stop_reason: str = ""
+    agreement_rate: float | None = None
+    deliberation_calls: int = 0
     report_path: str = ""
     langfuse_trace_id: str = ""
 
@@ -211,6 +218,12 @@ def score(result: RunResult, out: dict[str, Any]) -> RunResult:
     deliberation = review.get("deliberation") or {}
     result.position_changes = int(deliberation.get("changed_with_evidence", 0))
     result.unsupported_changes = int(deliberation.get("unsupported_changes", 0))
+    result.deliberation_rounds = int(deliberation.get("rounds_run", 0) or 0)
+    result.rounds_saved = int(deliberation.get("rounds_saved", 0) or 0)
+    result.stop_reason = str(deliberation.get("stop_reason") or "")
+    rate = deliberation.get("agreement_rate")
+    result.agreement_rate = float(rate) if isinstance(rate, (int, float)) else None
+    result.deliberation_calls = int(deliberation.get("model_calls", 0) or 0)
     return result
 
 
@@ -241,6 +254,10 @@ LANGFUSE_SCORES = {
     "critic_dropped": "critic_dropped",
     "critic_disputed": "critic_disputed",
     "seconds": "seconds",
+    "deliberation_rounds": "deliberation_rounds",
+    "rounds_saved": "rounds_saved",
+    "agreement_rate": "agreement_rate",
+    "deliberation_calls": "deliberation_calls",
 }
 
 
@@ -265,6 +282,8 @@ def push_scores(result: RunResult, client: Any) -> None:
             value = getattr(result, attr)
             if isinstance(value, (int, float)):
                 client.create_score(name=name, value=float(value), trace_id=result.langfuse_trace_id, data_type="NUMERIC")
+        if result.stop_reason:
+            client.create_score(name="stop_reason", value=result.stop_reason, trace_id=result.langfuse_trace_id, data_type="CATEGORICAL")
         if result.cited_urls:
             client.create_score(name="flagged_url_rate", value=round(result.flagged_urls / result.cited_urls, 4),
                                 trace_id=result.langfuse_trace_id, data_type="NUMERIC")
@@ -343,6 +362,10 @@ def summarize(results: list[RunResult]) -> list[dict[str, Any]]:
             "failed_reviewers": sum(r.failed_reviewers for r in ok),
             "grounded_position_changes": sum(r.position_changes for r in ok),
             "ungrounded_position_changes": sum(r.unsupported_changes for r in ok),
+            "mean_deliberation_rounds": _mean([r.deliberation_rounds for r in ok if r.deliberation_rounds]),
+            "rounds_saved": sum(r.rounds_saved for r in ok),
+            "mean_agreement_rate": _mean([r.agreement_rate for r in ok if r.agreement_rate is not None]),
+            "deliberation_calls": sum(r.deliberation_calls for r in ok),
         })
     return rows
 

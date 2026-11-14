@@ -298,6 +298,55 @@ class Configuration(BaseModel):
             }
         }
     )
+    review_deliberation_early_stop: bool = Field(
+        default=True,
+        json_schema_extra={
+            "x_oap_ui_config": {
+                "type": "boolean",
+                "default": True,
+                "description": "Stop deliberation before the round cap when code finds consensus (no finding moved and challengers endorse enough findings) or a stable disagreement (nothing moved for two rounds). Off: stop only when nobody contests anything."
+            }
+        }
+    )
+    review_consensus_threshold: float = Field(
+        default=1.0,
+        json_schema_extra={
+            "x_oap_ui_config": {
+                "type": "slider",
+                "default": 1.0,
+                "min": 0.5,
+                "max": 1.0,
+                "step": 0.05,
+                "description": "Share of findings the challengers must endorse (AGREE) in a round with no changes for deliberation to stop early. 1.0 = unanimous."
+            }
+        }
+    )
+    review_deliberation_min_rounds: int = Field(
+        default=1,
+        json_schema_extra={
+            "x_oap_ui_config": {
+                "type": "slider",
+                "default": 1,
+                "min": 1,
+                "max": 3,
+                "step": 1,
+                "description": "Deliberation never stops early before this round."
+            }
+        }
+    )
+    review_consensus_min_grounded_share: float = Field(
+        default=0.5,
+        json_schema_extra={
+            "x_oap_ui_config": {
+                "type": "slider",
+                "default": 0.5,
+                "min": 0.0,
+                "max": 1.0,
+                "step": 0.1,
+                "description": "False-consensus guard: if fewer endorsements than this share cite a passage found in the notes (or the challengers were silent), one more round runs with the next challenger before stopping. 0 = guard off."
+            }
+        }
+    )
     run_export_path: str = Field(
         default="",
         json_schema_extra={

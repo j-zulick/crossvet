@@ -77,7 +77,7 @@ def agent_model(monkeypatch):
     monkeypatch.setattr(utils, "init_chat_model", lambda **kwargs: model)
     monkeypatch.setattr(deep_agent, "build_reviewer", lambda *a, **k: model)
     monkeypatch.setattr(cross_vendor_review, "build_reviewer", lambda *a, **k: model)
-    for key in ("REQUIRE_APPROVAL", "RUN_EXPORT_PATH", "REVIEW_DELIBERATION_ROUNDS"):
+    for key in ("REQUIRE_APPROVAL", "RUN_EXPORT_PATH", "REVIEW_DELIBERATION_ROUNDS", "REVIEW_DELIBERATION_EARLY_STOP"):
         monkeypatch.delenv(key, raising=False)
     monkeypatch.setenv("SEARCH_API", "tavily")
     monkeypatch.setenv("CROSS_VENDOR_REVIEW_ENABLED", "true")
