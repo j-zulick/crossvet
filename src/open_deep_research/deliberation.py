@@ -250,7 +250,7 @@ def decide_stop(stats: list[dict[str, Any]], rounds: int, policy: StopPolicy, gu
         grounded_share = cur["agree_grounded"] / cur["agree"] if cur["agree"] else 0.0
         if not guard_used and (silent or grounded_share < policy.min_grounded_share):
             return None, True
-        return "consensus", False
+        return ("no_challenges" if silent else "consensus"), False
     if len(stats) >= 2 and stats[-2]["moved"] == 0:
         return "stable", False
     return None, False
