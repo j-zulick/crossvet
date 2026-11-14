@@ -183,8 +183,9 @@ def test_decide_stop_rules():
     # endorsements without passages: the guard buys one more round, then consensus is accepted
     assert decide_stop([st(1, agree=2, grounded=0)], 3, EARLY, False) == (None, True)
     assert decide_stop([st(1, agree=2), st(2, agree=2)], 3, EARLY, True) == ("consensus", False)
-    # silence is not consensus
+    # silence is not consensus: one guard round, then it stops without claiming agreement
     assert decide_stop([st(1, assessed=0)], 3, EARLY, False) == (None, True)
+    assert decide_stop([st(1, assessed=0), st(2, assessed=0)], 3, EARLY, True) == ("no_challenges", False)
     # a finding moved: keep going; min_rounds respected; cap respected
     assert decide_stop([st(1, agree=1, grounded=1, challenges=1, moved=1)], 3, EARLY, False) == (None, False)
     assert decide_stop([st(1, agree=2, grounded=2)], 3, StopPolicy(early_stop=True, min_rounds=2), False) == (None, False)
