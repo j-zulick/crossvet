@@ -205,7 +205,7 @@ def rank(provider: str, ids: list[str]) -> list[str]:
     return list(ids)
 
 
-OPENROUTER_VENDORS = ("openai", "anthropic", "google", "deepseek", "mistralai", "qwen", "meta-llama", "x-ai")
+OPENROUTER_VENDORS = ("openai", "anthropic", "google", "deepseek", "mistralai", "qwen", "meta-llama", "x-ai", "z-ai", "moonshotai")
 
 
 def pick_openrouter(ids: list[str], exclude_vendors: set[str]) -> list[str]:
@@ -285,6 +285,42 @@ def plan(found: Discovery, env: dict[str, str], panel_size: int = 3) -> Plan:
                 why = "was rejected" if rejected else "is not set"
                 warnings.append(f"{var}={current}: {KEY_VARS[provider]} {why}; using {replacement}.")
     return Plan(panel, reviser, stages, warnings)
+
+
+def availability(model: str, found: Discovery) -> bool | None:
+    """True/False when the provider's model list was discovered, None when it could not be checked."""
+    provider, _, name = (model or "").strip().partition(":")
+    ids = found.models.get(provider)
+    if ids is None or not name:
+        return None
+    return name in ids
+
+
+def user_plan(found: Discovery, env: dict[str, str], panel: list[str], reviser: str | None, source: str = "you chose") -> Plan:
+    """Keep the models a user picked; check them, and fill in only what is missing (reviser, stage models)."""
+    from open_deep_research.cross_vendor_review import reviser_conflicts, vendor_of
+
+    auto = plan(found, env)
+    warnings = [w for w in auto.warnings if "review" not in w.lower()]
+    for m in panel + ([reviser] if reviser else []):
+        ok = availability(m, found)
+        if ok is False:
+            warnings.append(f"{m} ({source}) is not in the model list for its key; check the name or the key.")
+        elif ok is None:
+            warnings.append(f"{m} ({source}) could not be checked: its provider was not discovered.")
+    vendors = {vendor_of(m) for m in panel}
+    if len(panel) < 2:
+        warnings.append("Review needs at least two reviewer models.")
+    elif len(vendors) < 2:
+        warnings.append(f"All reviewers are from one vendor ({', '.join(vendors)}); cross-vendor review needs at least two.")
+    if not reviser:
+        candidates = [auto.reviser, *auto.panel]
+        reviser = next((m for m in candidates if m and vendor_of(m) not in vendors), "")
+        if not reviser:
+            warnings.append("No reviser from a vendor outside the panel was found; set --reviser.")
+    if reviser and reviser_conflicts(reviser, panel):
+        warnings.append(f"The reviser {reviser} shares a vendor with the panel; the review notes will show a warning.")
+    return Plan(list(panel), reviser, auto.stages, warnings)
 
 
 def choose_search(env: dict[str, str], found: Discovery, chosen: Plan) -> tuple[dict[str, str], str]:
@@ -436,6 +472,11 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--no-prompt", action="store_true", help="do not ask for missing keys")
     p.add_argument("--panel-size", type=int, default=3, choices=(2, 3, 4))
     p.add_argument("--compare-plan", metavar="FILE", help="also write crossvet-compare setups for the available models")
+    p.add_argument("--panel", metavar="MODELS", help="your own reviewer models, comma-separated provider:model (e.g. openrouter:x-ai/grok-4,anthropic:claude-sonnet-5-5)")
+    p.add_argument("--reviser", metavar="MODEL", help="your own reviser model (default: kept from .env, else one from a vendor outside the panel)")
+    p.add_argument("--auto", action="store_true", help="re-pick the panel automatically even if REVIEW_MODELS is already set")
+    p.add_argument("--list-models", metavar="PROVIDER", help="print every model id one provider offers (openai, anthropic, google_genai, openrouter, ollama, local)")
+    p.add_argument("--filter", default="", help="with --list-models: only ids containing this text")
     args = p.parse_args(argv)
 
     env_path = Path(args.env)
@@ -461,8 +502,27 @@ def main(argv: list[str] | None = None) -> int:
             say(f"  {provider:13}    -  {found.notes.get(provider, 'not configured')}")
     if args.list:
         return 0
+    if args.list_models:
+        ids = found.models.get(args.list_models)
+        if ids is None:
+            say(f"{args.list_models}: {found.notes.get(args.list_models, 'not configured')}")
+            return 1
+        for i in ids:
+            if args.filter.lower() in i.lower():
+                say(f"{args.list_models}:{i}")
+        return 0
 
-    chosen = plan(found, env, args.panel_size)
+    from open_deep_research.cross_vendor_review import parse_review_models
+
+    if args.panel:
+        chosen = user_plan(found, env, parse_review_models(args.panel), args.reviser, "--panel")
+    elif env.get("REVIEW_MODELS") and not args.auto:
+        chosen = user_plan(found, env, parse_review_models(env["REVIEW_MODELS"]), args.reviser or env.get("REVIEW_REVISER_MODEL"), "from .env")
+        chosen.warnings.insert(0, "Kept the panel from REVIEW_MODELS; use --auto to re-pick or --panel to change it.")
+    else:
+        chosen = plan(found, env, args.panel_size)
+        if args.reviser:
+            chosen.reviser = args.reviser
     review_updates = {
         "CROSS_VENDOR_REVIEW_ENABLED": "true" if len(chosen.panel) >= 2 else "false",
         "REVIEW_MODELS": ",".join(chosen.panel),

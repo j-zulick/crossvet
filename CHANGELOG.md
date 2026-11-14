@@ -2,6 +2,19 @@
 
 All notable changes to Crossvet. Versions follow [Semantic Versioning](https://semver.org/); dates are release dates.
 
+## [1.3.0]
+
+### Added
+- **Your own models in setup**: `crossvet-setup --panel` and `--reviser` take any `provider:model` your keys can call; `--list-models PROVIDER [--filter TEXT]` prints every id a provider offers. Choices are checked, not replaced: names the key cannot call, single-vendor panels and a reviser sharing a vendor with the panel are reported.
+- **Spare reviewers** `REVIEW_FALLBACK_MODELS`: a failed reviewer is replaced by the next spare, preferring a vendor not on the panel; reported in the Review notes, review state (`substitutions`) and export.
+- **Per-call time limit** `REVIEW_CALL_TIMEOUT` for every review call (outline, critique, critic, deliberation, vote, revision); a timeout is handled like any other failure.
+- **OpenRouter hosting preferences**: `OPENROUTER_PROVIDER_ORDER`, `OPENROUTER_ALLOW_FALLBACKS`, `OPENROUTER_DATA_COLLECTION`.
+- **`crossvet sessions`** lists saved runs, newest first, with state and question.
+
+### Changed
+- Re-running `crossvet-setup` keeps an existing `REVIEW_MODELS` (and reviser) instead of re-picking; `--auto` re-picks.
+- The automatic OpenRouter pick also considers Z.ai (GLM) and Moonshot (Kimi).
+
 ## [1.2.0]
 
 ### Added

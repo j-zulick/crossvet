@@ -369,3 +369,52 @@ def test_critic_failure_keeps_findings_and_is_reported(monkeypatch, enabled_env)
     out = asyncio.run(rc.cross_vendor_review(_state(), {"configurable": {}}))
     assert out["review"]["critic"]["status"].startswith("partial")
     assert "### Disputed" not in out["final_report"]
+
+
+# ---------------------------------------------------------------------------
+# v1.3: fallbacks, timeouts, OpenRouter routing
+# ---------------------------------------------------------------------------
+def test_failed_reviewer_is_replaced_preferring_a_new_vendor(monkeypatch, enabled_env):
+    monkeypatch.setenv("REVIEW_MODELS", "openai:a,anthropic:down")
+    monkeypatch.setenv("REVIEW_FALLBACK_MODELS", "openai:spare,openrouter:x-ai/grok")
+
+    def build(model, max_tokens, config):
+        return FakeModel(model, fail=model == "anthropic:down", critique=_c(7, model))
+
+    monkeypatch.setattr(rc, "build_reviewer", build)
+    out = asyncio.run(rc.cross_vendor_review(_state(), {"configurable": {}}))
+    review = out["review"]
+    assert review["status"] == "ok" and review["substitutions"] == {"anthropic:down": "openrouter:x-ai/grok"}
+    assert set(review["reviewers"]) == {"openai:a", "openrouter:x-ai/grok"}
+    assert "Replaced by fallback models: anthropic:down → openrouter:x-ai/grok" in out["final_report"]
+
+
+def test_slow_reviewer_times_out_and_is_handled_as_a_failure(monkeypatch, enabled_env):
+    monkeypatch.setenv("REVIEW_MODELS", "openai:a,anthropic:b,google_genai:slow")
+    monkeypatch.setenv("REVIEW_CALL_TIMEOUT", "0.2")
+
+    class Slow(FakeStructured):
+        async def ainvoke(self, _messages):
+            await asyncio.sleep(5)
+
+    class SlowModel(FakeModel):
+        def with_structured_output(self, schema, **kwargs):
+            return Slow(None) if schema is Critique else super().with_structured_output(schema, **kwargs)
+
+    monkeypatch.setattr(rc, "build_reviewer", lambda m, t, c: SlowModel(m, critique=_c(7, m)) if m.endswith("slow") else FakeModel(m, critique=_c(7, m)))
+    out = asyncio.run(rc.cross_vendor_review(_state(), {"configurable": {}}))
+    assert out["review"]["failed"] == ["google_genai:slow"] and out["review"]["status"] == "ok"
+
+
+def test_openrouter_preferences_from_environment(monkeypatch):
+    for k in ("OPENROUTER_PROVIDER_ORDER", "OPENROUTER_ALLOW_FALLBACKS", "OPENROUTER_DATA_COLLECTION"):
+        monkeypatch.delenv(k, raising=False)
+    assert rc.openrouter_preferences() == {}
+    monkeypatch.setenv("OPENROUTER_PROVIDER_ORDER", "together, fireworks")
+    monkeypatch.setenv("OPENROUTER_ALLOW_FALLBACKS", "false")
+    monkeypatch.setenv("OPENROUTER_DATA_COLLECTION", "deny")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "x")
+    assert rc.openrouter_preferences() == {"order": ["together", "fireworks"], "allow_fallbacks": False, "data_collection": "deny"}
+    llm = rc.build_reviewer("openrouter:z-ai/glm-5", 100, {"configurable": {}})
+    assert llm.extra_body == {"provider": {"order": ["together", "fireworks"], "allow_fallbacks": False, "data_collection": "deny"}}
+    assert rc.vendor_of("openrouter:z-ai/glm-5") == "z-ai"

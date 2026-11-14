@@ -137,11 +137,23 @@ docker compose up --build       # API http://localhost:2024 · web UI http://loc
 
 **Models:** every stage is configurable (`RESEARCH_MODEL`, `SUMMARIZATION_MODEL`, `COMPRESSION_MODEL`, `FINAL_REPORT_MODEL`). Reviewers are set with `REVIEW_MODELS` as `provider:model` strings — `openai:…`, `anthropic:…`, `google_genai:…`, `openrouter:<model>` (with `OPENROUTER_API_KEY`), `ollama:<model>`, or `local:<model>` for any OpenAI-compatible server (llama.cpp, LM Studio, MLX, vLLM) at `LOCAL_LLM_BASE_URL`. At least two reviewers must respond (quorum); failures are reported, not fatal. Set `REVIEW_REVISER_MODEL` to a model from a vendor that is *not* on the panel, so no lab grades and then rewrites its own work; Crossvet adds a warning to the Review notes when the reviser shares a vendor with a reviewer. Turn the stage off with `CROSS_VENDOR_REVIEW_ENABLED=false`.
 
+### Choose your own models
+Crossvet doesn't fix a vendor list: any model your keys can call can sit on the panel, revise, or run a stage. `crossvet-setup` only suggests.
+```bash
+uv run crossvet-setup --list-models openrouter --filter grok        # every id a provider offers (openai, anthropic, google_genai, openrouter, ollama, local)
+uv run crossvet-setup --panel openrouter:x-ai/grok-4,anthropic:claude-opus-5-5,openrouter:z-ai/glm-5 --reviser google_genai:gemini-3.1-pro-preview
+```
+- **Your choice sticks.** Once `REVIEW_MODELS` is set, re-running setup keeps it and only checks it: names your key cannot call, a single-vendor panel, or a reviser that shares a vendor with the panel are reported. `--auto` re-picks; `--panel` replaces.
+- **Wide vendor coverage through OpenRouter.** One `OPENROUTER_API_KEY` adds vendors such as xAI (Grok), Z.ai (GLM), Moonshot (Kimi), DeepSeek, Qwen, Mistral and Meta; the automatic pick takes the newest model per vendor not already on the panel. The vendor that counts for diversity is the model's maker (`openrouter:z-ai/glm-5` → `z-ai`).
+- **Who hosts an OpenRouter model** (not which model runs): `OPENROUTER_PROVIDER_ORDER` (hosts to try first), `OPENROUTER_ALLOW_FALLBACKS=false` (only those hosts) and `OPENROUTER_DATA_COLLECTION=deny` (only hosts that don't store or train on prompts).
+- **Spares and time limits.** `REVIEW_FALLBACK_MODELS` lists spare reviewers; when one fails, the next spare takes its place, preferring a vendor not already on the panel, and the Review notes say who replaced whom. `REVIEW_CALL_TIMEOUT` (seconds, 0 = off) abandons any single review call that hangs and handles it as a failure.
+
 ## Durable runs from the command line
 ```bash
 uv run crossvet run "How are EU AI Act obligations phased in for general-purpose models?" --out report.md
 uv run crossvet status --thread <id>      # where did it stop?
 uv run crossvet resume --thread <id>      # continue after a crash or Ctrl-C
+uv run crossvet sessions                  # saved runs, newest first: thread, last update, state, question
 ```
 Every step is checkpointed (SQLite by default, Postgres with `DATABASE_URL=postgresql://...` and `uv sync --extra postgres`). A run that crashes mid-way resumes from its last checkpoint without repeating completed — already paid-for — model calls.
 
@@ -191,7 +203,7 @@ Splits are by research brief, so a question never appears in both training and t
 ```bash
 uv run pytest tests/unit -q     # offline: no API keys, no network
 ```
-Covers the blind pass (grounding, coverage, omissions, prompts that never include the draft), early stopping (consensus, stable disagreement, the false-consensus guard and build-on grounding), anonymization (no vendor leaks into labels), Borda tallying, citation flagging, the critic protocol (fabricated evidence quotes are never trusted), quorum and failure handling, run export, the MCP tools, gateway parsing, self-hosted model wiring, the approval step with real LangGraph interrupts, the comparison harness, deliberation and the sycophancy guard, the Deep Agents edition (search capture and report file), fine-tuning dataset building, and crash-and-resume across two processes (a completed step is never re-run).
+Covers your own model choices (kept panels, unknown names, single-vendor panels), spare reviewers, per-call time limits, OpenRouter host routing, the sessions list, the blind pass (grounding, coverage, omissions, prompts that never include the draft), early stopping (consensus, stable disagreement, the false-consensus guard and build-on grounding), anonymization (no vendor leaks into labels), Borda tallying, citation flagging, the critic protocol (fabricated evidence quotes are never trusted), quorum and failure handling, run export, the MCP tools, gateway parsing, self-hosted model wiring, the approval step with real LangGraph interrupts, the comparison harness, deliberation and the sycophancy guard, the Deep Agents edition (search capture and report file), fine-tuning dataset building, and crash-and-resume across two processes (a completed step is never re-run).
 
 ## Roadmap
 - [x] **v0.1** — cross-vendor review, LangGraph 1.2 / LangChain 1.x upgrade, self-hosted model support, web UI, CI
@@ -203,6 +215,7 @@ Covers the blind pass (grounding, coverage, omissions, prompts that never includ
 - [x] **v0.7** — fine-tuning data path: run exports to MLX LoRA datasets for a self-hosted model, measured before/after
 - [x] **v0.8** — grounded search on self-hosted infrastructure (metasearch, layered page reading, saved evidence, SSRF protection) via MCP
 - [x] **v1.0** — one-command Docker Compose, security scanning in CI, architecture and evaluation docs
+- [x] **v1.3** — your own models: `--panel` / `--reviser` / `--list-models`, a kept panel, GLM and Kimi via OpenRouter, OpenRouter host routing, spare reviewers, per-call time limits, `crossvet sessions`
 - [x] **v1.2** — blind first pass: reviewers outline the answer from the notes before reading the draft; grounded omissions become feedback
 - [x] **v1.1** — deliberation that stops when it stops helping: AGREE / DISAGREE / BUILD_ON labels, code-decided consensus and stable-disagreement stops, false-consensus guard, rounds saved in notes, compare and Langfuse
 

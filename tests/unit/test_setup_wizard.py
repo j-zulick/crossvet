@@ -204,3 +204,65 @@ def test_compare_plan_uses_available_models(tmp_path):
     path = tmp_path / "plan.toml"
     path.write_text(text)
     assert [s.name for s in compare.load_setups(path)] == names  # valid input for crossvet-compare
+
+
+# ---------------------------------------------------------------------------
+# v1.3: your own models
+# ---------------------------------------------------------------------------
+def _patched(monkeypatch):
+    real = sw.discover
+
+    async def fake_discover(e, transport=None):
+        return await real(e, transport=httpx.MockTransport(handler))
+
+    monkeypatch.setattr(sw, "discover", fake_discover)
+
+
+def _env(tmp_path, extra=""):
+    (tmp_path / ".env.example").write_text("OPENAI_API_KEY=\nREVIEW_MODELS=\nREVIEW_REVISER_MODEL=\n")
+    env = tmp_path / ".env"
+    env.write_text("OPENAI_API_KEY=ok-openai\nANTHROPIC_API_KEY=x\nGOOGLE_API_KEY=x\nOPENROUTER_API_KEY=x\nTAVILY_API_KEY=t\n" + extra)
+    return env
+
+
+def test_panel_flag_keeps_the_users_models_and_checks_them(monkeypatch, tmp_path, capsys):
+    _patched(monkeypatch)
+    env = _env(tmp_path)
+    panel = "openrouter:deepseek/deepseek-v4-pro,anthropic:claude-opus-5-5,openrouter:x-ai/grok-9"
+    assert sw.main(["--env", str(env), "--no-prompt", "--panel", panel]) == 0
+    values = sw.read_env(env)
+    assert values["REVIEW_MODELS"] == panel
+    assert values["REVIEW_REVISER_MODEL"].split(":", 1)[0] in ("openai", "google_genai")  # outside the panel's vendors
+    assert "openrouter:x-ai/grok-9 (--panel) is not in the model list" in capsys.readouterr().out
+
+
+def test_existing_panel_is_kept_unless_auto(monkeypatch, tmp_path, capsys):
+    _patched(monkeypatch)
+    env = _env(tmp_path, "REVIEW_MODELS=anthropic:claude-opus-5-5,google_genai:gemini-3.1-pro-preview\nREVIEW_REVISER_MODEL=openai:gpt-5.5\n")
+    assert sw.main(["--env", str(env), "--no-prompt"]) == 0
+    values = sw.read_env(env)
+    assert values["REVIEW_MODELS"] == "anthropic:claude-opus-5-5,google_genai:gemini-3.1-pro-preview"
+    assert values["REVIEW_REVISER_MODEL"] == "openai:gpt-5.5"
+    assert "Kept the panel from REVIEW_MODELS" in capsys.readouterr().out
+    assert sw.main(["--env", str(env), "--no-prompt", "--auto"]) == 0
+    assert sw.read_env(env)["REVIEW_MODELS"].startswith("openai:gpt-5.6-sol,anthropic:claude-sonnet-5-5")
+
+
+def test_single_vendor_panel_and_shared_reviser_are_flagged():
+    found = run_discover({"OPENAI_API_KEY": "ok-openai", "ANTHROPIC_API_KEY": "x"})
+    chosen = sw.user_plan(found, {}, ["openai:gpt-5.5", "openai:gpt-5.6-sol"], "openai:gpt-4.1")
+    text = " ".join(chosen.warnings)
+    assert "one vendor" in text and "shares a vendor" in text
+
+
+def test_list_models_prints_every_id_with_filter(monkeypatch, tmp_path, capsys):
+    _patched(monkeypatch)
+    env = _env(tmp_path)
+    assert sw.main(["--env", str(env), "--no-prompt", "--list-models", "openrouter", "--filter", "deepseek"]) == 0
+    lines = [ln for ln in capsys.readouterr().out.splitlines() if ln.startswith("openrouter:")]
+    assert lines == ["openrouter:deepseek/deepseek-v3", "openrouter:deepseek/deepseek-v4-pro"]
+
+
+def test_openrouter_picks_include_glm_and_kimi():
+    ids = ["z-ai/glm-5", "z-ai/glm-4.6", "moonshotai/kimi-k3", "x-ai/grok-4"]
+    assert sw.pick_openrouter(ids, set()) == ["openrouter:x-ai/grok-4", "openrouter:z-ai/glm-5", "openrouter:moonshotai/kimi-k3"]

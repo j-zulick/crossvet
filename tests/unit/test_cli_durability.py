@@ -121,3 +121,39 @@ def test_tracing_on_with_keys(monkeypatch):
     monkeypatch.setenv("LANGFUSE_BASE_URL", "http://127.0.0.1:9")  # unreachable; nothing is sent in this test
     callbacks = tracing.get_callbacks()
     assert len(callbacks) == 1 and type(callbacks[0]).__name__ == "LangchainCallbackHandler"
+
+
+def test_sessions_lists_threads_newest_first(tmp_path):
+    import asyncio
+
+    from langgraph.graph import END, START, StateGraph
+    from typing_extensions import TypedDict
+
+    from open_deep_research.cli import list_threads, open_checkpointer
+
+    class S(TypedDict):
+        n: int
+
+    def step(state: S) -> S:
+        return {"n": state["n"] + 1}
+
+    async def go():
+        async with open_checkpointer(str(tmp_path / "c.sqlite")) as saver:
+            g = StateGraph(S)
+            g.add_node("step", step)
+            g.add_edge(START, "step")
+            g.add_edge("step", END)
+            graph = g.compile(checkpointer=saver)
+            await graph.ainvoke({"n": 0}, {"configurable": {"thread_id": "older"}})
+            await graph.ainvoke({"n": 0}, {"configurable": {"thread_id": "newer"}})
+            return await list_threads(saver, 10), await list_threads(saver, 1)
+
+    rows, top = asyncio.run(go())
+    assert [r["thread"] for r in rows] == ["newer", "older"] and rows[0]["checkpoints"] >= 2
+    assert [r["thread"] for r in top] == ["newer"]
+
+
+def test_parser_has_sessions():
+    from open_deep_research.cli import build_parser
+
+    assert build_parser().parse_args(["sessions", "--limit", "5"]).limit == 5

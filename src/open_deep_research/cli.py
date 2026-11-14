@@ -6,6 +6,7 @@ stopped instead of starting over (and paying for completed model calls again).
     crossvet run "question" [--thread ID] [--auto-approve] [--out report.md]
     crossvet resume --thread ID [--auto-approve] [--out report.md]
     crossvet status --thread ID
+    crossvet sessions [--limit 20]
 
 Checkpoints go to a local SQLite file by default (CROSSVET_CHECKPOINTS, default
 .crossvet/checkpoints.sqlite). Set DATABASE_URL=postgresql://... to use Postgres
@@ -96,6 +97,18 @@ async def drive(graph: Any, first_input: Any, thread_id: str, approver: Approver
     raise RuntimeError(f"More than {max_pauses} pauses in one run; stopping.")
 
 
+async def list_threads(saver: Any, limit: int = 20) -> list[dict[str, Any]]:
+    """Threads in the checkpoint store, most recently updated first: thread id, last update, checkpoints."""
+    threads: dict[str, dict[str, Any]] = {}
+    async for item in saver.alist(None):
+        tid = item.config["configurable"]["thread_id"]
+        ts = item.checkpoint.get("ts", "")
+        t = threads.setdefault(tid, {"thread": tid, "updated": ts, "checkpoints": 0})
+        t["checkpoints"] += 1
+        t["updated"] = max(t["updated"], ts)
+    return sorted(threads.values(), key=lambda t: t["updated"], reverse=True)[:limit]
+
+
 def _compile(saver: Any) -> Any:
     from open_deep_research.deep_researcher import deep_researcher_builder
 
@@ -116,6 +129,20 @@ async def _run(args: argparse.Namespace) -> int:
     approver = auto_approve if getattr(args, "auto_approve", False) else interactive_approve
     async with open_checkpointer() as saver:
         graph = _compile(saver)
+        if args.command == "sessions":
+            rows = await list_threads(saver, args.limit)
+            if not rows:
+                print("No saved runs yet.")
+                return 0
+            for row in rows:
+                snap = await graph.aget_state({"configurable": {"thread_id": row["thread"]}})
+                values = snap.values or {}
+                msgs = values.get("messages") or []
+                question = str(getattr(msgs[0], "content", "")) if msgs else ""
+                waiting = bool(snap.tasks and any(t.interrupts for t in snap.tasks))
+                state = "done" if values.get("final_report") and not snap.next else "waiting for approval" if waiting else "in progress"
+                print(f"{row['thread']}  {row['updated'][:19]}  {state:20}  {question[:70]}")
+            return 0
         if args.command == "status":
             snap = await graph.aget_state({"configurable": {"thread_id": args.thread}})
             if not snap.values:
@@ -149,6 +176,8 @@ def build_parser() -> argparse.ArgumentParser:
         sp.add_argument("--out", help="write the final report to this file")
     status = sub.add_parser("status", help="show where a run stopped")
     status.add_argument("--thread", required=True)
+    sessions = sub.add_parser("sessions", help="list saved runs, newest first")
+    sessions.add_argument("--limit", type=int, default=20)
     return p
 
 

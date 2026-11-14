@@ -260,6 +260,34 @@ def export_run(path: str, record: dict[str, Any]) -> None:
 ###################
 # Model construction
 ###################
+def openrouter_preferences() -> dict[str, Any]:
+    """OpenRouter provider routing from the environment (empty means OpenRouter's defaults).
+
+    OPENROUTER_PROVIDER_ORDER (comma-separated hosts to try first), OPENROUTER_ALLOW_FALLBACKS
+    (false = only those hosts) and OPENROUTER_DATA_COLLECTION (deny = only hosts that do not
+    store or train on prompts). These choose who *hosts* a model; the model, and so its
+    vendor on the panel, stays the one you named.
+    """
+    prefs: dict[str, Any] = {}
+    order = [h.strip() for h in os.getenv("OPENROUTER_PROVIDER_ORDER", "").split(",") if h.strip()]
+    if order:
+        prefs["order"] = order
+    fallbacks = os.getenv("OPENROUTER_ALLOW_FALLBACKS", "").strip().lower()
+    if fallbacks in ("true", "false"):
+        prefs["allow_fallbacks"] = fallbacks == "true"
+    collection = os.getenv("OPENROUTER_DATA_COLLECTION", "").strip().lower()
+    if collection in ("allow", "deny"):
+        prefs["data_collection"] = collection
+    return prefs
+
+
+async def timed(awaitable: Any, seconds: float) -> Any:
+    """Await with a time limit (seconds <= 0 means no limit); a timeout raises TimeoutError."""
+    if seconds and seconds > 0:
+        return await asyncio.wait_for(awaitable, seconds)
+    return await awaitable
+
+
 def build_reviewer(model: str, max_tokens: int, config: RunnableConfig) -> BaseChatModel:
     """Create a chat model.
 
@@ -279,11 +307,14 @@ def build_reviewer(model: str, max_tokens: int, config: RunnableConfig) -> BaseC
     if model.startswith("openrouter:"):
         from langchain_openai import ChatOpenAI
 
+        prefs = openrouter_preferences()
         return ChatOpenAI(
             model=model.split(":", 1)[1],
             base_url="https://openrouter.ai/api/v1",
             api_key=os.getenv("OPENROUTER_API_KEY"),
             max_tokens=max_tokens,
+            default_headers={"X-Title": "Crossvet"},
+            **({"extra_body": {"provider": prefs}} if prefs else {}),
         )
     return init_chat_model(model=model, max_tokens=max_tokens, api_key=get_api_key_for_model(model, config))
 
@@ -370,6 +401,7 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
     brief = state.get("research_brief", "") or ""
     max_tokens = configurable.review_model_max_tokens
     retries = configurable.max_structured_output_retries
+    call_timeout = float(configurable.review_call_timeout or 0)
 
     # 0. Optional blind pass: each reviewer outlines the answer from the notes before seeing the draft.
     blind = None
@@ -385,7 +417,7 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
 
         async def ask_outline(model: str) -> Any:
             llm = build_reviewer(model, configurable.review_blind_max_tokens, config).with_structured_output(BlindOutline, **structured_output_kwargs(model)).with_retry(stop_after_attempt=retries)
-            return await llm.ainvoke([HumanMessage(content=BLIND_PROMPT.format(brief=brief, notes=notes_for_prompt, max_points=max_points))])
+            return await timed(llm.ainvoke([HumanMessage(content=BLIND_PROMPT.format(brief=brief, notes=notes_for_prompt, max_points=max_points))]), call_timeout)
 
         outlines, blind_failed = await outline_all(models, ask_outline, max_points)
 
@@ -398,12 +430,25 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
                 from open_deep_research.blind_pass import reminder
 
                 prompt += reminder(outlines[model])
-            return model, await llm.ainvoke([HumanMessage(content=prompt)])
+            return model, await timed(llm.ainvoke([HumanMessage(content=prompt)]), call_timeout)
         except Exception:
             return model, None
 
     results = await asyncio.gather(*(critique(m) for m in models))
     critiques = {m: c for m, c in results if c is not None}
+    # 1b. Replace failed reviewers from REVIEW_FALLBACK_MODELS, preferring vendors not yet on the panel.
+    substitutions: dict[str, str] = {}
+    spare = [m for m in parse_review_models(configurable.review_fallback_models) if m not in models]
+    for bad in [m for m, c in results if c is None]:
+        while spare:
+            present = {vendor_of(m) for m in critiques}
+            pick = next((f for f in spare if vendor_of(f) not in present), spare[0])
+            spare.remove(pick)
+            _, got = await critique(pick)
+            if got is not None:
+                critiques[pick] = got
+                substitutions[bad] = pick
+                break
     if configurable.review_blind_pass_enabled:
         from open_deep_research.blind_pass import add_omissions, assess
 
@@ -430,7 +475,7 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
             try:
                 llm = build_reviewer(critic_model, max_tokens, config).with_structured_output(CriticReport, **structured_output_kwargs(critic_model)).with_retry(stop_after_attempt=retries)
                 listing = "\n".join(f"{fid}: {text}" for fid, text in findings.items())
-                result = await llm.ainvoke([HumanMessage(content=CRITIC_PROMPT.format(notes=notes_for_prompt, report=report[:20000], findings=listing))])
+                result = await timed(llm.ainvoke([HumanMessage(content=CRITIC_PROMPT.format(notes=notes_for_prompt, report=report[:20000], findings=listing))]), call_timeout)
                 return lbl, result.verdicts
             except Exception:
                 return lbl, None
@@ -454,7 +499,7 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
 
         async def ask(model: str, schema: type, prompt: str) -> Any:
             llm = build_reviewer(model, max_tokens, config).with_structured_output(schema, **structured_output_kwargs(model)).with_retry(stop_after_attempt=retries)
-            return await llm.ainvoke([HumanMessage(content=prompt)])
+            return await timed(llm.ainvoke([HumanMessage(content=prompt)]), call_timeout)
 
         policy = StopPolicy(
             early_stop=configurable.review_deliberation_early_stop,
@@ -471,7 +516,7 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
     async def vote(model: str) -> Ballot | None:
         try:
             llm = build_reviewer(model, max_tokens, config).with_structured_output(Ballot, **structured_output_kwargs(model)).with_retry(stop_after_attempt=retries)
-            return await llm.ainvoke([HumanMessage(content=VOTE_PROMPT.format(report=report[:20000], critiques=critique_text))])
+            return await timed(llm.ainvoke([HumanMessage(content=VOTE_PROMPT.format(report=report[:20000], critiques=critique_text))]), call_timeout)
         except Exception:
             return None
 
@@ -490,7 +535,7 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
     revision_error = ""
     try:
         writer = build_reviewer(reviser_model, configurable.final_report_model_max_tokens, config)
-        revised = await writer.ainvoke([HumanMessage(content=REVISE_PROMPT.format(date=get_today_str(), notes=notes_for_prompt, report=report, feedback=feedback))])
+        revised = await timed(writer.ainvoke([HumanMessage(content=REVISE_PROMPT.format(date=get_today_str(), notes=notes_for_prompt, report=report, feedback=feedback))]), call_timeout)
         revised_text = revised.content if isinstance(revised.content, str) else str(revised.content)
     except Exception as exc:  # keep the draft and say so in the Review notes
         revised_text = report
@@ -531,6 +576,8 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
         notes_items.append(f"Revision by {reviser_model} failed ({revision_error}); the draft is shown unrevised, with the review above for a human to apply.")
     if failed:
         notes_items.append("Reviewers that failed: " + ", ".join(failed))
+    if substitutions:
+        notes_items.append("Replaced by fallback models: " + ", ".join(f"{b} → {g}" for b, g in substitutions.items()))
     final = revised_text.rstrip() + "\n\n---\n\n## Review notes\n\n" + "\n".join(f"- {item}" for item in notes_items) + "\n"
     if disputed:
         final += "\n### Disputed\n\nReviewer findings the critic could not confirm from the research notes; they need a human check.\n\n"
@@ -554,6 +601,7 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
                 "tally": tally,
                 "flagged_urls": flagged_urls,
                 "failed_reviewers": failed,
+                "substitutions": substitutions,
                 "deliberation": {**deliberation.summary(), "log": deliberation.log} if deliberation else None,
                 "blind_pass": {**blind.summary(), "outlines": {m: [p.model_dump() for p in pts] for m, pts in blind.outlines.items()}} if blind else None,
             })
@@ -567,6 +615,7 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
             "status": "ok",
             "reviewers": list(critiques),
             "failed": failed,
+            "substitutions": substitutions,
             "reviser": reviser_model,
             "reviser_shares_vendor_with": same_vendor,
             "labels": label_to_model,

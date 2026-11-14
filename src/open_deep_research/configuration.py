@@ -265,6 +265,26 @@ class Configuration(BaseModel):
             }
         }
     )
+    review_fallback_models: str = Field(
+        default="",
+        json_schema_extra={
+            "x_oap_ui_config": {
+                "type": "text",
+                "default": "",
+                "description": "Comma-separated spare reviewer models. When a reviewer fails, the next spare (preferring a vendor not already on the panel) takes its place; the Review notes say who replaced whom."
+            }
+        }
+    )
+    review_call_timeout: float = Field(
+        default=0,
+        json_schema_extra={
+            "x_oap_ui_config": {
+                "type": "number",
+                "default": 0,
+                "description": "Seconds before a single review call (outline, critique, critic, deliberation, vote, revision) is abandoned and handled as a failure. 0 = no limit."
+            }
+        }
+    )
     review_reviser_model: str = Field(
         default="",
         json_schema_extra={

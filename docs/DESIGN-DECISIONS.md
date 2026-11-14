@@ -65,3 +65,8 @@ Short records of the choices that shape Crossvet: the context, the decision, and
 **Decision.** Crossvet points the same idea at the draft, not at other reviewers: each reviewer outlines the answer from the notes before reading the draft, with a supporting passage per point. Code grounds every point in the notes and checks coverage in the draft; only grounded omissions become feedback. The outline is shown to its author during the critique so the point is not forgotten. Opt-in.
 **Cost.** One short extra call per reviewer. Coverage is lexical: a correct paraphrase can be flagged as an omission. The flag goes to the reviser as feedback, not into the report, and the run export keeps every outline for audit.
 
+## 14. The user picks the panel; Crossvet checks it
+**Context.** Model names change monthly, and people want their own mix: a favourite model, a cheap one, a self-hosted one, or vendors such as Grok, GLM or Kimi reached through OpenRouter.
+**Decision.** No fixed vendor list. Setup suggests a panel from what the keys can call, but a panel the user set (`--panel`, or an existing `REVIEW_MODELS`) is kept and only checked: unknown names, a single-vendor panel and a reviser that shares a vendor are reported, not silently fixed. Diversity is judged by the model's maker, so OpenRouter host routing (who serves an open-weight model) is a separate, optional setting. Spare reviewers keep a panel diverse when one vendor is down.
+**Cost.** A kept panel can go stale; setup reports names the key can no longer call, and `--auto` re-picks.
+
