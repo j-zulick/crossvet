@@ -10,6 +10,7 @@ All notable changes to Crossvet. Versions follow [Semantic Versioning](https://s
 - **Per-call time limit** `REVIEW_CALL_TIMEOUT` for every review call (outline, critique, critic, deliberation, vote, revision); a timeout is handled like any other failure.
 - **OpenRouter hosting preferences**: `OPENROUTER_PROVIDER_ORDER`, `OPENROUTER_ALLOW_FALLBACKS`, `OPENROUTER_DATA_COLLECTION`.
 - **`crossvet sessions`** lists saved runs, newest first, with state and question.
+- **Langfuse scores for every CLI run**: with Langfuse configured, `crossvet run` / `resume` attach the same scores as `crossvet-compare` (citations, flagged URLs, reviewer score, critic, deliberation stop reason and rounds saved, blind-pass omissions) to the run's trace.
 
 ### Changed
 - Re-running `crossvet-setup` keeps an existing `REVIEW_MODELS` (and reviser) instead of re-picking; `--auto` re-picks.

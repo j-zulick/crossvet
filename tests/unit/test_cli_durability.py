@@ -157,3 +157,29 @@ def test_parser_has_sessions():
     from open_deep_research.cli import build_parser
 
     assert build_parser().parse_args(["sessions", "--limit", "5"]).limit == 5
+
+
+def test_score_run_attaches_compare_scores(monkeypatch):
+    from open_deep_research import tracing
+
+    monkeypatch.delenv("LANGFUSE_PUBLIC_KEY", raising=False)
+    assert tracing.score_run({}, []) == ""
+    monkeypatch.setenv("LANGFUSE_PUBLIC_KEY", "pk")
+    monkeypatch.setenv("LANGFUSE_SECRET_KEY", "sk")
+
+    class Handler:
+        last_trace_id = "trace-9"
+
+    class Client:
+        scores = []
+
+        def create_score(self, **kw):
+            self.scores.append(kw)
+
+    import langfuse
+
+    monkeypatch.setattr(langfuse, "get_client", lambda: Client())
+    out = {"final_report": "see https://a.org", "review": {"status": "ok", "deliberation": {"stop_reason": "consensus", "rounds_saved": 2}}}
+    assert tracing.score_run(out, [Handler()]) == "trace-9"
+    names = {s["name"] for s in Client.scores}
+    assert {"finished", "cited_urls", "stop_reason", "rounds_saved"} <= names

@@ -159,7 +159,7 @@ Every step is checkpointed (SQLite by default, Postgres with `DATABASE_URL=postg
 
 **Human approval:** with `REQUIRE_APPROVAL=true` the run pauses after research. Approve, type instructions to steer the report, or reject before any report tokens are spent — at the terminal, or with approve / edit / reject buttons in the web UI. `--auto-approve` skips the prompt.
 
-**Tracing and cost:** set `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY` (and `LANGFUSE_BASE_URL` for a self-hosted Langfuse) and every model call in a CLI run is traced with tokens and cost per model. The LangGraph server also supports LangSmith tracing natively.
+**Tracing and cost:** set `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY` (and `LANGFUSE_BASE_URL` for a self-hosted Langfuse) and every model call in a CLI run is traced with tokens and cost per model; when the run ends, its review metrics (citations, flagged URLs, reviewer score, critic outcomes, deliberation stop reason and rounds saved, blind-pass omissions) are attached to the trace as scores, with the same names `crossvet-compare` uses. The LangGraph server also supports LangSmith tracing natively.
 
 ## Two editions
 - **LangGraph edition** (`deep_researcher`, default): an explicit research graph — brief, supervisor, parallel researchers, compression, report.

@@ -154,8 +154,11 @@ async def _run(args: argparse.Namespace) -> int:
         thread = args.thread or uuid.uuid4().hex[:12]
         first = None if args.command == "resume" else {"messages": [HumanMessage(content=args.question)]}
         print(f"thread: {thread}  (resume with: crossvet resume --thread {thread})", file=sys.stderr)
+        callbacks = tracing.get_callbacks()
         try:
-            result = await drive(graph, first, thread, approver, tracing.get_callbacks())
+            result = await drive(graph, first, thread, approver, callbacks)
+            if tracing.score_run(result, callbacks):
+                print("Langfuse: review scores attached to this run's trace.", file=sys.stderr)
         finally:
             tracing.flush()
         _write_report(result, args.out)
