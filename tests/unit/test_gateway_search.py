@@ -91,7 +91,7 @@ def test_contract_matches_gateway_search_and_read_shape():
                       "total_chars": 6, "returned_chars": 6, "escalation_reason": "native_thin"}},
             {"rank": 2, "url": "https://b.example", "title": None, "engine": None, "snippet": None,
              "read": {"status": "failed", "url": "https://b.example", "outcome": "all_extractors_failed"}},
-            {"rank": 3, "url": "https://c.example", "engine": "mojeek", "status": "skipped_time_budget"},
+            {"rank": 3, "url": "https://c.example", "engine": "brave", "status": "skipped_time_budget"},
         ],
     }
     out = parse_gateway_response([{"type": "text", "text": json.dumps(payload)}])
