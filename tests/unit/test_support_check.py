@@ -182,3 +182,11 @@ def test_node_reports_checker_problems_without_failing(monkeypatch):
     assert out["review"]["status"] == "ok"
     assert out["review"]["support_check"]["error"].startswith("REVIEW_SUPPORT_CHECKER=jev needs TYPESAFE_API_KEY")
     assert "Support check off" in out["final_report"]
+
+
+def test_crossvet_doctor_command_is_installed():
+    import tomllib
+    from pathlib import Path
+
+    scripts = tomllib.loads((Path(__file__).resolve().parents[2] / "pyproject.toml").read_text())["project"]["scripts"]
+    assert scripts["crossvet-doctor"] == "open_deep_research.doctor:main"

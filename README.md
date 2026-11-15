@@ -142,6 +142,7 @@ Or step by step:
 uv sync
 uv run crossvet-setup --check                        # writes .env: cross-vendor panel + independent reviser from available models
 uv run python -m open_deep_research.doctor           # checks keys, reviewers, search; never prints key values
+uv run crossvet-doctor --jev                         # same checker as a command; --jev asks Jev two known questions
 uv run crossvet-try                                  # one run; saves report, review and a key-free share.md
 uv run langgraph dev --config langgraph.local.json   # API on :2024, opens LangGraph Studio
 

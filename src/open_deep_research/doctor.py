@@ -138,7 +138,7 @@ def check(config: Configuration | None = None) -> list[Finding]:
             out.append(Finding("FAIL", "support check: Jev needs the typesafe-sdk package (uv sync)"))
         else:
             model = cfg.review_support_model or os.getenv("TYPESAFE_DEFAULT_MODEL") or "jev-latest"
-            out.append(Finding("OK", f"support check: Jev ({model}); run `crossvet-doctor --jev` for a live test"))
+            out.append(Finding("OK", f"support check: Jev ({model}); run `uv run crossvet-doctor --jev` for a live test"))
     elif checker:
         out.append(Finding("FAIL", f"support check: unknown REVIEW_SUPPORT_CHECKER '{checker}' (use jev, or leave it empty)"))
     return out
