@@ -10,6 +10,7 @@ local models in any role) and records what each run produced:
   rounds run and saved by early stopping, why deliberation stopped, and how many
   findings the challengers endorsed
 - with the blind pass on: grounded points the draft omitted
+- with a support checker (Jev): passages scored and rejected as not supporting their claim
 
     crossvet-compare --setups setups.toml --questions questions.txt [--repeats 2] [--out compare-results]
 
@@ -106,6 +107,8 @@ class RunResult:
     agreement_rate: float | None = None
     deliberation_calls: int = 0
     blind_omissions: int = 0
+    support_checked: int = 0
+    support_rejected: int = 0
     report_path: str = ""
     langfuse_trace_id: str = ""
 
@@ -227,6 +230,8 @@ def score(result: RunResult, out: dict[str, Any]) -> RunResult:
     result.agreement_rate = float(rate) if isinstance(rate, (int, float)) else None
     result.deliberation_calls = int(deliberation.get("model_calls", 0) or 0)
     result.blind_omissions = int((review.get("blind_pass") or {}).get("omitted", 0) or 0)
+    result.support_checked = int(deliberation.get("support_checked", 0) or 0)
+    result.support_rejected = int(deliberation.get("support_rejected", 0) or 0) + int((review.get("blind_pass") or {}).get("unsupported", 0) or 0)
     return result
 
 
@@ -262,6 +267,8 @@ LANGFUSE_SCORES = {
     "agreement_rate": "agreement_rate",
     "deliberation_calls": "deliberation_calls",
     "blind_omissions": "blind_omissions",
+    "support_checked": "support_checked",
+    "support_rejected": "support_rejected",
 }
 
 
@@ -371,6 +378,8 @@ def summarize(results: list[RunResult]) -> list[dict[str, Any]]:
             "mean_agreement_rate": _mean([r.agreement_rate for r in ok if r.agreement_rate is not None]),
             "deliberation_calls": sum(r.deliberation_calls for r in ok),
             "blind_omissions": sum(r.blind_omissions for r in ok),
+            "support_checked": sum(r.support_checked for r in ok),
+            "support_rejected": sum(r.support_rejected for r in ok),
         })
     return rows
 

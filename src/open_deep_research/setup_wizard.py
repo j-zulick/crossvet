@@ -374,6 +374,9 @@ def compare_plan(found: Discovery, chosen: Plan, max_local: int = 4) -> list[dic
                            "config": {"cross_vendor_review_enabled": True, "review_deliberation_rounds": 3, "review_deliberation_early_stop": False}})
             setups.append({"name": "deliberation-3-early-stop", "comment": "three rounds with early stopping: compare tokens and outcomes with the fixed baseline",
                            "config": {"cross_vendor_review_enabled": True, "review_deliberation_rounds": 3, "review_deliberation_early_stop": True}})
+    if "review_support_checker" in fields and os.getenv("TYPESAFE_API_KEY"):
+        setups.append({"name": "deliberation-2-jev", "comment": "deliberation with Jev support checks: compare with 'deliberation-2'",
+                       "config": {"cross_vendor_review_enabled": True, "review_deliberation_rounds": 2, "review_support_checker": "jev"}})
     if "review_blind_pass_enabled" in fields:
         setups.append({"name": "blind-pass", "comment": "reviewers outline the answer before reading the draft: compare with 'review'",
                        "config": {"cross_vendor_review_enabled": True, "review_blind_pass_enabled": True}})
@@ -533,6 +536,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if "run_export_path" in Configuration.model_fields and not env.get("RUN_EXPORT_PATH"):
         review_updates["RUN_EXPORT_PATH"] = "runs/review.jsonl"  # every run becomes evaluation data
+    if env.get("TYPESAFE_API_KEY") and not env.get("REVIEW_SUPPORT_CHECKER") and "review_support_checker" in Configuration.model_fields:
+        review_updates["REVIEW_SUPPORT_CHECKER"] = "jev"
+        chosen.warnings.append("TYPESAFE_API_KEY is set: Jev support checks are on (REVIEW_SUPPORT_CHECKER=jev).")
     if found.notes.get("local_base_url") and not env.get("LOCAL_LLM_BASE_URL"):
         review_updates["LOCAL_LLM_BASE_URL"] = found.notes["local_base_url"]
     search_updates, search_note = choose_search(env, found, chosen)

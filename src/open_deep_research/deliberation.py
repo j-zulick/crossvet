@@ -50,6 +50,7 @@ from open_deep_research.cross_vendor_review import (
     enumerate_findings,
     quote_in_notes,
 )
+from open_deep_research.support_check import SupportChecker, passes, score_pairs
 
 MAX_ROUNDS = 3
 
@@ -199,7 +200,14 @@ class DeliberationResult:
             "model_calls": self.model_calls,
             **self.counts(),
             **self.engagement_counts(),
+            **self.support_counts(),
         }
+
+    def support_counts(self) -> dict[str, int]:
+        """How many claims a support checker scored, and how many it rejected."""
+        scored = [e for e in self.log + self.engagement if "support" in e]
+        rejected = [e for e in scored if e.get("reason", "").startswith("the passage does not support")]
+        return {"support_checked": len(scored), "support_rejected": len(rejected)}
 
 
 @dataclass(frozen=True)
@@ -272,9 +280,13 @@ def apply_responses(
     challenges: list[Challenge],
     responses: list[ChallengeResponse],
     notes: str,
+    support: dict[tuple[str, str], float | None] | None = None,
+    min_support: float = 0.5,
 ) -> tuple[Critique, list[dict[str, Any]]]:
     """Apply grounded position changes; keep findings whose change is not grounded in the notes.
 
+    With ``support`` (scores from a support checker, see ``support_check``), a change also
+    needs its passage to support it: a low score turns it into an unsupported change.
     Returns (updated critique, one log entry per challenge).
     """
     findings = enumerate_findings(critique, label)
@@ -292,7 +304,14 @@ def apply_responses(
         else:
             grounded = quote_in_notes(ch.evidence_quote, notes) or quote_in_notes(resp.evidence_quote, notes)
             entry["stance"] = resp.stance
-            if not grounded:
+            pair = change_pair(ch, resp, notes)
+            prob = (support or {}).get(pair) if pair else None
+            if prob is not None:
+                entry["support"] = round(prob, 3)
+            if grounded and not passes(prob, min_support):
+                entry["outcome"] = "unsupported_changes"
+                entry["reason"] = "the passage does not support the change"
+            elif not grounded:
                 entry["outcome"] = "unsupported_changes"
             elif resp.stance == "WITHDRAW":
                 entry["outcome"] = "changed_with_evidence"
@@ -319,7 +338,13 @@ def apply_responses(
 
 
 def apply_engagement(
-    critique: Critique, label: str, assessments: list[Assessment], notes: str, changed: set[str]
+    critique: Critique,
+    label: str,
+    assessments: list[Assessment],
+    notes: str,
+    changed: set[str],
+    support: dict[tuple[str, str], float | None] | None = None,
+    min_support: float = 0.5,
 ) -> tuple[Critique, list[dict[str, Any]]]:
     """Record AGREE / DISAGREE / BUILD_ON verdicts; apply BUILD_ON only with a quote found in the notes.
 
@@ -332,6 +357,13 @@ def apply_engagement(
     for a in {a.finding_id: a for a in assessments if a.finding_id in findings}.values():
         grounded = quote_in_notes(a.evidence_quote, notes)
         entry: dict[str, Any] = {"finding_id": a.finding_id, "verdict": a.verdict, "grounded": grounded}
+        pair = engagement_pair(a, findings[a.finding_id], notes)
+        prob = (support or {}).get(pair) if pair else None
+        if prob is not None:
+            entry["support"] = round(prob, 3)
+            if not passes(prob, min_support):
+                entry["grounded"] = grounded = False
+                entry["reason"] = "the passage does not support the verdict"
         if a.verdict == "BUILD_ON":
             ok = grounded and bool(a.note.strip()) and a.finding_id not in changed
             entry["applied"] = ok
@@ -350,6 +382,23 @@ def apply_engagement(
     return critique.model_copy(update=updated), log
 
 
+def change_pair(ch: Challenge, resp: ChallengeResponse, notes: str) -> tuple[str, str] | None:
+    """(claim, passage) behind a position change, or None when no quote is in the notes."""
+    passage = next((q for q in (resp.evidence_quote, ch.evidence_quote) if quote_in_notes(q, notes)), "")
+    if not passage or resp.stance == "MAINTAIN":
+        return None
+    claim = resp.revised_text.strip() if resp.stance == "REVISE" else f"This is wrong or unsupported: {ch.objection}"
+    return (claim, passage) if claim else None
+
+
+def engagement_pair(a: Assessment, finding: str, notes: str) -> tuple[str, str] | None:
+    """(claim, passage) behind an AGREE or BUILD_ON verdict, or None when its quote is not in the notes."""
+    if a.verdict == "DISAGREE" or not quote_in_notes(a.evidence_quote, notes):
+        return None
+    claim = finding if a.verdict == "AGREE" else f"{finding} {a.note.strip()}".strip()
+    return claim, a.evidence_quote
+
+
 Ask = Callable[[str, type[BaseModel], str], Awaitable[BaseModel]]
 """ask(model, schema, prompt) -> structured answer; raises on failure."""
 
@@ -362,6 +411,8 @@ async def deliberate(
     rounds: int,
     ask: Ask,
     policy: StopPolicy | None = None,
+    checker: SupportChecker | None = None,
+    min_support: float = 0.5,
 ) -> DeliberationResult:
     """Run up to ``rounds`` (capped at MAX_ROUNDS) challenge/response rounds."""
     policy = policy or StopPolicy()
@@ -397,9 +448,14 @@ async def deliberate(
                 responses = rs.responses
             except Exception:
                 responses = []
-            updated, log = apply_responses(crit, lbl, challenges, responses, notes)
+            by_resp = {r.finding_id: r for r in responses}
+            pairs = [p for c in challenges if (r := by_resp.get(c.finding_id)) and (p := change_pair(c, r, notes))]
+            support = await score_pairs(checker, pairs)
+            updated, log = apply_responses(crit, lbl, challenges, responses, notes, support, min_support)
         changed = {e["finding_id"] for e in log if e["outcome"] == "changed_with_evidence"}
-        updated, engagement = apply_engagement(updated, lbl, assessments, notes, changed)
+        pairs = [p for a in assessments if (p := engagement_pair(a, findings[a.finding_id], notes))]
+        support = await score_pairs(checker, pairs)
+        updated, engagement = apply_engagement(updated, lbl, assessments, notes, changed, support, min_support)
         for entry in log + engagement:
             entry.update({"round": round_no, "challenger": challenger, "author": author})
         return lbl, updated, log, engagement, len(findings)
@@ -442,6 +498,9 @@ def notes_line(result: DeliberationResult) -> str:
                  f"{e['build_on_applied']} build-on applied")
         if e["build_on_ignored"]:
             line += f", {e['build_on_ignored']} build-on ignored (no passage from the notes)"
+    sc = result.support_counts()
+    if sc["support_checked"]:
+        line += f". Support check: {sc['support_checked']} passage(s) scored, {sc['support_rejected']} rejected as not supporting their claim"
     reason = STOP_REASONS.get(result.stop_reason, "").format(rate=result.agreement_rate or 0)
     if reason and result.rounds_saved:
         line += f". Stopped after round {result.rounds_run} of {result.rounds_requested}: {reason}"

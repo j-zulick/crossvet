@@ -203,3 +203,10 @@ def test_push_scores_sends_stop_reason_as_category():
 def test_score_reads_blind_pass_omissions():
     r = compare.score(RunResult("b", "q", 1), {"final_report": "x", "review": {"status": "ok", "blind_pass": {"omitted": 2}}})
     assert r.blind_omissions == 2
+
+
+def test_score_reads_support_check_counts():
+    out = {"final_report": "x", "review": {"status": "ok", "deliberation": {"support_checked": 4, "support_rejected": 1},
+                                            "blind_pass": {"omitted": 0, "unsupported": 2}}}
+    r = compare.score(RunResult("j", "q", 1), out)
+    assert (r.support_checked, r.support_rejected) == (4, 3)

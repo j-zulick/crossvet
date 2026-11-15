@@ -7,6 +7,7 @@ This project builds on open-source work. Original copyright and license notices 
 | Open Deep Research | https://github.com/langchain-ai/open_deep_research | MIT (© 2025 LangChain) — see `LICENSE` | `1b7d2e8` | Base research agent (history preserved in this repo) |
 | Agent Chat UI | https://github.com/langchain-ai/agent-chat-ui | MIT (© 2025 Brace Sproul) — see `web/LICENSE` | `0d21f7f` | Web frontend in `web/` |
 | Deep Agents | https://github.com/langchain-ai/deepagents | MIT | `0.7.34` (dependency) | Agent harness used by the Deep Agents edition; used as a library, no code copied |
+| TypeSafe SDK | https://pypi.org/project/typesafe-sdk/ | MIT (depends on httpx2, BSD-3-Clause) | `0.7.5` (dependency) | Client for Jev support checks (`support_check.py`); used as a library, no code copied |
 
 ## Ideas credited (no code copied)
 - **Anonymized peer review between models** — Andrej Karpathy, *llm-council* (https://github.com/karpathy/llm-council). The cross-vendor review here is an independent implementation with typed critiques, confidence-weighted Borda voting, a deterministic citation check and report revision.

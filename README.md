@@ -7,7 +7,7 @@
 ## TL;DR
 - **What:** a deep-research agent, built on LangChain's Open Deep Research (MIT), that has every draft report reviewed by models from **different AI vendors** before you read it.
 - **How it checks:** independent critiques, anonymized ranking, a code check for unread citations, and a critic and deliberation rounds where a finding changes only with a quote that code finds verbatim in the notes.
-- **New in 1.3:** pick your own panel and reviser, GLM and Kimi through OpenRouter, spare reviewers, per-call time limits, and `crossvet sessions`.
+- **New in 1.4:** Jev, a decision model, scores whether each quoted passage supports the claim made from it; code still requires the quote first.
 - **Try it:** `scripts/quickstart.sh`, or the step-by-step commands in [Quickstart](#quickstart).
 
 Crossvet extends LangChain's [Open Deep Research](https://github.com/langchain-ai/open_deep_research) (MIT). A single model writing a research report will state unsupported claims with confidence. Crossvet adds a **cross-vendor review** stage: after the draft report is written,
@@ -53,6 +53,7 @@ Each design choice addresses a documented failure mode of using LLMs to judge LL
 | Evidence-grounded critic | Each finding goes to a critic from a different model than its author; a disagreement counts only with a quote that is verified, in code, to appear in the research notes; unresolved findings go to a *Disputed* section | Structured disagreement between reviewers, with explicit guards against capitulation [7] |
 | Position changes need evidence | In deliberation rounds a reviewer may revise or withdraw a finding only with a passage from the notes, verified in code; other changes are ignored and flagged | Models shift answers to agree with a user or a confident challenger [5]; guards against capitulation in reviewer debate [7] |
 | Outline before reading the draft | With the blind pass, reviewers list the points a correct answer needs, each with a passage from the notes, before they see the draft; code adds grounded points the draft omits to the feedback | LLM judges anchor on what they are shown, including position and order [2] |
+| A real quote can still be the wrong evidence | With `REVIEW_SUPPORT_CHECKER=jev`, every passage used to change a position, endorse, extend a finding or ground a blind-pass point is scored by a decision model for whether it supports that claim; low scores don't count | Verbatim matching catches invented quotes, not misused ones; LLM judges are poorly calibrated about their own agreement [5] |
 | Stop debating when it stops helping | Code ends deliberation on consensus or a stable disagreement; endorsements that cite nothing in the notes buy one more round instead of ending it | An adaptive break of debate was needed for multi-agent debate to perform well [8]; agreement is not evidence [5] |
 
 [1] Chen, Saha & Bansal, *ReConcile: Round-Table Conference Improves Reasoning via Consensus among Diverse LLMs*, ACL 2024. https://aclanthology.org/2024.acl-long.381/
@@ -78,6 +79,21 @@ Deliberation costs two model calls per critique per round. Since v1.1 code, not 
 Every challenger labels each finding **AGREE**, **DISAGREE** or **BUILD_ON** by its anonymous id. DISAGREE goes to the author as a challenge. BUILD_ON adds to the finding only when its quote is found in the notes. **False-consensus guard:** if fewer than `REVIEW_CONSENSUS_MIN_GROUNDED_SHARE` (default 0.5) of the endorsements cite a passage that is in the notes, or the challengers said nothing, one more round runs with the next challenger before deliberation may stop. So with early stopping on, a silent challenger costs one extra round, where v1.0 stopped at once.
 
 The Review notes say why deliberation stopped and how many rounds it saved; the run export, `crossvet-compare` (`rounds_saved`, `mean_agreement_rate`, `deliberation_calls`) and Langfuse (scores `rounds_saved`, `agreement_rate`, `deliberation_calls` and a categorical `stop_reason`) record the same. `crossvet-setup --compare-plan` writes a `deliberation-3-fixed` vs `deliberation-3-early-stop` pair so you can measure the saving on your own questions. `REVIEW_DELIBERATION_EARLY_STOP=false` restores the v1.0 rule.
+
+## Support checks with Jev
+
+Code already refuses evidence that isn't a verbatim quote from the research notes. A real quote can still be used for a claim it doesn't support. With `REVIEW_SUPPORT_CHECKER=jev`, Crossvet also asks **Jev**, TypeSafe's decision model, one yes/no question per (claim, passage) pair: does this passage support this claim? Jev answers with a probability, not with text, so the check is fast, cheap and easy to threshold.
+
+| Claim | Passage | If P(support) < `REVIEW_SUPPORT_MIN_PROB` (0.5) |
+|---|---|---|
+| A revision or withdrawal in deliberation | the quote offered for it | counted as an ungrounded position change; the finding stays |
+| A challenger's AGREE | its quote | not counted as grounded, so the false-consensus guard can trigger |
+| A challenger's BUILD_ON | its quote | the addition is not applied |
+| A blind-pass point | its quote | the point is dropped |
+
+Set `TYPESAFE_API_KEY` (from [console.typesafe.ai](https://console.typesafe.ai)) and `REVIEW_SUPPORT_CHECKER=jev`; `crossvet-setup` turns it on when the key is present. Pin a version with `REVIEW_SUPPORT_MODEL=jev-1.14.0` (default: `TYPESAFE_DEFAULT_MODEL`, else `jev-latest`). Check it with `uv run crossvet-doctor --jev`, which asks Jev two questions with known answers.
+
+If a Jev call fails, that claim is judged by the quote check alone and the Review notes say how many calls failed. Every score is kept in the run export; `crossvet-compare` and Langfuse record `support_checked` and `support_rejected`, and the compare plan adds a `deliberation-2-jev` setup when the key is set.
 
 ## Blind first pass
 
@@ -209,7 +225,7 @@ Splits are by research brief, so a question never appears in both training and t
 ```bash
 uv run pytest tests/unit -q     # offline: no API keys, no network
 ```
-Covers your own model choices (kept panels, unknown names, single-vendor panels), spare reviewers, per-call time limits, OpenRouter host routing, the sessions list, the blind pass (grounding, coverage, omissions, prompts that never include the draft), early stopping (consensus, stable disagreement, the false-consensus guard and build-on grounding), anonymization (no vendor leaks into labels), Borda tallying, citation flagging, the critic protocol (fabricated evidence quotes are never trusted), quorum and failure handling, run export, the MCP tools, gateway parsing, self-hosted model wiring, the approval step with real LangGraph interrupts, the comparison harness, deliberation and the sycophancy guard, the Deep Agents edition (search capture and report file), fine-tuning dataset building, and crash-and-resume across two processes (a completed step is never re-run).
+Covers Jev support checks (the real TypeSafe SDK against a mock API: request shape, probabilities, failures that never block, rejected changes, ungrounded endorsements, blocked additions, dropped blind-pass points, the doctor's live check), your own model choices (kept panels, unknown names, single-vendor panels), spare reviewers, per-call time limits, OpenRouter host routing, the sessions list, the blind pass (grounding, coverage, omissions, prompts that never include the draft), early stopping (consensus, stable disagreement, the false-consensus guard and build-on grounding), anonymization (no vendor leaks into labels), Borda tallying, citation flagging, the critic protocol (fabricated evidence quotes are never trusted), quorum and failure handling, run export, the MCP tools, gateway parsing, self-hosted model wiring, the approval step with real LangGraph interrupts, the comparison harness, deliberation and the sycophancy guard, the Deep Agents edition (search capture and report file), fine-tuning dataset building, and crash-and-resume across two processes (a completed step is never re-run).
 
 ## Roadmap
 - [x] **v0.1** — cross-vendor review, LangGraph 1.2 / LangChain 1.x upgrade, self-hosted model support, web UI, CI
@@ -224,6 +240,7 @@ Covers your own model choices (kept panels, unknown names, single-vendor panels)
 - [x] **v1.1** — deliberation that stops when it stops helping: AGREE / DISAGREE / BUILD_ON labels, code-decided consensus and stable-disagreement stops, false-consensus guard, rounds saved in notes, compare and Langfuse
 - [x] **v1.2** — blind first pass: reviewers outline the answer from the notes before reading the draft; grounded omissions become feedback
 - [x] **v1.3** — your own models: `--panel` / `--reviser` / `--list-models`, a kept panel, GLM and Kimi via OpenRouter, OpenRouter host routing, spare reviewers, per-call time limits, `crossvet sessions`
+- [x] **v1.4** — support checks with Jev: a decision model scores whether each quoted passage supports the claim made from it (position changes, AGREE / BUILD_ON, blind-pass points); `crossvet-doctor --jev`
 
 ## Credits
 Built on [Open Deep Research](https://github.com/langchain-ai/open_deep_research) and [Agent Chat UI](https://github.com/langchain-ai/agent-chat-ui) (both MIT). Anonymized model peer review is inspired by Andrej Karpathy's *llm-council*; explicit agree / disagree / build-on engagement, a blind first pass and stopping on consensus also appear in Terry Li's MIT-licensed *consilium* (Crossvet's versions are reimplemented and verified against the research notes in code; see [design decision 12](docs/DESIGN-DECISIONS.md#12-stop-deliberation-in-code-not-by-a-models-say-so)); the critic's agree / disagree-with-evidence / disagree-concern protocol is adapted from the MIT-licensed *review-council* skill and the research it cites. Details in [NOTICES.md](NOTICES.md); the original upstream README is in [docs/UPSTREAM-README.md](docs/UPSTREAM-README.md).

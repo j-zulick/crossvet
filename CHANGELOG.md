@@ -2,6 +2,15 @@
 
 All notable changes to Crossvet. Versions follow [Semantic Versioning](https://semver.org/); dates are release dates.
 
+## [1.4.0]
+
+### Added
+- **Support checks with Jev** (`REVIEW_SUPPORT_CHECKER=jev`, needs `TYPESAFE_API_KEY`): a decision model scores whether each quoted passage supports the claim made from it. Below `REVIEW_SUPPORT_MIN_PROB` (0.5), a deliberation position change counts as ungrounded, an AGREE is not grounded, a BUILD_ON is not applied, and a blind-pass point is dropped. The verbatim-quote check stays the first gate; a failed Jev call falls back to it and is reported.
+- `REVIEW_SUPPORT_MODEL` pins a Jev version; the version that answered is recorded.
+- `crossvet-doctor` checks the Jev setup; `crossvet-doctor --jev` asks two questions with known answers.
+- Scores in the deliberation log, review state and export (`support_check`); `crossvet-compare` columns and Langfuse scores `support_checked`, `support_rejected`; a `deliberation-2-jev` compare setup when the key is set; `crossvet-setup` turns support checks on when `TYPESAFE_API_KEY` is present.
+- Dependency: `typesafe-sdk` (MIT).
+
 ## [1.3.0]
 
 ### Added

@@ -265,6 +265,40 @@ class Configuration(BaseModel):
             }
         }
     )
+    review_support_checker: str = Field(
+        default="",
+        json_schema_extra={
+            "x_oap_ui_config": {
+                "type": "select",
+                "default": "",
+                "options": [{"label": "Off (quote check only)", "value": ""}, {"label": "Jev (TypeSafe)", "value": "jev"}],
+                "description": "Also check that a quoted passage supports the claim made from it: position changes, AGREE / BUILD_ON verdicts, blind-pass points. 'jev' needs TYPESAFE_API_KEY."
+            }
+        }
+    )
+    review_support_model: str = Field(
+        default="",
+        json_schema_extra={
+            "x_oap_ui_config": {
+                "type": "text",
+                "default": "",
+                "description": "Jev model id, e.g. jev-1.14.0 to pin a version (default: TYPESAFE_DEFAULT_MODEL, else jev-latest)."
+            }
+        }
+    )
+    review_support_min_prob: float = Field(
+        default=0.5,
+        json_schema_extra={
+            "x_oap_ui_config": {
+                "type": "slider",
+                "default": 0.5,
+                "min": 0.1,
+                "max": 0.95,
+                "step": 0.05,
+                "description": "A passage whose support probability is below this does not count as evidence for the claim."
+            }
+        }
+    )
     review_fallback_models: str = Field(
         default="",
         json_schema_extra={

@@ -92,6 +92,7 @@ class BlindResult:
     failed: list[str] = field(default_factory=list)
     omissions: list[dict[str, str]] = field(default_factory=list)
     ungrounded: int = 0
+    unsupported: int = 0
     covered: int = 0
 
     def summary(self) -> dict[str, Any]:
@@ -103,18 +104,35 @@ class BlindResult:
             "covered": self.covered,
             "omitted": len(self.omissions),
             "ungrounded": self.ungrounded,
+            "unsupported": self.unsupported,
             "omissions": self.omissions,
         }
 
 
-def assess(outlines: dict[str, list[BlindPoint]], notes: str, report: str) -> BlindResult:
-    """Ground each point in the notes, check the draft covers it, and collect omissions (deduplicated)."""
+def grounded_pairs(outlines: dict[str, list[BlindPoint]], notes: str) -> list[tuple[str, str]]:
+    """(point, passage) pairs whose passage is in the notes, for a support checker."""
+    return [(p.point, p.evidence_quote) for pts in outlines.values() for p in pts if quote_in_notes(p.evidence_quote, notes)]
+
+
+def assess(
+    outlines: dict[str, list[BlindPoint]],
+    notes: str,
+    report: str,
+    support: dict[tuple[str, str], float | None] | None = None,
+    min_support: float = 0.5,
+) -> BlindResult:
+    """Ground each point in the notes (and, with ``support``, in its passage's meaning), check the draft covers it, and collect omissions (deduplicated)."""
+    from open_deep_research.support_check import passes
+
     result = BlindResult(outlines=outlines)
     seen: set[str] = set()
     for model, points in outlines.items():
         for p in points:
             if not quote_in_notes(p.evidence_quote, notes):
                 result.ungrounded += 1
+                continue
+            if not passes((support or {}).get((p.point, p.evidence_quote)), min_support):
+                result.unsupported += 1
                 continue
             if covered(p, report):
                 result.covered += 1
@@ -171,6 +189,8 @@ def notes_line(result: BlindResult) -> str:
             f"{s['points']} point(s), {s['covered']} covered by the draft, {s['omitted']} grounded omission(s) added to the feedback")
     if s["ungrounded"]:
         line += f", {s['ungrounded']} dropped because their passage is not in the notes"
+    if s["unsupported"]:
+        line += f", {s['unsupported']} dropped because their passage does not support them"
     if s["failed"]:
         line += f"; outline failed for {', '.join(s['failed'])}"
     return line + "."

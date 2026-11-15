@@ -260,6 +260,18 @@ def export_run(path: str, record: dict[str, Any]) -> None:
 ###################
 # Model construction
 ###################
+def support_summary(checker: Any, error: str = "") -> dict[str, Any] | None:
+    """Summarize the support checker for the review state and export (None when off)."""
+    if checker is None:
+        return {"checker": None, "error": error} if error else None
+    return {
+        "checker": type(checker).__name__,
+        "model": checker.model,
+        "served_by": sorted(getattr(checker, "served_by", set())),
+        "errors": checker.errors,
+    }
+
+
 def openrouter_preferences() -> dict[str, Any]:
     """OpenRouter provider routing from the environment (empty means OpenRouter's defaults).
 
@@ -402,6 +414,14 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
     max_tokens = configurable.review_model_max_tokens
     retries = configurable.max_structured_output_retries
     call_timeout = float(configurable.review_call_timeout or 0)
+    from open_deep_research.support_check import build_checker, score_pairs
+
+    try:
+        checker = build_checker(configurable.review_support_checker, configurable.review_support_model)
+        checker_error = ""
+    except (RuntimeError, ValueError) as exc:
+        checker, checker_error = None, str(exc)
+    min_support = float(configurable.review_support_min_prob)
 
     # 0. Optional blind pass: each reviewer outlines the answer from the notes before seeing the draft.
     blind = None
@@ -450,9 +470,11 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
                 substitutions[bad] = pick
                 break
     if configurable.review_blind_pass_enabled:
-        from open_deep_research.blind_pass import add_omissions, assess
+        from open_deep_research.blind_pass import add_omissions, assess, grounded_pairs
 
-        blind = assess({m: p for m, p in outlines.items() if m in critiques}, notes, report)
+        kept_outlines = {m: p for m, p in outlines.items() if m in critiques}
+        blind_support = await score_pairs(checker, grounded_pairs(kept_outlines, notes))
+        blind = assess(kept_outlines, notes, report, blind_support, min_support)
         blind.failed = blind_failed
         critiques = add_omissions(critiques, blind)
     failed = [m for m, c in results if c is None]
@@ -507,7 +529,7 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
             min_rounds=configurable.review_deliberation_min_rounds,
             min_grounded_share=configurable.review_consensus_min_grounded_share,
         )
-        deliberation = await deliberate(by_label, label_to_model, notes_for_prompt, report, configurable.review_deliberation_rounds, ask, policy)
+        deliberation = await deliberate(by_label, label_to_model, notes_for_prompt, report, configurable.review_deliberation_rounds, ask, policy, checker, min_support)
         by_label = deliberation.critiques
 
     # 3. Anonymized vote by every successful reviewer over the checked critiques.
@@ -578,6 +600,10 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
         notes_items.append("Reviewers that failed: " + ", ".join(failed))
     if substitutions:
         notes_items.append("Replaced by fallback models: " + ", ".join(f"{b} → {g}" for b, g in substitutions.items()))
+    if checker_error:
+        notes_items.append(f"Support check off: {checker_error}")
+    elif checker is not None and checker.errors:
+        notes_items.append(f"Support check: {checker.errors} call(s) to {checker.model} failed; those claims were judged by the quote check alone")
     final = revised_text.rstrip() + "\n\n---\n\n## Review notes\n\n" + "\n".join(f"- {item}" for item in notes_items) + "\n"
     if disputed:
         final += "\n### Disputed\n\nReviewer findings the critic could not confirm from the research notes; they need a human check.\n\n"
@@ -616,6 +642,7 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
             "reviewers": list(critiques),
             "failed": failed,
             "substitutions": substitutions,
+            "support_check": support_summary(checker, checker_error),
             "reviser": reviser_model,
             "reviser_shares_vendor_with": same_vendor,
             "labels": label_to_model,

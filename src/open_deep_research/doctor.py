@@ -123,17 +123,69 @@ def check(config: Configuration | None = None) -> list[Finding]:
             out.append(Finding("OK", f"review: reviser {reviser} is independent of the panel"))
     else:
         out.append(Finding("WARN", "review: cross-vendor review is off (CROSS_VENDOR_REVIEW_ENABLED=false)"))
+
+    checker = (getattr(cfg, "review_support_checker", "") or "").strip().lower()
+    if checker == "jev":
+        try:
+            import typesafe_sdk  # noqa: F401
+
+            sdk = True
+        except ImportError:
+            sdk = False
+        if not os.getenv("TYPESAFE_API_KEY"):
+            out.append(Finding("FAIL", "support check: REVIEW_SUPPORT_CHECKER=jev needs TYPESAFE_API_KEY (console.typesafe.ai)"))
+        elif not sdk:
+            out.append(Finding("FAIL", "support check: Jev needs the typesafe-sdk package (uv sync)"))
+        else:
+            model = cfg.review_support_model or os.getenv("TYPESAFE_DEFAULT_MODEL") or "jev-latest"
+            out.append(Finding("OK", f"support check: Jev ({model}); run `crossvet-doctor --jev` for a live test"))
+    elif checker:
+        out.append(Finding("FAIL", f"support check: unknown REVIEW_SUPPORT_CHECKER '{checker}' (use jev, or leave it empty)"))
     return out
 
 
+JEV_SAMPLES = [
+    ("The plant opened in March 2024.", "The plant opened in March 2024 and employs 1,200 people.", True),
+    ("The plant employs 5,000 people.", "The plant opened in March 2024 and employs 1,200 people.", False),
+]
+
+
+def jev_live_check(min_prob: float = 0.5) -> int:
+    """Ask Jev two questions with known answers; return an exit code."""
+    import asyncio
+
+    from open_deep_research.support_check import JevChecker
+
+    cfg = Configuration.from_runnable_config({"configurable": {}})
+    if not os.getenv("TYPESAFE_API_KEY"):
+        sys.stdout.write("[FAIL] TYPESAFE_API_KEY is not set\n")
+        return 1
+    checker = JevChecker(model=cfg.review_support_model)
+    probs = asyncio.run(checker.check([(c, p) for c, p, _ in JEV_SAMPLES]))
+    ok = True
+    for (claim, _, expected), prob in zip(JEV_SAMPLES, probs):
+        if prob is None:
+            sys.stdout.write(f"[FAIL] Jev call failed for: {claim}\n")
+            ok = False
+            continue
+        right = (prob >= min_prob) == expected
+        ok &= right
+        sys.stdout.write(f"[{'OK' if right else 'WARN':4}] {'supported' if expected else 'not supported'} pair: P(support)={prob:.2f}  {claim}\n")
+    served = ", ".join(sorted(checker.served_by)) or checker.model
+    sys.stdout.write(f"\nJev ({served}): {'working' if ok else 'check the results above'}.\n")
+    return 0 if ok else 1
+
+
 def main() -> int:
-    """Print the findings and return an exit code."""
+    """Print the findings and return an exit code (``--jev``: live Jev test)."""
     try:
         from dotenv import load_dotenv
 
         load_dotenv()
     except ImportError:
         pass
+    if "--jev" in sys.argv[1:]:
+        return jev_live_check()
     findings = check()
     for f in findings:
         sys.stdout.write(f"[{f.level:4}] {f.message}\n")
