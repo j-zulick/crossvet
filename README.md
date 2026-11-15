@@ -4,6 +4,13 @@
 
 **Deep research whose reports are checked by models from several AI vendors before you see them.**
 
+## TL;DR
+- **What:** a deep-research agent, built on LangChain's Open Deep Research (MIT), that has every draft report reviewed by models from **different AI vendors** before you read it.
+- **How it checks:** reviewers critique the draft independently; critiques are anonymized and ranked with a confidence-weighted Borda count; code flags any cited URL the research never read; a reviser outside the panel writes the final report, which ends with Review notes.
+- **In this release:** the cross-vendor review stage, the citation check, Review notes, any hosted or local model, a setup checker and a web UI.
+- **Try it:** `scripts/quickstart.sh`, or the step-by-step commands in [Quickstart](#quickstart).
+- **Limits:** review adds a few model calls per reviewer, and the citation check matches URLs, not whether the page supports the claim.
+
 Crossvet extends LangChain's [Open Deep Research](https://github.com/langchain-ai/open_deep_research) (MIT). A single model writing a research report will state unsupported claims with confidence. Crossvet adds a **cross-vendor review** stage: after the draft report is written,
 
 1. reviewers from different vendors (e.g. OpenAI, Anthropic, Google, or a self-hosted model) critique it **independently and in parallel**, as typed objects;
@@ -84,7 +91,7 @@ Covers anonymization (no vendor leaks into labels), Borda tallying, citation fla
 - [ ] **v0.4** — model comparison harness: any cloud or local model in any role, compared on citation support, critic outcomes, failures, latency and tokens
 - [ ] **v0.5** — deeper deliberation: rotating challenger, capped rebuttal rounds, position-change tracking with sycophancy flags
 - [ ] **v0.6** — Deep Agents edition (planning, sub-agents, virtual filesystem), compared against the LangGraph edition
-- [ ] **v0.7** — fine-tuning data path: run exports to MLX LoRA datasets for a self-hosted model, measured before/after
+- [ ] **v0.7** — fine-tuning data path: run exports to MLX LoRA datasets for a self-hosted model (training and the before/after comparison run on your Mac)
 - [ ] **v0.8** — grounded search on self-hosted infrastructure (metasearch, layered page reading, saved evidence, SSRF protection) via MCP
 - [ ] **v1.0** — one-command Docker Compose, security scanning in CI, architecture and evaluation docs
 
