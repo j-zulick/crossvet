@@ -7,7 +7,7 @@
 ## TL;DR
 - **What:** a deep-research agent, built on LangChain's Open Deep Research (MIT), that has every draft report reviewed by models from **different AI vendors** before you read it.
 - **How it checks:** independent critiques, anonymized ranking, a code check for unread citations, and a critic and deliberation rounds where a finding changes only with a quote that code finds verbatim in the notes.
-- **New in 1.1:** reviewers label findings AGREE / DISAGREE / BUILD_ON, code stops deliberation on consensus or a stable disagreement, and a guard blocks agreement the notes don't back.
+- **New in 1.2:** a blind first pass: reviewers outline the answer from the notes before reading the draft, and grounded points the draft omits become feedback.
 - **Try it:** `scripts/quickstart.sh`, or the step-by-step commands in [Quickstart](#quickstart).
 
 Crossvet extends LangChain's [Open Deep Research](https://github.com/langchain-ai/open_deep_research) (MIT). A single model writing a research report will state unsupported claims with confidence. Crossvet adds a **cross-vendor review** stage: after the draft report is written,
@@ -209,8 +209,8 @@ Covers the blind pass (grounding, coverage, omissions, prompts that never includ
 - [x] **v0.7** — fine-tuning data path: run exports to MLX LoRA datasets for a self-hosted model (training and the before/after comparison run on your Mac)
 - [x] **v0.8** — grounded search on self-hosted infrastructure (metasearch, layered page reading, saved evidence, SSRF protection) via MCP
 - [x] **v1.0** — one-command Docker Compose, security scanning in CI, architecture and evaluation docs
-- [x] **v1.2** — blind first pass: reviewers outline the answer from the notes before reading the draft; grounded omissions become feedback
 - [x] **v1.1** — deliberation that stops when it stops helping: AGREE / DISAGREE / BUILD_ON labels, code-decided consensus and stable-disagreement stops, false-consensus guard, rounds saved in notes, compare and Langfuse
+- [x] **v1.2** — blind first pass: reviewers outline the answer from the notes before reading the draft; grounded omissions become feedback
 
 ## Credits
 Built on [Open Deep Research](https://github.com/langchain-ai/open_deep_research) and [Agent Chat UI](https://github.com/langchain-ai/agent-chat-ui) (both MIT). Anonymized model peer review is inspired by Andrej Karpathy's *llm-council*; explicit agree / disagree / build-on engagement, a blind first pass and stopping on consensus also appear in Terry Li's MIT-licensed *consilium* (Crossvet's versions are reimplemented and verified against the research notes in code; see [design decision 12](docs/DESIGN-DECISIONS.md#12-stop-deliberation-in-code-not-by-a-models-say-so)); the critic's agree / disagree-with-evidence / disagree-concern protocol is adapted from the MIT-licensed *review-council* skill and the research it cites. Details in [NOTICES.md](NOTICES.md); the original upstream README is in [docs/UPSTREAM-README.md](docs/UPSTREAM-README.md).
