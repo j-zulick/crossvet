@@ -156,7 +156,13 @@ async def write_research_brief(state: AgentState, config: RunnableConfig) -> Com
         messages=get_buffer_string(state.get("messages", [])),
         date=get_today_str()
     )
+    from open_deep_research.context import context_block, with_context
+
+    block = context_block(configurable.context_pack, configurable.research_context)
+    if block:
+        prompt_content += f"\n\nTake this context into account when writing the brief:\n{block}"
     response = await research_model.ainvoke([HumanMessage(content=prompt_content)])
+    research_brief = with_context(response.research_brief, configurable.context_pack, configurable.research_context)
     
     # Step 3: Initialize supervisor with research brief and instructions
     supervisor_system_prompt = lead_researcher_prompt.format(
@@ -168,12 +174,12 @@ async def write_research_brief(state: AgentState, config: RunnableConfig) -> Com
     return Command(
         goto="research_supervisor", 
         update={
-            "research_brief": response.research_brief,
+            "research_brief": research_brief,
             "supervisor_messages": {
                 "type": "override",
                 "value": [
                     SystemMessage(content=supervisor_system_prompt),
-                    HumanMessage(content=response.research_brief)
+                    HumanMessage(content=research_brief)
                 ]
             }
         }

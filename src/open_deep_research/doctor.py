@@ -124,6 +124,15 @@ def check(config: Configuration | None = None) -> list[Finding]:
     else:
         out.append(Finding("WARN", "review: cross-vendor review is off (CROSS_VENDOR_REVIEW_ENABLED=false)"))
 
+    pack = (getattr(cfg, "context_pack", "") or "").strip().lower()
+    if pack:
+        from open_deep_research.context import available_packs
+
+        if pack in available_packs():
+            out.append(Finding("OK", f"context: pack '{pack}' is added to every research brief"))
+        else:
+            out.append(Finding("FAIL", f"context: unknown CONTEXT_PACK '{pack}' (choose one of: {', '.join(available_packs())})"))
+
     checker = (getattr(cfg, "review_support_checker", "") or "").strip().lower()
     if checker == "jev":
         try:

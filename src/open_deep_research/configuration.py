@@ -265,6 +265,32 @@ class Configuration(BaseModel):
             }
         }
     )
+    context_pack: str = Field(
+        default="",
+        json_schema_extra={
+            "x_oap_ui_config": {
+                "type": "select",
+                "default": "",
+                "options": [
+                    {"label": "None", "value": ""},
+                    {"label": "SEO and GEO", "value": "seo"},
+                    {"label": "Marketing", "value": "marketing"},
+                    {"label": "Real estate", "value": "real-estate"},
+                ],
+                "description": "Domain pack: which sources count as primary in this field, which claims go stale, and what reviewers should check. Added to the research brief."
+            }
+        }
+    )
+    research_context: str = Field(
+        default="",
+        json_schema_extra={
+            "x_oap_ui_config": {
+                "type": "text",
+                "default": "",
+                "description": "Who is asking and why (e.g. 'SEO consultant preparing a client audit for a US regional retailer'). Added to the research brief so research and review aim at it."
+            }
+        }
+    )
     review_support_checker: str = Field(
         default="",
         json_schema_extra={

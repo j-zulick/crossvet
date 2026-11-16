@@ -2,6 +2,13 @@
 
 All notable changes to Crossvet. Versions follow [Semantic Versioning](https://semver.org/); dates are release dates.
 
+## [1.5.0]
+
+### Added
+- **Context and domain packs**: `RESEARCH_CONTEXT` (who is asking and why) and `CONTEXT_PACK` (`seo`, `marketing`, `real-estate`: which sources count as primary, which claims go stale, what reviewers check) are appended to the research brief in both editions, so research and every review stage work to them. `crossvet-doctor` checks the pack name.
+- **Follow-up questions**: `crossvet ask --thread ID "question"` answers from a finished run's notes in one model call, cites only URLs the run read (same citation check as the report), and says when the notes don't cover the question. `--out` appends to a markdown file; exit code 2 flags unread URLs.
+- **Python API** `open_deep_research.api`: `run` / `arun` (any setting, either edition, no approval pauses) and `ask` / `aask` for follow-ups.
+
 ## [1.4.0]
 
 ### Added
