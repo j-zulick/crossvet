@@ -7,7 +7,13 @@ import time
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 
-from open_deep_research import cross_vendor_review, deep_agent, deep_researcher, models, utils
+from open_deep_research import (
+    cross_vendor_review,
+    deep_agent,
+    deep_researcher,
+    models,
+    utils,
+)
 from open_deep_research.configuration import Configuration
 
 

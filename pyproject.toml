@@ -59,6 +59,7 @@ crossvet-try = "open_deep_research.quickrun:main"
 crossvet = "open_deep_research.cli:main"
 crossvet-mcp = "open_deep_research.mcp_server:main"
 crossvet-compare = "open_deep_research.compare:main"
+crossvet-bench = "open_deep_research.bench:main"
 crossvet-dataset = "open_deep_research.dataset:main"
 
 [project.optional-dependencies]
