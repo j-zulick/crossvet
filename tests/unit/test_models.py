@@ -189,3 +189,48 @@ def test_context_limit_for_models_missing_from_the_old_table(monkeypatch):
     models.save_openrouter_catalog([{"id": "z-ai/glm-5.3", "supported_parameters": ["tools"], "context_length": 202752}])
     assert utils.get_model_token_limit("openrouter:z-ai/glm-5.3") == 202752
     assert models.context_limit("local:anything") is None
+
+
+def test_message_text_drops_thinking_blocks():
+    msg = AIMessage(content=[{"type": "thinking", "thinking": "plan", "signature": "sig"},
+                             {"type": "text", "text": "# Report"}, {"type": "text", "text": "\nBody"}])
+    assert models.message_text(msg) == "# Report\nBody"
+    assert models.message_text(AIMessage(content="plain")) == "plain"
+
+
+def test_reviser_and_writer_replies_with_thinking_blocks_become_clean_reports(monkeypatch):
+    """A Claude reviser or writer with extended thinking returns content blocks (live bug, v1.0-v1.5)."""
+    from langchain_core.outputs import ChatGeneration, ChatResult
+
+    from tests.unit.test_end_to_end import REPORT, ScriptedModel
+
+    class ThinkingModel(ScriptedModel):
+        def _generate(self, messages, stop=None, run_manager=None, **kwargs):
+            result = super()._generate(messages, stop, run_manager, **kwargs)
+            msg = result.generations[0].message
+            if not msg.tool_calls and isinstance(msg.content, str):
+                msg = AIMessage(content=[{"type": "thinking", "thinking": "let me think", "signature": "SIG123"},
+                                         {"type": "text", "text": msg.content}])
+            return ChatResult(generations=[ChatGeneration(message=msg)])
+
+    model = ThinkingModel(calls=[])
+
+    async def fake_search(queries, **kwargs):
+        from tests.unit.test_end_to_end import SOURCE_URL
+        return [{"query": q, "results": [{"url": SOURCE_URL, "title": "t", "content": "Solar additions grew strongly in 2025.",
+                                           "raw_content": "Solar additions grew strongly in 2025. " * 20}]} for q in queries]
+
+    monkeypatch.setattr(deep_researcher, "configurable_model", model)
+    monkeypatch.setattr(utils, "tavily_search_async", fake_search)
+    monkeypatch.setattr(utils, "init_chat_model", lambda **kwargs: model)
+    monkeypatch.setattr(cross_vendor_review, "build_reviewer", lambda *a, **k: model)
+    for key in ("REQUIRE_APPROVAL", "RUN_EXPORT_PATH", "REVIEW_DELIBERATION_ROUNDS"):
+        monkeypatch.delenv(key, raising=False)
+    for k, v in {"SEARCH_API": "tavily", "MAX_RESEARCHER_ITERATIONS": "2", "MAX_REACT_TOOL_CALLS": "2",
+                 "CROSS_VENDOR_REVIEW_ENABLED": "true", "REVIEW_MODELS": "openai:a,anthropic:b"}.items():
+        monkeypatch.setenv(k, v)
+    out = asyncio.run(deep_researcher.deep_researcher.ainvoke({"messages": [HumanMessage(content="Solar in 2025?")]}, {"configurable": {}}))
+    report = out["final_report"]
+    assert report.startswith(REPORT.split("\n")[0]), report[:200]
+    assert "SIG123" not in report and "'type': 'thinking'" not in report
+    assert "## Review notes" in report

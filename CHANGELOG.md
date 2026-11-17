@@ -17,6 +17,7 @@ All notable changes to Crossvet. Versions follow [Semantic Versioning](https://s
 - Context limits for models missing from the built-in table come from OpenRouter's catalog or LangChain's model profiles, so an over-long report is trimmed and retried instead of failing.
 
 ### Fixed
+- **A Claude reviser or report writer with extended thinking put raw content blocks into the report.** Claude can reply with a list of blocks (a thinking block with a signature, then the text); the revision, the final report, compression and the raw notes took `str(content)` instead of the text. All now use the reply's text only. Found in a live run with Claude as reviser; affects v1.0 to v1.5 when the reviser or report model is a Claude model that returns thinking blocks.
 - The automatic OpenRouter pick chose Gemma (open weights) over Gemini for Google because of its higher version number.
 
 ## [1.4.0]

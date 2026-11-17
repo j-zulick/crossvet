@@ -262,6 +262,24 @@ def context_limit(model: str) -> int | None:
     return int(value) if value else None
 
 
+def message_text(message: Any) -> str:
+    """Return a reply's text, without thinking or reasoning blocks.
+
+    Claude (with extended thinking) and OpenAI's Responses API return content as a list of
+    blocks; ``str(message.content)`` would put the raw blocks, signatures and all, into a report.
+    """
+    text = getattr(message, "text", None)
+    if isinstance(text, str):
+        return text
+    content = getattr(message, "content", message)
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return "".join(b.get("text", "") if isinstance(b, dict) and b.get("type") == "text" else (b if isinstance(b, str) else "")
+                       for b in content)
+    return str(content or "")
+
+
 ###################
 # Cost
 ###################

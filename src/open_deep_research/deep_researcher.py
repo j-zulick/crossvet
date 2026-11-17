@@ -16,7 +16,7 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command
 
-from open_deep_research.models import build_chat_model, is_routed
+from open_deep_research.models import build_chat_model, is_routed, message_text
 from open_deep_research.configuration import (
     Configuration,
 )
@@ -572,13 +572,13 @@ async def compress_research(state: ResearcherState, config: RunnableConfig):
             
             # Extract raw notes from all tool and AI messages
             raw_notes_content = "\n".join([
-                str(message.content) 
+                message_text(message)
                 for message in filter_messages(researcher_messages, include_types=["tool", "ai"])
             ])
             
             # Return successful compression result
             return {
-                "compressed_research": str(response.content),
+                "compressed_research": message_text(response),
                 "raw_notes": [raw_notes_content]
             }
             
@@ -595,7 +595,7 @@ async def compress_research(state: ResearcherState, config: RunnableConfig):
     
     # Step 4: Return error result if all attempts failed
     raw_notes_content = "\n".join([
-        str(message.content) 
+        message_text(message)
         for message in filter_messages(researcher_messages, include_types=["tool", "ai"])
     ])
     
@@ -673,7 +673,7 @@ async def final_report_generation(state: AgentState, config: RunnableConfig):
             
             # Return successful report generation
             return {
-                "final_report": strip_tracking(final_report.content if isinstance(final_report.content, str) else str(final_report.content)), 
+                "final_report": strip_tracking(message_text(final_report)), 
                 "messages": [final_report],
                 **cleared_state
             }

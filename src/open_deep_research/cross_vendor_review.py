@@ -35,7 +35,11 @@ from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, Field
 
 from open_deep_research.configuration import Configuration
-from open_deep_research.models import build_chat_model, openrouter_preferences  # noqa: F401 (re-exported)
+from open_deep_research.models import (  # noqa: F401 (openrouter_preferences is re-exported)
+    build_chat_model,
+    message_text,
+    openrouter_preferences,
+)
 from open_deep_research.utils import (
     get_today_str,
     structured_output_kwargs,
@@ -510,7 +514,7 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
     try:
         writer = build_reviewer(reviser_model, configurable.final_report_model_max_tokens, config)
         revised = await timed(writer.ainvoke([HumanMessage(content=REVISE_PROMPT.format(date=get_today_str(), notes=notes_for_prompt, report=report, feedback=feedback))]), call_timeout)
-        revised_text = revised.content if isinstance(revised.content, str) else str(revised.content)
+        revised_text = message_text(revised)
     except Exception as exc:  # keep the draft and say so in the Review notes
         revised_text = report
         revision_error = type(exc).__name__
