@@ -2,12 +2,12 @@
 
 [![CI](https://github.com/j-zulick/crossvet/actions/workflows/ci.yml/badge.svg)](https://github.com/j-zulick/crossvet/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) [![Python 3.11–3.13](https://img.shields.io/badge/python-3.11%E2%80%933.13-blue.svg)](.python-version)
 
-**Deep research whose reports are checked by models from several AI vendors before you see them.**
+**Deep research whose reports are checked by models from several AI vendors before you read them: domain packs, follow-up questions from a run's own evidence, and a Python API.**
 
 ## TL;DR
 - **What:** a deep-research agent, built on LangChain's Open Deep Research (MIT), that has every draft report reviewed by models from **different AI vendors** before you read it.
 - **How it checks:** independent critiques, anonymized ranking, a code check for unread citations, and a critic and deliberation rounds where a finding changes only with a quote that code finds verbatim in the notes.
-- **New in 1.4:** Jev, a decision model, scores whether each quoted passage supports the claim made from it; code still requires the quote first.
+- **New in 1.5:** domain packs (SEO/GEO, marketing, real estate), follow-up questions answered from a run's own notes (`crossvet ask`), and a Python API.
 - **Try it:** `scripts/quickstart.sh`, or the step-by-step commands in [Quickstart](#quickstart).
 
 Crossvet extends LangChain's [Open Deep Research](https://github.com/langchain-ai/open_deep_research) (MIT). A single model writing a research report will state unsupported claims with confidence. Crossvet adds a **cross-vendor review** stage: after the draft report is written,
