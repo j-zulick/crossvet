@@ -22,12 +22,19 @@ All notable changes to Crossvet. Versions follow [Semantic Versioning](https://s
 - **A revision cut off at the output limit replaced the complete draft**, losing its end and its source list (seen live with a Claude reviser whose extended thinking shares the output budget). The review now keeps the draft when the revision stopped at the limit, came back empty, or lost most of the draft's sources, and says why in the Review notes.
 - The automatic OpenRouter pick chose Gemma (open weights) over Gemini for Google because of its higher version number.
 
+## [1.5.0]
+
+### Added
+- **Context and domain packs**: `RESEARCH_CONTEXT` (who is asking and why) and `CONTEXT_PACK` (`seo`, `marketing`, `real-estate`: which sources count as primary, which claims go stale, what reviewers check) are appended to the research brief in both editions, so research and every review stage work to them. `crossvet-doctor` checks the pack name.
+- **Follow-up questions**: `crossvet ask --thread ID "question"` answers from a finished run's notes in one model call, cites only URLs the run read (same citation check as the report), and says when the notes don't cover the question. `--out` appends to a markdown file; exit code 2 flags unread URLs.
+- **Python API** `open_deep_research.api`: `run` / `arun` (any setting, either edition, no approval pauses) and `ask` / `aask` for follow-ups.
+
 ## [1.4.0]
 
 ### Added
 - **Support checks with Jev** (`REVIEW_SUPPORT_CHECKER=jev`, needs `TYPESAFE_API_KEY`): a decision model scores whether each quoted passage supports the claim made from it. Below `REVIEW_SUPPORT_MIN_PROB` (0.5), a deliberation position change counts as ungrounded, an AGREE is not grounded, a BUILD_ON is not applied, and a blind-pass point is dropped. The verbatim-quote check stays the first gate; a failed Jev call falls back to it and is reported.
 - `REVIEW_SUPPORT_MODEL` pins a Jev version; the version that answered is recorded.
-- `crossvet-doctor` checks the Jev setup; `crossvet-doctor --jev` asks two questions with known answers.
+- `crossvet-doctor`, a command for the setup checker (`python -m open_deep_research.doctor` still works), now checks the Jev setup; `crossvet-doctor --jev` asks two questions with known answers.
 - Scores in the deliberation log, review state and export (`support_check`); `crossvet-compare` columns and Langfuse scores `support_checked`, `support_rejected`; a `deliberation-2-jev` compare setup when the key is set; `crossvet-setup` turns support checks on when `TYPESAFE_API_KEY` is present.
 - Dependency: `typesafe-sdk` (MIT).
 

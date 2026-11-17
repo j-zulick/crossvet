@@ -10,7 +10,8 @@ This page records how Crossvet is evaluated and what the results were. **No resu
 4. Does early stopping (v1.1) cut deliberation calls and tokens without changing what review finds? (`deliberation-3-fixed` vs `deliberation-3-early-stop`: compare `deliberation_calls`, tokens, `flagged_url_rate`, critic outcomes and grounded position changes.)
 5. Does the blind pass (v1.2) surface omissions that human graders confirm, and what does it cost? (`review` vs `blind-pass`: `blind_omissions`, tokens, grader agreement on a sample of omissions.)
 6. How often does Jev reject a grounded position change or endorsement, and do human graders agree with those rejections? (`deliberation-2` vs `deliberation-2-jev`: `support_checked`, `support_rejected`, grader agreement on a sample of rejected pairs.)
-7. Does a LoRA-tuned local reviewer (from `crossvet-dataset`) review better than its base model?
+7. Do domain packs change what reviewers catch? (`seo` pack vs none on SEO questions: dated-claim and primary-source findings, grader agreement.)
+8. Does a LoRA-tuned local reviewer (from `crossvet-dataset`) review better than its base model?
 
 ## Protocol
 
@@ -31,6 +32,7 @@ This page records how Crossvet is evaluated and what the results were. **No resu
 | Early stopping vs fixed rounds | not run |
 | Blind pass vs review | not run |
 | Jev support checks vs quote check alone | not run |
+| Domain pack vs none | not run |
 | Fine-tuned vs base local reviewer | not run |
 
 ## Model fit (v1.6)

@@ -7,6 +7,7 @@ stopped instead of starting over (and paying for completed model calls again).
     crossvet resume --thread ID [--auto-approve] [--out report.md]
     crossvet status --thread ID
     crossvet sessions [--limit 20]
+    crossvet ask --thread ID "follow-up question" [--out FILE]
 
 Checkpoints go to a local SQLite file by default (CROSSVET_CHECKPOINTS, default
 .crossvet/checkpoints.sqlite). Set DATABASE_URL=postgresql://... to use Postgres
@@ -143,6 +144,29 @@ async def _run(args: argparse.Namespace) -> int:
                 state = "done" if values.get("final_report") and not snap.next else "waiting for approval" if waiting else "in progress"
                 print(f"{row['thread']}  {row['updated'][:19]}  {state:20}  {question[:70]}")
             return 0
+        if args.command == "ask":
+            from open_deep_research.configuration import Configuration
+            from open_deep_research.followup import answer, model_asker, render
+
+            snap = await graph.aget_state({"configurable": {"thread_id": args.thread}})
+            if not snap.values:
+                print(f"No checkpoint for thread {args.thread}")
+                return 1
+            cfg = Configuration.from_runnable_config({"configurable": {}})
+            model = args.model or cfg.final_report_model
+            try:
+                result = await answer(args.question, snap.values, model_asker(model, cfg.final_report_model_max_tokens))
+            except ValueError as exc:
+                print(str(exc))
+                return 1
+            text = render(result)
+            if args.out:
+                with open(args.out, "a", encoding="utf-8") as fh:
+                    fh.write(text + "\n")
+                print(f"Follow-up appended to {args.out}")
+            else:
+                print(text)
+            return 0 if not result["flagged_urls"] else 2
         if args.command == "status":
             snap = await graph.aget_state({"configurable": {"thread_id": args.thread}})
             if not snap.values:
@@ -179,6 +203,11 @@ def build_parser() -> argparse.ArgumentParser:
         sp.add_argument("--out", help="write the final report to this file")
     status = sub.add_parser("status", help="show where a run stopped")
     status.add_argument("--thread", required=True)
+    ask = sub.add_parser("ask", help="ask a follow-up question about a finished run, answered from its research notes")
+    ask.add_argument("--thread", required=True)
+    ask.add_argument("question")
+    ask.add_argument("--model", help="model for the answer (default: FINAL_REPORT_MODEL)")
+    ask.add_argument("--out", help="append the answer to this markdown file")
     sessions = sub.add_parser("sessions", help="list saved runs, newest first")
     sessions.add_argument("--limit", type=int, default=20)
     return p

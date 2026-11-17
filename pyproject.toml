@@ -61,6 +61,7 @@ crossvet-mcp = "open_deep_research.mcp_server:main"
 crossvet-compare = "open_deep_research.compare:main"
 crossvet-bench = "open_deep_research.bench:main"
 crossvet-dataset = "open_deep_research.dataset:main"
+crossvet-doctor = "open_deep_research.doctor:main"
 
 [project.optional-dependencies]
 dev = ["mypy>=1.11.1", "ruff>=0.6.1"]

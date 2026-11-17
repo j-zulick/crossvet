@@ -80,6 +80,33 @@ Every challenger labels each finding **AGREE**, **DISAGREE** or **BUILD_ON** by 
 
 The Review notes say why deliberation stopped and how many rounds it saved; the run export, `crossvet-compare` (`rounds_saved`, `mean_agreement_rate`, `deliberation_calls`) and Langfuse (scores `rounds_saved`, `agreement_rate`, `deliberation_calls` and a categorical `stop_reason`) record the same. `crossvet-setup --compare-plan` writes a `deliberation-3-fixed` vs `deliberation-3-early-stop` pair so you can measure the saving on your own questions. `REVIEW_DELIBERATION_EARLY_STOP=false` restores the v1.0 rule.
 
+## Context, follow-ups and the Python API
+
+**Context and domain packs.** `RESEARCH_CONTEXT` says who is asking and why ("SEO consultant preparing a client audit for a US regional retailer"). `CONTEXT_PACK` adds the evidence rules of a field: which sources count as primary, which claims go stale, what reviewers should check.
+
+| Pack | Highlights |
+|---|---|
+| `seo` | Google's own documentation and statements first; patents are not proof of use; vendor studies are correlations; every algorithm or AI Overview claim is dated |
+| `marketing` | platform docs, filings and surveys with a published method first; vendor reports named with sample, geography and date; medians vs averages |
+| `real-estate` | MLS, public records and government data first; every figure tied to a geography and period; rules vary by jurisdiction |
+
+Both are appended to the research brief, so researchers, critics, deliberation and the reviser all work to them. Both editions use them; `crossvet-doctor` checks the pack name.
+
+**Follow-up questions.** Ask about a finished run without researching again: one model call, answered only from that run's notes, with the same citation check as the report.
+```bash
+uv run crossvet ask --thread <id> "Which source gives the 2025 figure?"   # --out followups.md appends; exit code 2 if a cited URL was never read
+```
+
+**Python API.**
+```python
+from open_deep_research.api import run, ask
+
+result = run("Do AI Overviews cite top-ranking pages?", config={"context_pack": "seo", "review_deliberation_rounds": 2})
+print(result["final_report"], result["review"]["status"])
+print(ask("Which study measured that?", result)["answer"])
+```
+`run` / `arun` accept any setting from `configuration.py` and `edition="deep_agent"`; API runs never pause for approval.
+
 ## Support checks with Jev
 
 Code already refuses evidence that isn't a verbatim quote from the research notes. A real quote can still be used for a claim it doesn't support. With `REVIEW_SUPPORT_CHECKER=jev`, Crossvet also asks **Jev**, TypeSafe's decision model, one yes/no question per (claim, passage) pair: does this passage support this claim? Jev answers with a probability, not with text, so the check is fast, cheap and easy to threshold.
@@ -163,6 +190,7 @@ Or step by step:
 uv sync
 uv run crossvet-setup --check                        # writes .env: cross-vendor panel + independent reviser from available models
 uv run python -m open_deep_research.doctor           # checks keys, reviewers, search; never prints key values
+uv run crossvet-doctor --jev                         # same checker as a command; --jev asks Jev two known questions
 uv run crossvet-try                                  # one run; saves report, review and a key-free share.md
 uv run langgraph dev --config langgraph.local.json   # API on :2024, opens LangGraph Studio
 
@@ -197,6 +225,7 @@ uv run crossvet run "How are EU AI Act obligations phased in for general-purpose
 uv run crossvet status --thread <id>      # where did it stop?
 uv run crossvet resume --thread <id>      # continue after a crash or Ctrl-C
 uv run crossvet sessions                  # saved runs, newest first: thread, last update, state, question
+uv run crossvet ask --thread <id> "..."   # follow-up answered from that run's notes
 ```
 Every step is checkpointed (SQLite by default, Postgres with `DATABASE_URL=postgresql://...` and `uv sync --extra postgres`). A run that crashes mid-way resumes from its last checkpoint without repeating completed — already paid-for — model calls.
 
@@ -246,7 +275,7 @@ Splits are by research brief, so a question never appears in both training and t
 ```bash
 uv run pytest tests/unit -q     # offline: no API keys, no network
 ```
-Covers the model factory (every stage on OpenRouter and local models, capabilities from the catalog, structured-output method, real cost), the role split, the role benchmark (scoring formulas with perfect and weak stand-in models, budget cap, resume, role maps, presets, the live plan), Jev support checks (the real TypeSafe SDK against a mock API: request shape, probabilities, failures that never block, rejected changes, ungrounded endorsements, blocked additions, dropped blind-pass points, the doctor's live check), your own model choices (kept panels, unknown names, single-vendor panels), spare reviewers, per-call time limits, OpenRouter host routing, the sessions list, the blind pass (grounding, coverage, omissions, prompts that never include the draft), early stopping (consensus, stable disagreement, the false-consensus guard and build-on grounding), anonymization (no vendor leaks into labels), Borda tallying, citation flagging, the critic protocol (fabricated evidence quotes are never trusted), quorum and failure handling, run export, the MCP tools, gateway parsing, self-hosted model wiring, the approval step with real LangGraph interrupts, the comparison harness, deliberation and the sycophancy guard, the Deep Agents edition (search capture and report file), fine-tuning dataset building, and crash-and-resume across two processes (a completed step is never re-run).
+Covers context packs (brief, both editions, doctor), follow-ups (notes-only answers, unread-URL flags, CLI), the Python API, the model factory (every stage on OpenRouter and local models, capabilities from the catalog, structured-output method, real cost), the role split, the role benchmark (scoring formulas with perfect and weak stand-in models, budget cap, resume, role maps, presets, the live plan), Jev support checks (the real TypeSafe SDK against a mock API: request shape, probabilities, failures that never block, rejected changes, ungrounded endorsements, blocked additions, dropped blind-pass points, the doctor's live check), your own model choices (kept panels, unknown names, single-vendor panels), spare reviewers, per-call time limits, OpenRouter host routing, the sessions list, the blind pass (grounding, coverage, omissions, prompts that never include the draft), early stopping (consensus, stable disagreement, the false-consensus guard and build-on grounding), anonymization (no vendor leaks into labels), Borda tallying, citation flagging, the critic protocol (fabricated evidence quotes are never trusted), quorum and failure handling, run export, the MCP tools, gateway parsing, self-hosted model wiring, the approval step with real LangGraph interrupts, the comparison harness, deliberation and the sycophancy guard, the Deep Agents edition (search capture and report file), fine-tuning dataset building, and crash-and-resume across two processes (a completed step is never re-run).
 
 ## Roadmap
 - [x] **v0.1** — cross-vendor review, LangGraph 1.2 / LangChain 1.x upgrade, self-hosted model support, web UI, CI
@@ -262,6 +291,7 @@ Covers the model factory (every stage on OpenRouter and local models, capabiliti
 - [x] **v1.2** — blind first pass: reviewers outline the answer from the notes before reading the draft; grounded omissions become feedback
 - [x] **v1.3** — your own models: `--panel` / `--reviser` / `--list-models`, a kept panel, GLM and Kimi via OpenRouter, OpenRouter host routing, spare reviewers, per-call time limits, `crossvet sessions`
 - [x] **v1.4** — support checks with Jev: a decision model scores whether each quoted passage supports the claim made from it (position changes, AGREE / BUILD_ON, blind-pass points); `crossvet-doctor --jev`
+- [x] **v1.5** — context and domain packs (SEO/GEO, marketing, real estate), follow-up questions answered from a run's notes (`crossvet ask`), a Python API (`run`, `ask`)
 - [x] **v1.6** — model fit: any model in any role (official OpenRouter integration, real per-call cost, capability checks), separate orchestration and research models, and `crossvet-bench`, a per-role benchmark scored by answer keys with best-quality and best-value role maps
 
 ## Credits

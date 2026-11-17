@@ -192,13 +192,18 @@ async def deep_research(state: DeepAgentState, config: RunnableConfig) -> dict[s
     collector = SourceCollector(names)
     messages = state.get("messages") or []
     question = next((_text(m.content) for m in reversed(messages) if isinstance(m, HumanMessage)), "")
+    from open_deep_research.context import with_context
+
+    brief = with_context(question, configurable.context_pack, configurable.research_context)
+    if brief != question:
+        messages = [*messages, HumanMessage(content=brief[len(question):].strip())]
     try:
         result = await agent.with_config({"callbacks": [collector], "recursion_limit": 300}).ainvoke({"messages": messages}, config)
         report = report_from(result)
     except Exception as exc:
         report = f"Error generating final report: {type(exc).__name__}: {exc}"
     return {
-        "research_brief": question,
+        "research_brief": brief,
         "raw_notes": collector.outputs,
         "final_report": report,
         "messages": [AIMessage(content=report)],
