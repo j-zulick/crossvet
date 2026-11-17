@@ -258,3 +258,12 @@ def test_suggest_adds_newest_tool_capable_model_per_vendor():
 def test_estimate_is_unknown_when_no_model_has_a_price():
     est = bench.estimate(["writer"], ["openrouter:x/unpriced"], CASES[:1], 1, {})
     assert est["max_cost_usd"] is None and est["unpriced_models"] == ["openrouter:x/unpriced"]
+
+
+def test_preset_respects_native_search_for_the_researcher():
+    role_map = {"best-value": {"researcher": "anthropic:claude-haiku-5-5", "supervisor": "anthropic:claude-haiku-5-5"},
+                "ranked": {"researcher": {"best-value": ["anthropic:claude-haiku-5-5", "openai:gpt-5.4-mini", "openai:gpt-6.1-sol"]}}}
+    assert bench.preset_env(role_map, "best-value", search_api="openai")["RESEARCHER_MODEL"] == "openai:gpt-5.4-mini"
+    assert bench.preset_env(role_map, "best-value", search_api="tavily")["RESEARCHER_MODEL"] == "anthropic:claude-haiku-5-5"
+    only_claude = {"best-value": {"researcher": "anthropic:claude-haiku-5-5"}, "ranked": {"researcher": {"best-value": ["anthropic:claude-haiku-5-5"]}}}
+    assert "RESEARCHER_MODEL" not in bench.preset_env(only_claude, "best-value", search_api="openai")

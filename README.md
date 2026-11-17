@@ -120,6 +120,10 @@ uv run crossvet-bench apply --preset best-value                   # write the wi
 - **Decisions, not just a table.** A leaderboard per role, a quality-vs-cost chart with the frontier, and a role map with a **best-quality** and a **best-value** pick per role (the cheapest model within 10% of the top score). `apply` turns it into configuration: a one-model-per-vendor panel and a reviser from outside it.
 - **Checked end to end.** `crossvet-bench live-plan --role supervisor --models a,b` writes a `crossvet-compare` file that swaps just that role, to confirm on real questions.
 
+**First results (Nov 17, 2026; four models, two vendors, $1.49):** Claude Haiku 5.5 was within 0.03 of the best score in six of seven roles at 7 to 19 times lower cost per case; every model caught every planted error, and review quality came down to how much each flagged on a clean draft. Most roles saturate on the current cases, so harder ones are next. [Findings and caveats](docs/MODEL-SELECTION.md#results) · [all outputs](docs/benchmarks/2026-11-17/).
+
+![Quality vs cost per case for four models across seven pipeline roles](docs/benchmarks/2026-11-17/quality-vs-cost.svg)
+
 Capabilities are checked before a run: the doctor fails a role whose model can't call tools or return typed output (from OpenRouter's live catalog), and structured output uses JSON schema where a model supports it, otherwise a forced tool call. Method, formulas and limits: [docs/MODEL-SELECTION.md](docs/MODEL-SELECTION.md).
 
 ## Grounded search on self-hosted infrastructure

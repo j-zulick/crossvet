@@ -9,6 +9,7 @@ All notable changes to Crossvet. Versions follow [Semantic Versioning](https://s
 - **Separate orchestration and research models**: `SUPERVISOR_MODEL` plans and delegates; `RESEARCHER_MODEL` searches and reads. Both default to `RESEARCH_MODEL`. In the Deep Agents edition the researcher sub-agent can run on its own model.
 - **Capability checks before a run**: `crossvet-setup` saves OpenRouter's live catalog (tool calling, structured output, context length, price per model); the doctor fails a role whose model cannot call tools or return typed output, and setup's automatic pick skips such models.
 - **`crossvet-bench`**, a per-role benchmark: orchestration, research, compression, report writing, review, critic and revision, each scored by code on six synthetic cases (planted errors with an answer key, kept facts and URLs, aspect checklists). Real or estimated cost per case, a `--max-usd` cap, `--dry-run`, resumable runs, a leaderboard per role, a quality-vs-cost chart with the frontier, and a role map with best-quality and best-value picks. `apply --preset` writes the role map to `.env`; `live-plan` writes a `crossvet-compare` file that swaps one role; `suggest` lists the newest tool-capable model per vendor. Every bench call is traced in Langfuse when configured. See [docs/MODEL-SELECTION.md](docs/MODEL-SELECTION.md).
+- **First published benchmark** (`docs/benchmarks/2026-11-17/`): four models from two vendors, all roles and cases, $1.49; findings and caveats in `docs/MODEL-SELECTION.md`.
 - Dependency: `langchain-openrouter` (MIT).
 
 ### Changed

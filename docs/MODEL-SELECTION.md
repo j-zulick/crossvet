@@ -81,4 +81,32 @@ uv run crossvet-compare --setups supervisor.toml --questions examples/compare/qu
 
 ## Results
 
-No published results yet. Results are added here only from real runs, with the date, model ids, cases, repeats and total cost, following the [evaluation protocol](EVALS.md).
+Results are added here only from real runs, with the date, model ids, cases, repeats and total cost, following the [evaluation protocol](EVALS.md).
+
+### November 17, 2026: four models, two vendors
+
+`openai:gpt-6.1-sol`, `openai:gpt-5.4-mini`, `anthropic:claude-sonnet-5-5` and `anthropic:claude-haiku-5-5`, called through each vendor's own API; all seven roles, all six cases, one repeat. 168 jobs, no failures, $1.49 in total (estimated from tokens and list prices). Full tables, chart and every model output: [benchmarks/2026-11-17](benchmarks/2026-11-17/).
+
+| Role | Best quality | Best value | What separated the models |
+|---|---|---|---|
+| Orchestration | gpt-6.1-sol (0.97) | claude-haiku-5-5 (0.95) | aspect coverage: gpt-5.4-mini delegated a single broad topic in five of six cases (0.90) |
+| Research | gpt-5.4-mini, claude-haiku-5-5, claude-sonnet-5-5 (0.88) | claude-haiku-5-5 | gpt-6.1-sol's queries covered fewer aspects (0.83) |
+| Compression | all four (1.00) | claude-haiku-5-5 | nothing: every model kept every fact and URL |
+| Report writing | gpt-5.4-mini, gpt-6.1-sol, claude-sonnet-5-5 (1.00) | claude-haiku-5-5 (0.98) | almost nothing |
+| Review | gpt-5.4-mini (0.91) | gpt-5.4-mini | noise, not recall: all four caught every planted error; on the clean drafts the Claude models raised 5.7 (Sonnet) and 6.5 (Haiku) findings per draft against 1.2 (gpt-5.4-mini) and 2.0 (gpt-6.1-sol) |
+| Critic | claude-haiku-5-5, claude-sonnet-5-5 (1.00) | claude-haiku-5-5 | gpt-5.4-mini accepted some findings the notes contradict and rejected some true ones (0.90) |
+| Revision | claude-haiku-5-5, gpt-6.1-sol, claude-sonnet-5-5 (1.00) | claude-haiku-5-5 | gpt-5.4-mini kept the unread citation in one case (0.92) |
+
+What this run says:
+
+- **The smallest model was enough for most of the pipeline.** Claude Haiku 5.5 was within 0.03 of the best score in six of seven roles (all but review), at 7 to 19 times lower cost per case than Claude Sonnet 5.5 or GPT-6.1 Sol. Across the whole run it cost $0.05, against $0.53 for GPT-6.1 Sol and $0.74 for Claude Sonnet 5.5.
+- **The larger models' extra cost bought little on these cases.** They led outright only in orchestration: GPT-6.1 Sol scored 0.97 against Haiku's 0.95, at about 13 times the cost.
+- **Review quality differed in precision, not recall.** Every model found every planted error; what differed was how much it flagged on a draft with nothing wrong. Claude's extra findings were mostly caveats (correlation versus causation, single-month samples) rather than mistakes, so whether they count as noise depends on the reader. The penalty is deliberately small for that reason.
+- **Mixing vendors is cheap.** `apply --preset best-value` builds a panel of gpt-5.4-mini (the most precise reviewer) and Claude Sonnet 5.5, with Haiku for orchestration, compression, writing and revision: the cross-vendor design Crossvet uses anyway, at small-model prices.
+
+Caveats:
+
+- **Most roles saturate on these cases.** Compression, writing, revision and critique sit at or near 1.00 for every model, so they don't separate models yet; harder cases (longer notes, conflicting sources, subtler planted errors) are the next step.
+- One repeat on six cases: differences of a few hundredths are within the standard errors shown in the leaderboard.
+- Costs are estimates from list prices (OpenRouter's catalog, which matches Anthropic's published Haiku 5.5 price), not invoices. Haiku 5.5 is priced higher above 100,000 prompt tokens; every bench prompt is far below that.
+- Synthetic notes are short and clean. A full-run check with `live-plan` is the way to confirm a role choice on real questions.

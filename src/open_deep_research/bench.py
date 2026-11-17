@@ -750,46 +750,70 @@ def render_markdown(table: dict[str, list[dict[str, Any]]], rec: dict[str, Any],
 
 
 def render_svg(table: dict[str, list[dict[str, Any]]]) -> str:
-    """Quality vs cost per case, one panel per role (no plotting library needed)."""
+    """Draw quality vs cost per case, one panel per role (no plotting library needed)."""
     roles = [r for r in table if any(x["quality"] is not None and x["cost_per_case"] is not None for x in table[r])]
-    cols, pw, ph, pad = 2, 460, 300, 56
+    cols, pw, ph = 2, 520, 300
+    left, right, top, bottom = 52, 150, 44, 40  # room for labels to the right of the points
     rows_n = max(1, math.ceil(len(roles) / cols))
-    width, height = cols * pw, rows_n * ph + 30
+    width, height = cols * pw, rows_n * ph + 34
     out = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}" '
            'font-family="system-ui, sans-serif" font-size="11">', f'<rect width="{width}" height="{height}" fill="#ffffff"/>',
-           '<text x="12" y="20" font-size="14" font-weight="600" fill="#1f2328">Quality vs cost per case (frontier models joined)</text>']
+           '<text x="12" y="22" font-size="14" font-weight="600" fill="#1f2328">Quality vs cost per case '
+           '(blue: no other model is both better and cheaper)</text>']
     for i, role in enumerate(roles):
-        ox, oy = (i % cols) * pw, 30 + (i // cols) * ph
+        ox, oy = (i % cols) * pw, 34 + (i // cols) * ph
         pts = [x for x in table[role] if x["quality"] is not None and x["cost_per_case"] is not None]
         costs = [max(p["cost_per_case"], 1e-6) for p in pts]
         lo, hi = min(costs), max(costs)
         log = hi / lo > 20
+        qmin = min(p["quality"] for p in pts)
+        qlo = max(0.0, math.floor((qmin - 0.05) * 10) / 10)  # zoom in when every model scores high
+        x0, x1, y0, y1 = ox + left, ox + pw - right, oy + ph - bottom, oy + top
+
         def xpos(c: float) -> float:
             c = max(c, 1e-6)
             if hi == lo:
-                return ox + pad + (pw - 2 * pad) / 2
+                return (x0 + x1) / 2
             t = (math.log10(c) - math.log10(lo)) / (math.log10(hi) - math.log10(lo)) if log else (c - lo) / (hi - lo)
-            return ox + pad + t * (pw - 2 * pad)
+            return x0 + t * (x1 - x0)
+
         def ypos(q: float) -> float:
-            return oy + ph - pad + 10 - q * (ph - 2 * pad)
-        x0, y0, x1, y1 = ox + pad, oy + ph - pad + 10, ox + pw - pad, oy + pad - 10
-        out += [f'<text x="{ox + pad}" y="{oy + 28}" font-size="13" font-weight="600" fill="#1f2328">{role}</text>',
+            return y0 - (q - qlo) / (1 - qlo or 1) * (y0 - y1)
+
+        out += [f'<text x="{x0}" y="{oy + 26}" font-size="13" font-weight="600" fill="#1f2328">{role}</text>',
                 f'<line x1="{x0}" y1="{y0}" x2="{x1}" y2="{y0}" stroke="#8c959f"/>',
                 f'<line x1="{x0}" y1="{y0}" x2="{x0}" y2="{y1}" stroke="#8c959f"/>',
-                f'<text x="{x0 - 6}" y="{y0}" text-anchor="end" fill="#57606a">0</text>',
+                f'<text x="{x0 - 6}" y="{y0 + 4}" text-anchor="end" fill="#57606a">{qlo:g}</text>',
                 f'<text x="{x0 - 6}" y="{ypos(1) + 4}" text-anchor="end" fill="#57606a">1</text>',
                 f'<text x="{x0}" y="{y0 + 16}" fill="#57606a">{_fmt_cost(lo)}</text>',
-                f'<text x="{x1}" y="{y0 + 16}" text-anchor="end" fill="#57606a">{_fmt_cost(hi)}{" (log)" if log else ""}</text>']
-        front = sorted([p for p in pts if p["model"] in pareto(table[role])], key=lambda p: p["cost_per_case"])
+                f'<text x="{x1}" y="{y0 + 16}" text-anchor="end" fill="#57606a">{_fmt_cost(hi)} per case{" (log)" if log else ""}</text>']
+        front_names = set(pareto(table[role]))
+        front = sorted([p for p in pts if p["model"] in front_names], key=lambda p: p["cost_per_case"])
         if len(front) > 1:
             path = " ".join(f"{xpos(p['cost_per_case']):.1f},{ypos(p['quality']):.1f}" for p in front)
             out.append(f'<polyline points="{path}" fill="none" stroke="#0969da" stroke-width="1.5" stroke-dasharray="4 3"/>')
-        for p in pts:
-            on = p["model"] in {f["model"] for f in front}
+        dots = [(xpos(p["cost_per_case"]), ypos(p["quality"])) for p in pts]
+        placed: list[tuple[float, float, float]] = []  # (x start, x end, baseline) of labels so far
+        for p in sorted(pts, key=lambda p: (-p["quality"], p["cost_per_case"])):
             cx, cy = xpos(p["cost_per_case"]), ypos(p["quality"])
-            label = model_factory.model_id(p["model"]).split("/")[-1][:28]
+            label = model_factory.model_id(p["model"]).split("/")[-1][:24]
+            text = f"{label} ({p['quality']:.2f})"
+            lx0, lx1 = cx + 8, cx + 8 + 6.2 * len(text)
+            ly = cy + 4
+
+            def clashes(y: float) -> bool:
+                if any(a < lx1 and lx0 < b and abs(y - py) < 12 for a, b, py in placed):
+                    return True
+                return any(lx0 - 4 < dx < lx1 and abs(y - 4 - dy) < 8 for dx, dy in dots if (dx, dy) != (cx, cy))
+
+            for step in range(12):  # try just below, then just above, moving outwards
+                ly = cy + 4 + (12 * ((step + 1) // 2) * (1 if step % 2 else -1) if step else 0)
+                if not clashes(ly):
+                    break
+            placed.append((lx0, lx1, ly))
+            on = p["model"] in front_names
             out += [f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="4.5" fill="{"#0969da" if on else "#8c959f"}"/>',
-                    f'<text x="{cx + 7:.1f}" y="{cy + 4:.1f}" fill="#1f2328">{_escape(label)}</text>']
+                    f'<text x="{cx + 8:.1f}" y="{ly:.1f}" fill="#1f2328">{_escape(text)}</text>']
     out.append("</svg>")
     return "\n".join(out) + "\n"
 
@@ -825,10 +849,21 @@ def write_outputs(results: list[JobResult], out_dir: Path, repeats: int | None =
 ###################
 # Apply a preset
 ###################
-def preset_env(role_map: dict[str, Any], preset: str, panel_size: int = 3) -> dict[str, str]:
-    """Environment updates for a preset: a role model per stage and a cross-vendor panel."""
-    picks = role_map.get(preset) or {}
+def preset_env(role_map: dict[str, Any], preset: str, panel_size: int = 3, search_api: str = "") -> dict[str, str]:
+    """Environment updates for a preset: a role model per stage and a cross-vendor panel.
+
+    With a model's built-in search (``SEARCH_API=openai`` or ``anthropic``) the researcher must
+    come from that vendor, so the best researcher from that vendor is used instead.
+    """
+    picks = dict(role_map.get(preset) or {})
     ranked = role_map.get("ranked") or {}
+    native = (search_api or "").strip().lower()
+    if native in ("openai", "anthropic") and "researcher" in picks and not picks["researcher"].startswith(f"{native}:"):
+        same = [m for m in (ranked.get("researcher") or {}).get(preset, []) if m.startswith(f"{native}:")]
+        if same:
+            picks["researcher"] = same[0]
+        else:
+            picks.pop("researcher")  # keep the current researcher: none benchmarked works with that search
     env = {ROLE_ENV[role]: model for role, model in picks.items() if role in ROLE_ENV and role != "reviser"}
     if "compression" in picks:
         env["SUMMARIZATION_MODEL"] = picks["compression"]
@@ -984,7 +1019,12 @@ def main(argv: list[str] | None = None) -> int:
         except (OSError, ValueError):
             say(f"Cannot read {args.source}; run `crossvet-bench run` first.")
             return 1
-        env = preset_env(role_map, args.preset)
+        import os
+
+        search = os.getenv("SEARCH_API", "")
+        env = preset_env(role_map, args.preset, search_api=search)
+        if search in ("openai", "anthropic"):
+            say(f"SEARCH_API={search}: the researcher is the best benchmarked {search} model (built-in search needs one).")
         if not env:
             say("The role map has no recommendations yet.")
             return 1
