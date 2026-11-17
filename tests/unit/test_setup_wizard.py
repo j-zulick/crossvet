@@ -10,7 +10,7 @@ import httpx
 from open_deep_research import setup_wizard as sw
 from open_deep_research.setup_wizard import Discovery
 
-OPENAI_IDS = ["gpt-4.1", "gpt-4.1-mini", "gpt-5.4-mini", "gpt-5.5", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-mini", "gpt-realtime-2.1",
+OPENAI_IDS = ["gpt-4.1", "gpt-4.1-mini", "gpt-5.4-mini", "gpt-5.5", "gpt-6.1-sol", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-mini", "gpt-realtime-2.1",
               "gpt-image-2", "text-embedding-3-large", "gpt-5.5-2026-06-01", "o4-mini"]
 ANTHROPIC_IDS = ["claude-sonnet-5-5", "claude-haiku-5-5", "claude-opus-5-5", "claude-sonnet-4-5-20250929"]
 GOOGLE_IDS = ["gemini-3.8-flash", "gemini-3.1-pro-preview", "gemini-3.5-flash-lite", "gemini-2.5-flash"]
@@ -50,7 +50,7 @@ def test_discover_lists_models_and_reports_problems():
 
 
 def test_rank_prefers_current_text_models():
-    assert sw.rank("openai", OPENAI_IDS)[0] == "gpt-5.6-sol"
+    assert sw.rank("openai", OPENAI_IDS)[0] == "gpt-6.1-sol"
     assert "gpt-realtime-2.1" not in sw.rank("openai", OPENAI_IDS)
     assert sw.rank("anthropic", ANTHROPIC_IDS)[0] == "claude-sonnet-5-5"
     assert "claude-sonnet-4-5-20250929" not in sw.rank("anthropic", ANTHROPIC_IDS)
@@ -61,9 +61,9 @@ def test_rank_prefers_current_text_models():
 def test_plan_three_vendors_keeps_reviser_outside_panel():
     found = run_discover({"OPENAI_API_KEY": "ok-openai", "ANTHROPIC_API_KEY": "x", "GOOGLE_API_KEY": "x"})
     chosen = sw.plan(found, {"OPENAI_API_KEY": "ok-openai"})
-    assert chosen.panel == ["openai:gpt-5.6-sol", "anthropic:claude-sonnet-5-5"]
+    assert chosen.panel == ["openai:gpt-6.1-sol", "anthropic:claude-sonnet-5-5"]
     assert chosen.reviser == "google_genai:gemini-3.8-flash"
-    assert chosen.stages == {}  # gpt-4.1 defaults are still listed for this key
+    assert chosen.stages == {}  # the default stage models are all listed for this key
 
 
 def test_plan_with_openrouter_adds_fourth_vendor_as_reviser():
@@ -78,9 +78,9 @@ def test_plan_replaces_unavailable_stage_models():
     assert chosen.stages["RESEARCH_MODEL"] == "anthropic:claude-sonnet-5-5"
     assert chosen.stages["SUMMARIZATION_MODEL"] == "anthropic:claude-haiku-5-5"
     assert any("OPENAI_API_KEY is not set" in w for w in chosen.warnings)
-    found = Discovery(models={"openai": ["gpt-5.6-sol", "gpt-5.6-mini"], "anthropic": ANTHROPIC_IDS})
+    found = Discovery(models={"openai": ["gpt-6.1-sol", "gpt-5.6-mini"], "anthropic": ANTHROPIC_IDS})
     chosen = sw.plan(found, {"OPENAI_API_KEY": "x"})
-    assert chosen.stages["FINAL_REPORT_MODEL"] == "openai:gpt-5.6-sol"  # the default model is not offered to this key
+    assert chosen.stages["FINAL_REPORT_MODEL"] == "openai:gpt-6.1-sol"  # the default model is not offered to this key
     assert chosen.stages["SUMMARIZATION_MODEL"] == "openai:gpt-5.6-mini"
 
 
@@ -139,7 +139,7 @@ def test_main_dry_run_never_prints_keys(monkeypatch, tmp_path, capsys):
     monkeypatch.setattr(sw, "discover", fake_discover)
     code = sw.main(["--env", str(tmp_path / ".env"), "--dry-run", "--no-prompt"])
     out = capsys.readouterr().out
-    assert code == 0 and "openai:gpt-5.6-sol" in out and "anthropic-secret" not in out and "ok-openai" not in out
+    assert code == 0 and "openai:gpt-6.1-sol" in out and "anthropic-secret" not in out and "ok-openai" not in out
     assert "using openai's built-in web search" in out
 
 
@@ -156,7 +156,7 @@ def test_main_writes_env(monkeypatch, tmp_path):
     monkeypatch.setattr(sw, "discover", fake_discover)
     assert sw.main(["--env", str(env), "--no-prompt"]) == 0
     values = sw.read_env(env)
-    assert values["REVIEW_MODELS"] == "openai:gpt-5.6-sol,anthropic:claude-sonnet-5-5"
+    assert values["REVIEW_MODELS"] == "openai:gpt-6.1-sol,anthropic:claude-sonnet-5-5"
     assert values["REVIEW_REVISER_MODEL"] == "google_genai:gemini-3.8-flash"
     assert values["TAVILY_API_KEY"] == "t"
     assert json.dumps(values)  # file still parses
@@ -200,7 +200,7 @@ def test_compare_plan_uses_available_models(tmp_path):
     assert fixed["config"]["review_deliberation_early_stop"] is False and early["config"]["review_deliberation_early_stop"] is True
     assert "writer-qwen3-32b" in names and "reviewer-qwen3-32b" in names and "writer-we-ird-1b" in names
     reviewer = next(s for s in data["setup"] if s["name"] == "reviewer-qwen3-32b")
-    assert reviewer["config"]["review_models"] == "openai:gpt-5.6-sol,ollama:qwen3:32b"
+    assert reviewer["config"]["review_models"] == "openai:gpt-6.1-sol,ollama:qwen3:32b"
     path = tmp_path / "plan.toml"
     path.write_text(text)
     assert [s.name for s in compare.load_setups(path)] == names  # valid input for crossvet-compare
@@ -245,12 +245,12 @@ def test_existing_panel_is_kept_unless_auto(monkeypatch, tmp_path, capsys):
     assert values["REVIEW_REVISER_MODEL"] == "openai:gpt-5.5"
     assert "Kept the panel from REVIEW_MODELS" in capsys.readouterr().out
     assert sw.main(["--env", str(env), "--no-prompt", "--auto"]) == 0
-    assert sw.read_env(env)["REVIEW_MODELS"].startswith("openai:gpt-5.6-sol,anthropic:claude-sonnet-5-5")
+    assert sw.read_env(env)["REVIEW_MODELS"].startswith("openai:gpt-6.1-sol,anthropic:claude-sonnet-5-5")
 
 
 def test_single_vendor_panel_and_shared_reviser_are_flagged():
     found = run_discover({"OPENAI_API_KEY": "ok-openai", "ANTHROPIC_API_KEY": "x"})
-    chosen = sw.user_plan(found, {}, ["openai:gpt-5.5", "openai:gpt-5.6-sol"], "openai:gpt-4.1")
+    chosen = sw.user_plan(found, {}, ["openai:gpt-5.5", "openai:gpt-6.1-sol"], "openai:gpt-4.1")
     text = " ".join(chosen.warnings)
     assert "one vendor" in text and "shares a vendor" in text
 

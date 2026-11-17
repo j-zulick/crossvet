@@ -5,10 +5,11 @@
 **Deep research whose reports are checked by models from several AI vendors before you read them, plus a benchmark that measures which model to use for each job in the pipeline.**
 
 ## TL;DR
-- **What:** a deep-research agent, built on LangChain's Open Deep Research (MIT), that has every draft report reviewed by models from **different AI vendors** before you read it.
-- **How it checks:** independent critiques, anonymized ranking, a code check for unread citations, and a critic and deliberation rounds where a finding changes only with a quote that code finds verbatim in the notes.
-- **New in 1.4:** Jev, a decision model, scores whether each quoted passage supports the claim made from it; code still requires the quote first.
-- **Try it:** `scripts/quickstart.sh`, or the step-by-step commands in [Quickstart](#quickstart).
+- **What:** a deep-research agent (a fork of LangChain's Open Deep Research) that has every report reviewed by models from **different AI vendors** before you read it. Outcomes are decided by code, not by a model's say-so: a cited URL the research never read is flagged; evidence that overrules a finding must be a quote found verbatim in the notes; debate stops by rule, with a guard against agreement the notes don't back.
+- **Why:** one model checking its own report shares its blind spots, and LLM judges favor their own output and confident wording. A mixed-vendor panel with evidence checks in code catches what one model misses (see [Design principles](#design-principles)).
+- **Which model for which job:** `crossvet-bench` scores each role (planning, research, writing, review, critic, revision) with answer keys, not a judge model, and writes the best-quality or best-value models to `.env`.
+- **Use it** from the CLI, a Python API, LangGraph Studio, Docker, or as an **MCP tool from Claude Code, Codex or Cursor** ([how](#use-it-from-claude-code-codex-or-cursor-mcp)).
+- **Measured so far:** see [below](#measured-so-far), including what hasn't been measured yet.
 
 Crossvet extends LangChain's [Open Deep Research](https://github.com/langchain-ai/open_deep_research) (MIT). A single model writing a research report will state unsupported claims with confidence. Crossvet adds a **cross-vendor review** stage: after the draft report is written,
 
@@ -37,6 +38,20 @@ flowchart LR
     K -->|anonymized ranking| V[Weighted Borda + citation check]
     V --> FR[Revised report + Review notes]
 ```
+
+## Measured so far
+
+Results are published only from real runs (protocol: [docs/EVALS.md](docs/EVALS.md)).
+
+- **Every reviewer caught every planted error, but they differ in false alarms.** In the [Nov 17, 2026 role benchmark](docs/benchmarks/2026-11-17/) (four models from two vendors, six synthetic cases, $1.49), every model found all four planted errors (a wrong number, a citation to a source the research never read, an unsupported claim, an omitted finding) in every case. On drafts with nothing wrong, they raised 1.2 to 6.5 findings each. That gap is why Crossvet sends every finding to a critic from a different model, with evidence checked in code.
+- **The critic separates true from false findings.** Critics scored 0.90 to 1.00 balanced accuracy at accepting the planted errors and rejecting findings the notes contradict (blanket agreement scores 0.5).
+- **Small models were enough for most roles.** Claude Haiku 5.5 came within 0.03 of the best score in six of seven roles at 7 to 19 times lower cost per case. Most roles saturate on these cases, so harder cases are next ([caveats](docs/MODEL-SELECTION.md#results)).
+- **A live run:** on [the JWST example](docs/examples/jwst-mirror.md), an OpenAI + Claude panel scored the first draft 4/10; the revised report and its Review notes are reproduced unedited.
+- **Not measured yet:** whether review improves reports end to end compared with no review, and the effect of deliberation, early stopping, the blind pass, Jev checks and domain packs. These are listed as "not run" in [docs/EVALS.md](docs/EVALS.md), with how each will be measured. The first one is a single command: `uv run crossvet-compare --setups examples/compare/review-vs-none.toml --questions examples/compare/questions-15.txt --repeats 3`.
+
+## Cost and API keys
+
+Crossvet calls models through their APIs, so it needs API keys (or one OpenRouter key for most vendors, or local models for free). It does not drive consumer chat or coding subscriptions: it is a pipeline and a service, and those subscriptions are for interactive use. Every call's cost is real on OpenRouter and estimated from list prices elsewhere; Langfuse shows it per run, `crossvet-bench --dry-run` estimates a benchmark before you spend, and `--max-usd` caps it. A measured cost per report will be published with the first review-versus-no-review comparison.
 
 ## Design principles
 
@@ -173,7 +188,7 @@ Research can run on a search stack I operate instead of a paid search API (`SEAR
 The adapter (`src/open_deep_research/gateway_search.py`) tolerates schema differences between gateway releases and isolates per-query failures.
 
 ## Documentation
-[Architecture](docs/ARCHITECTURE.md) · [Design decisions](docs/DESIGN-DECISIONS.md) · [Model selection](docs/MODEL-SELECTION.md) · [Evaluations](docs/EVALS.md) · [Changelog](CHANGELOG.md) · [Security](SECURITY.md)
+[Architecture](docs/ARCHITECTURE.md) · [Design decisions](docs/DESIGN-DECISIONS.md) · [Model selection](docs/MODEL-SELECTION.md) · [Evaluations](docs/EVALS.md) · [Contributions and AI assistance](docs/CONTRIBUTIONS.md) · [Agent guide](AGENTS.md) · [Changelog](CHANGELOG.md) · [Security](SECURITY.md)
 
 ## Stack
 Python 3.13 · uv · **LangGraph 1.2** (interrupts, SQLite / Postgres checkpointers) · LangChain 1.x (`init_chat_model`, any provider) · **OpenRouter** (`langchain-openrouter`: one key, most vendors, real per-call cost) · **Pydantic v2** typed outputs · **self-hosted models** via Ollama or any OpenAI-compatible server · **Deep Agents** (`deepagents`) edition · **Langfuse** tracing · **MCP** server · pytest · ruff · GitHub Actions (CodeQL, gitleaks, SBOM) · Docker Compose · **Agent Chat UI** (Next.js 16, React 19, Tailwind 4) in `web/`.
@@ -293,6 +308,18 @@ Covers context packs (brief, both editions, doctor), follow-ups (notes-only answ
 - [x] **v1.4** — support checks with Jev: a decision model scores whether each quoted passage supports the claim made from it (position changes, AGREE / BUILD_ON, blind-pass points); `crossvet-doctor --jev`
 - [x] **v1.5** — context and domain packs (SEO/GEO, marketing, real estate), follow-up questions answered from a run's notes (`crossvet ask`), a Python API (`run`, `ask`)
 - [x] **v1.6** — model fit: any model in any role (official OpenRouter integration, real per-call cost, capability checks), separate orchestration and research models, and `crossvet-bench`, a per-role benchmark scored by answer keys with best-quality and best-value role maps
+
+## Related projects
+
+Many tools now pair coding agents for review: [Magpie](https://github.com/liliu-z/magpie) (multi-model PR review with a ledger and a verifier), [Claude Octopus](https://github.com/nyldn/claude-octopus) (multi-provider councils and debates), and bridges such as [skill-codex](https://github.com/Arystos/skill-codex) that let Claude Code ask Codex for a review. They review code and plans from inside a coding agent. Crossvet reviews research reports and their sources in a pipeline, and decides outcomes with checks in code (citations, verbatim quotes, stop rules, support scores) rather than a vote or the lead model's judgment. It can be called from those agents over MCP. Crossvet does not use their code. The one design trade-off worth naming: Magpie asks every reviewer the same question so agreement means independent confirmation; Crossvet's rotating challenger takes a deliberate angle to resist sycophancy (see [design decision 18](docs/DESIGN-DECISIONS.md#18-a-rotating-challenger-trades-independent-agreement-for-pressure)).
+
+## My role and AI assistance
+
+I designed Crossvet, set the scope of each release, chose what to adopt from other work and what to leave out, and reviewed every change. Most of the code, tests and documentation in this fork were written with Claude (Anthropic) through Claude Code under my direction; those commits carry a `Co-Authored-By: Claude` trailer. Details and how AI-written work is checked: [docs/CONTRIBUTIONS.md](docs/CONTRIBUTIONS.md).
+
+## Release history
+
+Crossvet was built between November 6 and 17, 2026 in a private repository, one tested version at a time, and every version was published together when the repository went public. Each release is the tagged commit that passed the full offline test suite, with its own notes in [docs/releases/](docs/releases/) and an entry in [CHANGELOG.md](CHANGELOG.md).
 
 ## Credits
 Built on [Open Deep Research](https://github.com/langchain-ai/open_deep_research) and [Agent Chat UI](https://github.com/langchain-ai/agent-chat-ui) (both MIT). Anonymized model peer review is inspired by Andrej Karpathy's *llm-council*; explicit agree / disagree / build-on engagement, a blind first pass and stopping on consensus also appear in Terry Li's MIT-licensed *consilium* (Crossvet's versions are reimplemented and verified against the research notes in code; see [design decision 12](docs/DESIGN-DECISIONS.md#12-stop-deliberation-in-code-not-by-a-models-say-so)); the critic's agree / disagree-with-evidence / disagree-concern protocol is adapted from the MIT-licensed *review-council* skill and the research it cites. Details in [NOTICES.md](NOTICES.md); the original upstream README is in [docs/UPSTREAM-README.md](docs/UPSTREAM-README.md).

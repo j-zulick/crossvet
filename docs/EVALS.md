@@ -1,6 +1,6 @@
 # Evaluations
 
-This page records how Crossvet is evaluated and what the results were. **No results are published yet.** Tables below are filled only from real runs with `crossvet-compare` and human grading; nothing here is estimated.
+This page records how Crossvet is evaluated and what the results were. **No end-to-end comparison results are published yet**; the per-role benchmark has results (see [Model fit](#model-fit-v16)). Tables below are filled only from real runs with `crossvet-compare` and human grading; nothing here is estimated.
 
 ## Questions this evaluation answers
 
@@ -16,7 +16,7 @@ This page records how Crossvet is evaluated and what the results were. **No resu
 ## Protocol
 
 - **Questions.** 15 research questions with checkable answers, fixed before any run, mixed across science, policy and technology, and published with the results and the setup files used.
-- **Setups.** One TOML file per question above (starting from `examples/compare/setups.toml`, `deliberation.toml` and `editions.toml`, plus a base vs fine-tuned reviewer file). The same models are used wherever a comparison is meant to isolate one change.
+- **Setups.** One TOML file per question above (question 1 is `examples/compare/review-vs-none.toml`; the others start from `examples/compare/setups.toml`, `deliberation.toml` and `editions.toml`, plus a base vs fine-tuned reviewer file). The same models are used wherever a comparison is meant to isolate one change.
 - **Repeats.** Three runs per question and setup (`--repeats 3`) to show run-to-run variation.
 - **Automatic metrics** (from `summary.csv`): finished runs, latency, tokens, share of cited URLs never read by research, critic drops and disputes, grounded and ungrounded position changes, failed reviewers, and for deliberation the rounds run and saved, agreement rate and model calls.
 - **Human grading.** For a random sample of about 20 claims per setup, a grader who does not see which setup produced the report labels each claim *supported*, *partly supported* or *unsupported* by its cited source.

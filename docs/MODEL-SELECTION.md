@@ -110,3 +110,26 @@ Caveats:
 - One repeat on six cases: differences of a few hundredths are within the standard errors shown in the leaderboard.
 - Costs are estimates from list prices (OpenRouter's catalog, which matches Anthropic's published Haiku 5.5 price), not invoices. Haiku 5.5 is priced higher above 100,000 prompt tokens; every bench prompt is far below that.
 - Synthetic notes are short and clean. A full-run check with `live-plan` is the way to confirm a role choice on real questions.
+
+### Default models
+
+The built-in defaults use only OpenAI models, so one OpenAI key runs the research pipeline (review still needs a second vendor). They come from the November 17, 2026 run above:
+
+| Setting | Default | Why |
+|---|---|---|
+| `RESEARCH_MODEL` (also orchestration and research unless set separately) | `openai:gpt-6.1-sol` | best orchestration score (0.97); orchestration was the only role where a larger model led |
+| `SUMMARIZATION_MODEL`, `COMPRESSION_MODEL`, `FINAL_REPORT_MODEL` | `openai:gpt-5.4-mini` | tied for the top score in compression and report writing (1.00) at under half of GPT-6.1 Sol's cost per case and a quarter to a sixth of its latency |
+| `REVIEW_MODELS` in `.env.example` | `openai:gpt-5.4-mini,anthropic:claude-sonnet-5-5` | the `best-value` panel: the most precise reviewer plus a second vendor |
+
+`crossvet-setup` replaces defaults your keys can't call, and `crossvet-bench apply` replaces them with your own measured picks.
+
+### Not yet measured
+
+Newer models have been released that the published run doesn't include, among them `openai:gpt-6-luna` ($0.10 / $0.50 per million input / output tokens), `openai:gpt-6.1-terra` ($1 / $5) and `anthropic:claude-opus-5-5`. `gpt-6-luna` costs a fraction of `gpt-5.4-mini` and may replace it as a default; that will be decided by a benchmark run, not by release date. To measure them yourself:
+
+```bash
+uv run crossvet-bench run --models openai:gpt-6-luna,openai:gpt-6.1-terra,openai:gpt-5.4-mini,openai:gpt-6.1-sol,anthropic:claude-haiku-5-5,anthropic:claude-opus-5-5 --dry-run
+uv run crossvet-bench run --models <same list> --max-usd 5
+```
+
+Prices are list prices as of November 2026; check each vendor's page before spending.

@@ -8,7 +8,7 @@
 name = "hosted-panel"
 [setup.config]
 cross_vendor_review_enabled = true
-review_models = "openai:gpt-5.5,anthropic:claude-sonnet-5-5"
+review_models = "openai:gpt-5.4-mini,anthropic:claude-sonnet-5-5"
 review_reviser_model = "google_genai:gemini-3.8-flash"
 
 [[setup]]
@@ -24,4 +24,4 @@ name = "local-writer"
 # Any model served by Ollama on this machine writes the report; reviewers stay hosted.
 final_report_model = "ollama:llama3.1:8b"
 cross_vendor_review_enabled = true
-review_models = "openai:gpt-5.5,anthropic:claude-sonnet-5-5"
+review_models = "openai:gpt-5.4-mini,anthropic:claude-sonnet-5-5"

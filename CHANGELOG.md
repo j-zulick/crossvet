@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Crossvet. Versions follow [Semantic Versioning](https://semver.org/); dates are release dates.
+All notable changes to Crossvet. Versions follow [Semantic Versioning](https://semver.org/). Crossvet was built between November 6 and 17, 2026 in a private repository, one tested version at a time; all versions were published together when the repository went public.
 
 ## [1.6.0]
 
@@ -13,7 +13,8 @@ All notable changes to Crossvet. Versions follow [Semantic Versioning](https://s
 - Dependency: `langchain-openrouter` (MIT).
 
 ### Changed
-- Default stage models are `openai:gpt-5.5` (research, compression, report) and `openai:gpt-5.4-mini` (summarization); `gpt-4.1` is retired by OpenAI on January 14, 2027. `crossvet-setup` still replaces defaults your key cannot call.
+- Default stage models come from the first benchmark run: `openai:gpt-6.1-sol` for research and orchestration, `openai:gpt-5.4-mini` for summarization, compression and the report (replacing `gpt-4.1`, which OpenAI retires on January 14, 2027). Newer models not yet benchmarked are listed in `docs/MODEL-SELECTION.md`. `crossvet-setup` still replaces defaults your key cannot call.
+- Upstream's unused legacy implementations (`src/legacy/`) are removed; `CLAUDE.md` now points to `AGENTS.md`, Crossvet's own guide for coding agents.
 - Structured output follows the model: JSON schema where the model supports it (and always for Claude, directly or through OpenRouter), a forced tool call otherwise.
 - Context limits for models missing from the built-in table come from OpenRouter's catalog or LangChain's model profiles, so an over-long report is trimmed and retried instead of failing.
 
@@ -21,6 +22,9 @@ All notable changes to Crossvet. Versions follow [Semantic Versioning](https://s
 - **A Claude reviser or report writer with extended thinking put raw content blocks into the report.** Claude can reply with a list of blocks (a thinking block with a signature, then the text); the revision, the final report, compression and the raw notes took `str(content)` instead of the text. All now use the reply's text only. Found in a live run with Claude as reviser; affects v1.0 to v1.5 when the reviser or report model is a Claude model that returns thinking blocks.
 - **A revision cut off at the output limit replaced the complete draft**, losing its end and its source list (seen live with a Claude reviser whose extended thinking shares the output budget). The review now keeps the draft when the revision stopped at the limit, came back empty, or lost most of the draft's sources, and says why in the Review notes.
 - The automatic OpenRouter pick chose Gemma (open weights) over Gemini for Google because of its higher version number.
+
+### Docs
+- README: TL;DR, *Measured so far* (including what hasn't been measured), *Cost and API keys*, *Related projects*, *My role and AI assistance* and *Release history*; `docs/CONTRIBUTIONS.md`; design decision 18 (rotating challenger); `examples/compare/review-vs-none.toml` for the first end-to-end evaluation.
 
 ## [1.5.0]
 

@@ -165,11 +165,11 @@ class Configuration(BaseModel):
         }
     )
     research_model: str = Field(
-        default="openai:gpt-5.5",
+        default="openai:gpt-6.1-sol",
         json_schema_extra={
             "x_oap_ui_config": {
                 "type": "text",
-                "default": "openai:gpt-5.5",
+                "default": "openai:gpt-6.1-sol",
                 "description": "Model for conducting research. NOTE: Make sure your Researcher Model supports the selected search API."
             }
         }
@@ -205,11 +205,11 @@ class Configuration(BaseModel):
         }
     )
     compression_model: str = Field(
-        default="openai:gpt-5.5",
+        default="openai:gpt-5.4-mini",
         json_schema_extra={
             "x_oap_ui_config": {
                 "type": "text",
-                "default": "openai:gpt-5.5",
+                "default": "openai:gpt-5.4-mini",
                 "description": "Model for compressing research findings from sub-agents. NOTE: Make sure your Compression Model supports the selected search API."
             }
         }
@@ -225,11 +225,11 @@ class Configuration(BaseModel):
         }
     )
     final_report_model: str = Field(
-        default="openai:gpt-5.5",
+        default="openai:gpt-5.4-mini",
         json_schema_extra={
             "x_oap_ui_config": {
                 "type": "text",
-                "default": "openai:gpt-5.5",
+                "default": "openai:gpt-5.4-mini",
                 "description": "Model for writing the final report from all research findings"
             }
         }
@@ -281,7 +281,7 @@ class Configuration(BaseModel):
             "x_oap_ui_config": {
                 "type": "text",
                 "default": "",
-                "description": "Comma-separated reviewer models, e.g. openai:gpt-5.5,anthropic:claude-sonnet-5-5 or openrouter:<model>; `crossvet-setup` picks them from the models your keys can use. At least two required."
+                "description": "Comma-separated reviewer models, e.g. openai:gpt-5.4-mini,anthropic:claude-sonnet-5-5 or openrouter:<model>; `crossvet-setup` picks them from the models your keys can use. At least two required."
             }
         }
     )

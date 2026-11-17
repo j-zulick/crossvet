@@ -20,8 +20,8 @@ configuration field names (the lowercase form of the environment variables)::
     [[setup]]
     name = "hosted"
     [setup.config]
-    research_model = "openai:gpt-5.5"
-    review_models = "openai:gpt-5.5,anthropic:claude-sonnet-5-5"
+    research_model = "openai:gpt-6.1-sol"
+    review_models = "openai:gpt-5.4-mini,anthropic:claude-sonnet-5-5"
 
     [[setup]]
     name = "local"
