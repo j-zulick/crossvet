@@ -215,6 +215,29 @@ def capabilities(model: str) -> dict[str, Any]:
     return caps
 
 
+OPENROUTER_MAKER = {"openai": "openai", "anthropic": "anthropic", "google_genai": "google", "google_vertexai": "google",
+                    "google": "google", "xai": "x-ai", "deepseek": "deepseek", "mistralai": "mistralai"}
+
+
+def openrouter_equivalent(model: str) -> str | None:
+    """Return the OpenRouter id of a direct-provider model, if the catalog lists it.
+
+    ``anthropic:claude-sonnet-5-5`` -> ``anthropic/claude-sonnet-5.5``; used for price estimates.
+    """
+    import re
+
+    maker = OPENROUTER_MAKER.get(provider_of(model))
+    if not maker:
+        return None
+    catalog = _load_cache()
+    name = model_id(model)
+    dotted = re.sub(r"(?<=\d)-(?=\d)", ".", name)  # claude-sonnet-5-5 -> claude-sonnet-5.5
+    for candidate in (f"{maker}/{name}", f"{maker}/{dotted}"):
+        if candidate in catalog:
+            return candidate
+    return None
+
+
 def unmet_needs(model: str, role: str) -> list[str]:
     """Needs of ``role`` that ``model`` is known NOT to meet (unknown counts as met)."""
     caps = capabilities(model)

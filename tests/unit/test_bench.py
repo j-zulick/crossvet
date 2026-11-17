@@ -227,9 +227,11 @@ def test_cli_dry_run_calls_nothing(tmp_path, monkeypatch, capsys):
         raise AssertionError("dry run must not build models")
 
     monkeypatch.setattr(models, "build_chat_model", explode)
+    monkeypatch.setattr(bench, "_fetch_catalog", lambda: [])
     code = bench.main(["run", "--models", "openrouter:a/b,ollama:gemma3", "--roles", "reviewer,writer", "--dry-run", "--out", str(tmp_path / "x")])
     out = capsys.readouterr().out
     assert code == 0 and "Plan: 24 jobs" in out and "no price for openrouter:a/b" in out
+    assert "for the priced models" in out  # ollama is free; openrouter:a/b is unpriced
     assert not (tmp_path / "x").exists()
 
 
@@ -251,3 +253,8 @@ def test_suggest_adds_newest_tool_capable_model_per_vendor():
     picks = bench.suggest(["x-ai/grok-4", "x-ai/grok-5", "z-ai/glm-5"], ["anthropic:claude-sonnet-5-5"])
     assert picks[0] == "anthropic:claude-sonnet-5-5" and "openrouter:x-ai/grok-5" in picks
     assert "openrouter:z-ai/glm-5" not in picks  # no tool calls
+
+
+def test_estimate_is_unknown_when_no_model_has_a_price():
+    est = bench.estimate(["writer"], ["openrouter:x/unpriced"], CASES[:1], 1, {})
+    assert est["max_cost_usd"] is None and est["unpriced_models"] == ["openrouter:x/unpriced"]

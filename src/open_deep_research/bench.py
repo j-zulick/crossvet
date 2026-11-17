@@ -159,6 +159,9 @@ def price_for(model: str, prices: dict[str, tuple[float, float]]) -> tuple[float
     if model_factory.provider_of(model) in ("ollama", "local"):
         return (0.0, 0.0)
     caps = model_factory.capabilities(model)
+    if caps.get("prompt_price") is None:  # a direct-provider model: use OpenRouter's price for the same model
+        twin = model_factory.openrouter_equivalent(model)
+        caps = model_factory.capabilities(f"openrouter:{twin}") if twin else caps
     if caps.get("prompt_price") is not None and caps.get("completion_price") is not None:
         return (caps["prompt_price"], caps["completion_price"])
     return None
@@ -184,9 +187,10 @@ def estimate(roles: list[str], models: list[str], cases: list[dict], repeats: in
                     unknown.add(model)
                 elif cost is not None:
                     cost += (per_job_in * price[0] + per_job_out * price[1]) * repeats
+    priced_any = len(unknown) < len(set(models))
     return {"jobs": len(roles) * len(models) * len(cases) * repeats, "max_calls": calls,
             "input_tokens": tokens_in, "output_tokens": tokens_out,
-            "max_cost_usd": round(cost, 4) if cost is not None else None, "unpriced_models": sorted(unknown)}
+            "max_cost_usd": round(cost, 4) if cost is not None and priced_any else None, "unpriced_models": sorted(unknown)}
 
 
 ###################
@@ -940,10 +944,16 @@ def main(argv: list[str] | None = None) -> int:
         if not cases:
             parser.error("no matching cases; ids: " + ", ".join(c["id"] for c in CASES))
         prices = parse_prices(args.price)
+        if any(model_factory.provider_of(m) == "openrouter" for m in models_) and not model_factory._load_cache():
+            try:  # OpenRouter's model list is public: capabilities and prices for the estimate
+                _fetch_catalog()
+            except Exception:
+                say("Could not fetch OpenRouter's model list; capability checks and price estimates for openrouter: models are limited.")
         est = estimate(roles, models_, cases, args.repeats, prices)
         say(f"Plan: {est['jobs']} jobs ({len(roles)} roles x {len(models_)} models x {len(cases)} cases x {args.repeats}), "
               f"up to {est['max_calls']} calls, ~{est['input_tokens'] + est['output_tokens']:,} tokens.")
-        say("Estimated cost (upper bound): " + (_fmt_cost(est["max_cost_usd"]) if est["max_cost_usd"] is not None else "unknown")
+        say("Estimated cost (upper bound): " + (_fmt_cost(est["max_cost_usd"]) + (" for the priced models" if est["unpriced_models"] else "")
+                                                 if est["max_cost_usd"] is not None else "unknown")
               + (f"; no price for {', '.join(est['unpriced_models'])} (add --price, or run them through OpenRouter)" if est["unpriced_models"] else ""))
         say(f"Budget cap: ${args.max_usd:.2f}. Results: {args.out}/")
         for m in models_:

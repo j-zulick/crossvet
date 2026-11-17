@@ -234,3 +234,16 @@ def test_reviser_and_writer_replies_with_thinking_blocks_become_clean_reports(mo
     assert report.startswith(REPORT.split("\n")[0]), report[:200]
     assert "SIG123" not in report and "'type': 'thinking'" not in report
     assert "## Review notes" in report
+
+
+def test_direct_models_get_their_openrouter_twin_for_pricing():
+    from open_deep_research import bench
+
+    models.save_openrouter_catalog([
+        {"id": "anthropic/claude-sonnet-5.5", "supported_parameters": ["tools"], "pricing": {"prompt": "0.000003", "completion": "0.000015"}},
+        {"id": "openai/gpt-5.5", "supported_parameters": ["tools"], "pricing": {"prompt": "0.00000125", "completion": "0.00001"}},
+    ])
+    assert models.openrouter_equivalent("anthropic:claude-sonnet-5-5") == "anthropic/claude-sonnet-5.5"
+    assert models.openrouter_equivalent("openai:gpt-5.5") == "openai/gpt-5.5"
+    assert models.openrouter_equivalent("ollama:gemma3") is None
+    assert bench.price_for("anthropic:claude-sonnet-5-5", {}) == (3e-6, 15e-6)
