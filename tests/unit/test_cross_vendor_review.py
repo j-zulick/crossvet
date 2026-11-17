@@ -419,3 +419,39 @@ def test_openrouter_preferences_from_environment(monkeypatch):
     assert llm.openrouter_provider == {"order": ["together", "fireworks"], "allow_fallbacks": False, "data_collection": "deny"}
     assert llm.app_title == "Crossvet" and llm.app_url == "https://github.com/j-zulick/crossvet"
     assert rc.vendor_of("openrouter:z-ai/glm-5") == "z-ai"
+
+
+def test_revision_problem_keeps_the_draft_when_the_revision_is_damaged():
+    draft = "Text [1][2][3].\n### Sources\n[1] https://a.example/x\n[2] https://b.example/y\n[3] https://c.example/z\n"
+    good = "Better text [1][2][3].\n### Sources\n[1] https://a.example/x\n[2] https://b.example/y\n[3] https://c.example/z\n"
+    assert rc.revision_problem(draft, good) == ""
+    assert rc.revision_problem(draft, good, truncated=True) == "it stopped at the output limit"
+    assert rc.revision_problem(draft, "  ") == "it returned no text"
+    assert rc.revision_problem(draft, "Cut off before the sources [1][2") == "it dropped 3 of the draft's 3 sources"
+    # Removing a URL the citation check flagged is what the reviser is asked to do.
+    assert rc.revision_problem(draft, "T [1].\n[1] https://a.example/x\n", flagged=["https://b.example/y", "https://c.example/z"]) == ""
+
+
+def test_was_truncated_reads_every_provider_signal():
+    from langchain_core.messages import AIMessage
+
+    from open_deep_research.models import was_truncated
+
+    assert was_truncated(AIMessage(content="x", response_metadata={"stop_reason": "max_tokens"}))       # Anthropic
+    assert was_truncated(AIMessage(content="x", response_metadata={"finish_reason": "length"}))         # OpenAI chat / OpenRouter
+    assert was_truncated(AIMessage(content="x", response_metadata={"incomplete_details": {"reason": "max_output_tokens"}}))  # Responses API
+    assert not was_truncated(AIMessage(content="x", response_metadata={"stop_reason": "end_turn"}))
+
+
+def test_truncated_revision_is_not_used(monkeypatch, enabled_env):
+    from langchain_core.messages import AIMessage
+
+    class Truncating(FakeModel):
+        async def ainvoke(self, _messages):
+            return AIMessage(content="Revised but cut off mid-sent", response_metadata={"stop_reason": "max_tokens"})
+
+    monkeypatch.setattr(rc, "build_reviewer", lambda m, t, c: Truncating(m, critique=_c(6, m)) if m == "anthropic:writer" else FakeModel(m, critique=_c(6, m)))
+    monkeypatch.setenv("REVIEW_REVISER_MODEL", "anthropic:writer")
+    out = asyncio.run(rc.cross_vendor_review(_state(), {"configurable": {}}))
+    assert "cut off mid-sent" not in out["final_report"]
+    assert "Revision by anthropic:writer failed (it stopped at the output limit)" in out["final_report"]

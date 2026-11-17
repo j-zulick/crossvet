@@ -39,6 +39,7 @@ from open_deep_research.models import (  # noqa: F401 (openrouter_preferences is
     build_chat_model,
     message_text,
     openrouter_preferences,
+    was_truncated,
 )
 from open_deep_research.utils import (
     get_today_str,
@@ -180,6 +181,25 @@ def check_citations(report: str, research_text: str) -> list[str]:
         if norm(u) not in known and u not in flagged:
             flagged.append(u)
     return flagged
+
+
+def revision_problem(draft: str, revised: str, truncated: bool = False, flagged: list[str] | None = None) -> str:
+    """Return why a revision must not replace the draft, or "" when it can.
+
+    A revision that hit the output limit, came back empty, or lost most of the draft's sources
+    would leave the reader with less than the draft; the draft is kept instead.
+    """
+    if truncated:
+        return "it stopped at the output limit"
+    if not (revised or "").strip():
+        return "it returned no text"
+    flagged_set = {u.rstrip(".,;:)") for u in flagged or []}
+    sources = {u.rstrip(".,;:)") for u in URL_RE.findall(draft or "")} - flagged_set
+    if len(sources) >= 2:
+        kept = {u.rstrip(".,;:)") for u in URL_RE.findall(revised)} & sources
+        if len(kept) < len(sources) / 2:
+            return f"it dropped {len(sources) - len(kept)} of the draft's {len(sources)} sources"
+    return ""
 
 
 def format_critique(c: Critique) -> str:
@@ -515,6 +535,9 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
         writer = build_reviewer(reviser_model, configurable.final_report_model_max_tokens, config)
         revised = await timed(writer.ainvoke([HumanMessage(content=REVISE_PROMPT.format(date=get_today_str(), notes=notes_for_prompt, report=report, feedback=feedback))]), call_timeout)
         revised_text = message_text(revised)
+        problem = revision_problem(report, revised_text, was_truncated(revised), flagged_urls)
+        if problem:  # never replace a complete draft with a damaged revision
+            revised_text, revision_error = report, problem
     except Exception as exc:  # keep the draft and say so in the Review notes
         revised_text = report
         revision_error = type(exc).__name__
@@ -551,7 +574,8 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
             "set REVIEW_REVISER_MODEL to a model from another vendor for a fully independent revision."
         )
     if revision_error:
-        notes_items.append(f"Revision by {reviser_model} failed ({revision_error}); the draft is shown unrevised, with the review above for a human to apply.")
+        notes_items.append(f"Revision by {reviser_model} failed ({revision_error}); the draft is shown unrevised, with the review above for a human to apply."
+                           + (" Raise FINAL_REPORT_MODEL_MAX_TOKENS if the model uses extended thinking." if "output limit" in revision_error else ""))
     if failed:
         notes_items.append("Reviewers that failed: " + ", ".join(failed))
     if substitutions:

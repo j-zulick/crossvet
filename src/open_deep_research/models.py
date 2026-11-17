@@ -280,6 +280,20 @@ def message_text(message: Any) -> str:
     return str(content or "")
 
 
+def was_truncated(message: Any) -> bool:
+    """Tell whether a reply stopped at its output limit (any provider's way of saying so).
+
+    With extended thinking, reasoning tokens share the output budget, so a long report can be
+    cut off mid-sentence even when the limit looks generous.
+    """
+    meta = getattr(message, "response_metadata", None) or {}
+    reasons = {str(meta.get(k) or "").lower() for k in ("stop_reason", "finish_reason")}
+    if reasons & {"max_tokens", "length", "max_output_tokens"}:
+        return True
+    incomplete = meta.get("incomplete_details") or {}
+    return isinstance(incomplete, dict) and incomplete.get("reason") == "max_output_tokens"
+
+
 ###################
 # Cost
 ###################
