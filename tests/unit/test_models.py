@@ -180,3 +180,12 @@ def test_deep_agent_researcher_subagent_gets_its_own_model():
         assert "model" not in captured["subagents"][0]
     finally:
         deepagents.create_deep_agent = original
+
+
+def test_context_limit_for_models_missing_from_the_old_table(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "x")
+    assert utils.get_model_token_limit("openai:gpt-4.1") == 1047576  # table still wins
+    assert utils.get_model_token_limit("openai:gpt-5.5") and utils.get_model_token_limit("openai:gpt-5.5") > 100_000
+    models.save_openrouter_catalog([{"id": "z-ai/glm-5.3", "supported_parameters": ["tools"], "context_length": 202752}])
+    assert utils.get_model_token_limit("openrouter:z-ai/glm-5.3") == 202752
+    assert models.context_limit("local:anything") is None

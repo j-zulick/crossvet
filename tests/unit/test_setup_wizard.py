@@ -10,7 +10,7 @@ import httpx
 from open_deep_research import setup_wizard as sw
 from open_deep_research.setup_wizard import Discovery
 
-OPENAI_IDS = ["gpt-4.1", "gpt-4.1-mini", "gpt-5.5", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-mini", "gpt-realtime-2.1",
+OPENAI_IDS = ["gpt-4.1", "gpt-4.1-mini", "gpt-5.4-mini", "gpt-5.5", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-mini", "gpt-realtime-2.1",
               "gpt-image-2", "text-embedding-3-large", "gpt-5.5-2026-06-01", "o4-mini"]
 ANTHROPIC_IDS = ["claude-sonnet-5-5", "claude-haiku-5-5", "claude-opus-5-5", "claude-sonnet-4-5-20250929"]
 GOOGLE_IDS = ["gemini-3.8-flash", "gemini-3.1-pro-preview", "gemini-3.5-flash-lite", "gemini-2.5-flash"]
@@ -80,7 +80,7 @@ def test_plan_replaces_unavailable_stage_models():
     assert any("OPENAI_API_KEY is not set" in w for w in chosen.warnings)
     found = Discovery(models={"openai": ["gpt-5.6-sol", "gpt-5.6-mini"], "anthropic": ANTHROPIC_IDS})
     chosen = sw.plan(found, {"OPENAI_API_KEY": "x"})
-    assert chosen.stages["FINAL_REPORT_MODEL"] == "openai:gpt-5.6-sol"  # gpt-4.1 retired for this key
+    assert chosen.stages["FINAL_REPORT_MODEL"] == "openai:gpt-5.6-sol"  # the default model is not offered to this key
     assert chosen.stages["SUMMARIZATION_MODEL"] == "openai:gpt-5.6-mini"
 
 
@@ -266,3 +266,10 @@ def test_list_models_prints_every_id_with_filter(monkeypatch, tmp_path, capsys):
 def test_openrouter_picks_include_glm_and_kimi():
     ids = ["z-ai/glm-5", "z-ai/glm-4.6", "moonshotai/kimi-k3", "x-ai/grok-4"]
     assert sw.pick_openrouter(ids, set()) == ["openrouter:x-ai/grok-4", "openrouter:z-ai/glm-5", "openrouter:moonshotai/kimi-k3"]
+
+
+def test_openrouter_pick_prefers_gemini_over_gemma_for_google():
+    ids = ["google/gemma-4-31b-it", "google/gemini-3.8-pro", "google/gemini-3.8-flash"]
+    picks = sw.pick_openrouter(ids, set())
+    assert any(p.startswith("openrouter:google/gemini-3.8") for p in picks)
+    assert "openrouter:google/gemma-4-31b-it" not in picks

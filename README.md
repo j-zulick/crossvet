@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/j-zulick/crossvet/actions/workflows/ci.yml/badge.svg)](https://github.com/j-zulick/crossvet/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) [![Python 3.11–3.13](https://img.shields.io/badge/python-3.11%E2%80%933.13-blue.svg)](.python-version)
 
-**Deep research whose reports are checked by models from several AI vendors before you see them.**
+**Deep research whose reports are checked by models from several AI vendors before you read them, plus a benchmark that measures which model to use for each job in the pipeline.**
 
 ## TL;DR
 - **What:** a deep-research agent, built on LangChain's Open Deep Research (MIT), that has every draft report reviewed by models from **different AI vendors** before you read it.
@@ -105,6 +105,23 @@ A draft anchors whoever reads it: reviewers check what it says and tend to miss 
 
 Each reviewer also sees its own outline when it critiques the draft. The Review notes report points, coverage, omissions and dropped points; the export keeps every outline; `crossvet-compare` and Langfuse record `blind_omissions`, and the compare plan adds a `blind-pass` setup to compare with `review`. Coverage is a word-overlap heuristic: a paraphrase with different wording can be counted as an omission, which the reviser then sees as feedback rather than as a fact.
 
+## Which model for which job
+
+Planning research, searching, compressing notes, writing, reviewing, judging reviews and revising are different jobs, and the best model for one is often overpriced for another. Since v1.6 **any model works in any role** (OpenAI, Anthropic, Google, any of OpenRouter's vendors through one key, or a model on your own machine), orchestration and research have their own settings (`SUPERVISOR_MODEL`, `RESEARCHER_MODEL`), and `crossvet-bench` measures each role on its own:
+
+```bash
+uv run crossvet-bench suggest                                     # your models + the newest per vendor on OpenRouter
+uv run crossvet-bench run --models openrouter:x-ai/grok-4.7,anthropic:claude-sonnet-5-5,openrouter:qwen/qwen4-max,ollama:gemma3 --max-usd 5
+uv run crossvet-bench apply --preset best-value                   # write the winning role map to .env
+```
+
+- **Real work, scored by code.** Each role runs with Crossvet's own prompts and schemas on six synthetic cases (invented organizations on `.example` URLs, so models can't answer from memory). Scores come from answer keys, not a judge model: did the reviewer catch the four planted errors (wrong number, unread citation, unsupported claim, omission) without flagging a clean draft; did the critic agree with true findings and reject false ones; did compression keep the facts and URLs; did the supervisor delegate every part of the question.
+- **Cost-aware.** Real per-call cost from OpenRouter (or token estimates), a hard `--max-usd` cap, a `--dry-run` estimate, resumable runs.
+- **Decisions, not just a table.** A leaderboard per role, a quality-vs-cost chart with the frontier, and a role map with a **best-quality** and a **best-value** pick per role (the cheapest model within 10% of the top score). `apply` turns it into configuration: a one-model-per-vendor panel and a reviser from outside it.
+- **Checked end to end.** `crossvet-bench live-plan --role supervisor --models a,b` writes a `crossvet-compare` file that swaps just that role, to confirm on real questions.
+
+Capabilities are checked before a run: the doctor fails a role whose model can't call tools or return typed output (from OpenRouter's live catalog), and structured output uses JSON schema where a model supports it, otherwise a forced tool call. Method, formulas and limits: [docs/MODEL-SELECTION.md](docs/MODEL-SELECTION.md).
+
 ## Grounded search on self-hosted infrastructure
 
 Research can run on a search stack I operate instead of a paid search API (`SEARCH_API=gateway`). The agent talks to a **research gateway over MCP** (Streamable HTTP, bearer token):
@@ -125,10 +142,10 @@ Research can run on a search stack I operate instead of a paid search API (`SEAR
 The adapter (`src/open_deep_research/gateway_search.py`) tolerates schema differences between gateway releases and isolates per-query failures.
 
 ## Documentation
-[Architecture](docs/ARCHITECTURE.md) · [Design decisions](docs/DESIGN-DECISIONS.md) · [Evaluations](docs/EVALS.md) · [Changelog](CHANGELOG.md) · [Security](SECURITY.md)
+[Architecture](docs/ARCHITECTURE.md) · [Design decisions](docs/DESIGN-DECISIONS.md) · [Model selection](docs/MODEL-SELECTION.md) · [Evaluations](docs/EVALS.md) · [Changelog](CHANGELOG.md) · [Security](SECURITY.md)
 
 ## Stack
-Python 3.13 · uv · **LangGraph 1.2** (interrupts, SQLite / Postgres checkpointers) · LangChain 1.x (`init_chat_model`, any provider) · **Pydantic v2** typed outputs · **self-hosted models** via Ollama or any OpenAI-compatible server · **Deep Agents** (`deepagents`) edition · **Langfuse** tracing · **MCP** server · pytest · ruff · GitHub Actions (CodeQL, gitleaks, SBOM) · Docker Compose · **Agent Chat UI** (Next.js 16, React 19, Tailwind 4) in `web/`.
+Python 3.13 · uv · **LangGraph 1.2** (interrupts, SQLite / Postgres checkpointers) · LangChain 1.x (`init_chat_model`, any provider) · **OpenRouter** (`langchain-openrouter`: one key, most vendors, real per-call cost) · **Pydantic v2** typed outputs · **self-hosted models** via Ollama or any OpenAI-compatible server · **Deep Agents** (`deepagents`) edition · **Langfuse** tracing · **MCP** server · pytest · ruff · GitHub Actions (CodeQL, gitleaks, SBOM) · Docker Compose · **Agent Chat UI** (Next.js 16, React 19, Tailwind 4) in `web/`.
 
 ## Quickstart
 Requires Python 3.11–3.13 (the repo pins 3.13 in `.python-version`; `uv` downloads it if needed). Newer Python versions may lack prebuilt packages for some dependencies.
@@ -157,13 +174,13 @@ docker compose up --build       # API http://localhost:2024 · web UI http://loc
 
 **Search:** `SEARCH_API=gateway` (with `RESEARCH_GATEWAY_URL` and `RESEARCH_GATEWAY_TOKEN`), `tavily` (with `TAVILY_API_KEY`), or `openai` / `anthropic` to use the model's built-in web search with no extra key (`crossvet-setup` picks this when no Tavily key is set). With built-in search, every source the search consulted is added to the research notes, so the citation check still works; the gateway and Tavily also capture each page's text for the critic to quote. **Combined search:** add `SEARCH_ALSO=openai` (or `anthropic`) to give researchers the model's built-in search next to the gateway or Tavily, so research continues if one source returns nothing; the researcher model must be from that vendor.
 
-**Models:** every stage is configurable (`RESEARCH_MODEL`, `SUMMARIZATION_MODEL`, `COMPRESSION_MODEL`, `FINAL_REPORT_MODEL`). Reviewers are set with `REVIEW_MODELS` as `provider:model` strings — `openai:…`, `anthropic:…`, `google_genai:…`, `openrouter:<model>` (with `OPENROUTER_API_KEY`), `ollama:<model>`, or `local:<model>` for any OpenAI-compatible server (llama.cpp, LM Studio, MLX, vLLM) at `LOCAL_LLM_BASE_URL`. At least two reviewers must respond (quorum); failures are reported, not fatal. Set `REVIEW_REVISER_MODEL` to a model from a vendor that is *not* on the panel, so no lab grades and then rewrites its own work; Crossvet adds a warning to the Review notes when the reviser shares a vendor with a reviewer. Turn the stage off with `CROSS_VENDOR_REVIEW_ENABLED=false`.
+**Models:** every stage is configurable (`RESEARCH_MODEL`, `SUPERVISOR_MODEL` for orchestration, `RESEARCHER_MODEL`, `SUMMARIZATION_MODEL`, `COMPRESSION_MODEL`, `FINAL_REPORT_MODEL`), and so is every review role. Any setting takes a `provider:model` string: `openai:…`, `anthropic:…`, `google_genai:…`, `openrouter:<maker>/<model>` (with `OPENROUTER_API_KEY`), `ollama:<model>`, or `local:<model>` for any OpenAI-compatible server (llama.cpp, LM Studio, MLX, vLLM) at `LOCAL_LLM_BASE_URL`. Reviewers are set with `REVIEW_MODELS`. At least two reviewers must respond (quorum); failures are reported, not fatal. Set `REVIEW_REVISER_MODEL` to a model from a vendor that is *not* on the panel, so no lab grades and then rewrites its own work; Crossvet adds a warning to the Review notes when the reviser shares a vendor with a reviewer. Turn the stage off with `CROSS_VENDOR_REVIEW_ENABLED=false`.
 
 ### Choose your own models
 Crossvet doesn't fix a vendor list: any model your keys can call can sit on the panel, revise, or run a stage. `crossvet-setup` only suggests.
 ```bash
 uv run crossvet-setup --list-models openrouter --filter grok        # every id a provider offers (openai, anthropic, google_genai, openrouter, ollama, local)
-uv run crossvet-setup --panel openrouter:x-ai/grok-4,anthropic:claude-opus-5-5,openrouter:z-ai/glm-5 --reviser google_genai:gemini-3.1-pro-preview
+uv run crossvet-setup --panel openrouter:x-ai/grok-4.7,anthropic:claude-opus-5-5,openrouter:z-ai/glm-5.3 --reviser google_genai:gemini-3.1-pro-preview
 ```
 - **Your choice sticks.** Once `REVIEW_MODELS` is set, re-running setup keeps it and only checks it: names your key cannot call, a single-vendor panel, or a reviser that shares a vendor with the panel are reported. `--auto` re-picks; `--panel` replaces.
 - **Wide vendor coverage through OpenRouter.** One `OPENROUTER_API_KEY` adds vendors such as xAI (Grok), Z.ai (GLM), Moonshot (Kimi), DeepSeek, Qwen, Mistral and Meta; the automatic pick takes the newest model per vendor not already on the panel. The vendor that counts for diversity is the model's maker (`openrouter:z-ai/glm-5` → `z-ai`).
@@ -225,7 +242,7 @@ Splits are by research brief, so a question never appears in both training and t
 ```bash
 uv run pytest tests/unit -q     # offline: no API keys, no network
 ```
-Covers Jev support checks (the real TypeSafe SDK against a mock API: request shape, probabilities, failures that never block, rejected changes, ungrounded endorsements, blocked additions, dropped blind-pass points, the doctor's live check), your own model choices (kept panels, unknown names, single-vendor panels), spare reviewers, per-call time limits, OpenRouter host routing, the sessions list, the blind pass (grounding, coverage, omissions, prompts that never include the draft), early stopping (consensus, stable disagreement, the false-consensus guard and build-on grounding), anonymization (no vendor leaks into labels), Borda tallying, citation flagging, the critic protocol (fabricated evidence quotes are never trusted), quorum and failure handling, run export, the MCP tools, gateway parsing, self-hosted model wiring, the approval step with real LangGraph interrupts, the comparison harness, deliberation and the sycophancy guard, the Deep Agents edition (search capture and report file), fine-tuning dataset building, and crash-and-resume across two processes (a completed step is never re-run).
+Covers the model factory (every stage on OpenRouter and local models, capabilities from the catalog, structured-output method, real cost), the role split, the role benchmark (scoring formulas with perfect and weak stand-in models, budget cap, resume, role maps, presets, the live plan), Jev support checks (the real TypeSafe SDK against a mock API: request shape, probabilities, failures that never block, rejected changes, ungrounded endorsements, blocked additions, dropped blind-pass points, the doctor's live check), your own model choices (kept panels, unknown names, single-vendor panels), spare reviewers, per-call time limits, OpenRouter host routing, the sessions list, the blind pass (grounding, coverage, omissions, prompts that never include the draft), early stopping (consensus, stable disagreement, the false-consensus guard and build-on grounding), anonymization (no vendor leaks into labels), Borda tallying, citation flagging, the critic protocol (fabricated evidence quotes are never trusted), quorum and failure handling, run export, the MCP tools, gateway parsing, self-hosted model wiring, the approval step with real LangGraph interrupts, the comparison harness, deliberation and the sycophancy guard, the Deep Agents edition (search capture and report file), fine-tuning dataset building, and crash-and-resume across two processes (a completed step is never re-run).
 
 ## Roadmap
 - [x] **v0.1** — cross-vendor review, LangGraph 1.2 / LangChain 1.x upgrade, self-hosted model support, web UI, CI
@@ -241,6 +258,7 @@ Covers Jev support checks (the real TypeSafe SDK against a mock API: request sha
 - [x] **v1.2** — blind first pass: reviewers outline the answer from the notes before reading the draft; grounded omissions become feedback
 - [x] **v1.3** — your own models: `--panel` / `--reviser` / `--list-models`, a kept panel, GLM and Kimi via OpenRouter, OpenRouter host routing, spare reviewers, per-call time limits, `crossvet sessions`
 - [x] **v1.4** — support checks with Jev: a decision model scores whether each quoted passage supports the claim made from it (position changes, AGREE / BUILD_ON, blind-pass points); `crossvet-doctor --jev`
+- [x] **v1.6** — model fit: any model in any role (official OpenRouter integration, real per-call cost, capability checks), separate orchestration and research models, and `crossvet-bench`, a per-role benchmark scored by answer keys with best-quality and best-value role maps
 
 ## Credits
 Built on [Open Deep Research](https://github.com/langchain-ai/open_deep_research) and [Agent Chat UI](https://github.com/langchain-ai/agent-chat-ui) (both MIT). Anonymized model peer review is inspired by Andrej Karpathy's *llm-council*; explicit agree / disagree / build-on engagement, a blind first pass and stopping on consensus also appear in Terry Li's MIT-licensed *consilium* (Crossvet's versions are reimplemented and verified against the research notes in code; see [design decision 12](docs/DESIGN-DECISIONS.md#12-stop-deliberation-in-code-not-by-a-models-say-so)); the critic's agree / disagree-with-evidence / disagree-concern protocol is adapted from the MIT-licensed *review-council* skill and the research it cites. Details in [NOTICES.md](NOTICES.md); the original upstream README is in [docs/UPSTREAM-README.md](docs/UPSTREAM-README.md).

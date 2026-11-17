@@ -246,6 +246,22 @@ def structured_output_kwargs(model: str) -> dict:
     return {}
 
 
+def context_limit(model: str) -> int | None:
+    """Return the model's input token limit from OpenRouter's catalog or LangChain's model profiles."""
+    if provider_of(model) == "openrouter":
+        live = _load_cache().get(model_id(model)) or {}
+        if live.get("context_length"):
+            return int(live["context_length"])
+    if provider_of(model) in ("local", "ollama", ""):
+        return None
+    try:
+        profile = build_chat_model(model, 16, {"configurable": {}}).profile or {}
+    except Exception:  # missing key, package or unknown model: no limit known
+        return None
+    value = profile.get("max_input_tokens")
+    return int(value) if value else None
+
+
 ###################
 # Cost
 ###################

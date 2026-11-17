@@ -2,6 +2,23 @@
 
 All notable changes to Crossvet. Versions follow [Semantic Versioning](https://semver.org/); dates are release dates.
 
+## [1.6.0]
+
+### Added
+- **Any model in any role.** One model factory builds every pipeline stage and review role. `openrouter:<maker>/<model>` uses the official `langchain-openrouter` integration (real per-call cost, provider routing, attribution as Crossvet); `local:<model>` uses any OpenAI-compatible server. Before 1.6, OpenRouter and local models worked only in review roles: in the LangGraph edition's research, summarization, compression and report stages they failed.
+- **Separate orchestration and research models**: `SUPERVISOR_MODEL` plans and delegates; `RESEARCHER_MODEL` searches and reads. Both default to `RESEARCH_MODEL`. In the Deep Agents edition the researcher sub-agent can run on its own model.
+- **Capability checks before a run**: `crossvet-setup` saves OpenRouter's live catalog (tool calling, structured output, context length, price per model); the doctor fails a role whose model cannot call tools or return typed output, and setup's automatic pick skips such models.
+- **`crossvet-bench`**, a per-role benchmark: orchestration, research, compression, report writing, review, critic and revision, each scored by code on six synthetic cases (planted errors with an answer key, kept facts and URLs, aspect checklists). Real or estimated cost per case, a `--max-usd` cap, `--dry-run`, resumable runs, a leaderboard per role, a quality-vs-cost chart with the frontier, and a role map with best-quality and best-value picks. `apply --preset` writes the role map to `.env`; `live-plan` writes a `crossvet-compare` file that swaps one role; `suggest` lists the newest tool-capable model per vendor. Every bench call is traced in Langfuse when configured. See [docs/MODEL-SELECTION.md](docs/MODEL-SELECTION.md).
+- Dependency: `langchain-openrouter` (MIT).
+
+### Changed
+- Default stage models are `openai:gpt-5.5` (research, compression, report) and `openai:gpt-5.4-mini` (summarization); `gpt-4.1` is retired by OpenAI on January 14, 2027. `crossvet-setup` still replaces defaults your key cannot call.
+- Structured output follows the model: JSON schema where the model supports it (and always for Claude, directly or through OpenRouter), a forced tool call otherwise.
+- Context limits for models missing from the built-in table come from OpenRouter's catalog or LangChain's model profiles, so an over-long report is trimmed and retried instead of failing.
+
+### Fixed
+- The automatic OpenRouter pick chose Gemma (open weights) over Gemini for Google because of its higher version number.
+
 ## [1.4.0]
 
 ### Added

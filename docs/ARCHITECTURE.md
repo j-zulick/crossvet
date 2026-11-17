@@ -17,6 +17,8 @@ Crossvet is a LangGraph application with two research engines ("editions") that 
 | `src/open_deep_research/dataset.py` | `crossvet-dataset`: MLX LoRA datasets from run exports |
 | `src/open_deep_research/mcp_server.py` | `crossvet-mcp`: models as MCP tools for coding agents |
 | `src/open_deep_research/doctor.py` | Setup checker |
+| `src/open_deep_research/models.py` | One model factory for every role; capabilities, structured-output method, cost, context limits |
+| `src/open_deep_research/bench.py` | `crossvet-bench`: per-role benchmark, leaderboard and role maps (cases in `bench_cases.py`) |
 | `web/` | Agent Chat UI (Next.js) |
 
 ## The LangGraph edition
@@ -68,7 +70,9 @@ Every model call in steps 1–7 is isolated: one failure degrades the review and
 
 ## Model routing
 
-`build_reviewer(model)` resolves `provider:model` strings: `local:` → any OpenAI-compatible server at `LOCAL_LLM_BASE_URL`; `openrouter:` → OpenRouter; everything else → `init_chat_model` (OpenAI, Anthropic, Google, Ollama, Groq, DeepSeek, Bedrock…). `vendor_of()` maps each string to its vendor (OpenRouter models to their maker, local routes to `self-hosted`) for independence checks.
+`models.build_chat_model(model)` resolves `provider:model` strings for every stage and review role: `local:` → any OpenAI-compatible server at `LOCAL_LLM_BASE_URL`; `openrouter:` → the official `langchain-openrouter` integration (per-call cost in `response_metadata`, `OPENROUTER_*` host routing); everything else → `init_chat_model` (OpenAI, Anthropic, Google, Ollama, Groq, DeepSeek, Bedrock…). In the LangGraph edition, `stage_model()` sends `openrouter:` and `local:` models through the factory and keeps LangChain's configurable model for the rest. `vendor_of()` maps each string to its vendor (OpenRouter models to their maker, local routes to `self-hosted`) for independence checks.
+
+Roles: `Configuration.model_for(role)` gives the orchestration (`SUPERVISOR_MODEL`) and research (`RESEARCHER_MODEL`) models, falling back to `RESEARCH_MODEL`. `models.capabilities()` reads OpenRouter's catalog (saved by `crossvet-setup`) or LangChain's model profiles; the doctor and setup use it to reject a model that cannot call tools or return typed output for a role that needs them, and `structured_output_kwargs()` picks JSON schema or a forced tool call accordingly.
 
 ## Deployment
 

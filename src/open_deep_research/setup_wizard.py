@@ -43,10 +43,10 @@ KEY_VARS = {
 SEARCH_KEY = "TAVILY_API_KEY"
 STAGE_VARS = ("RESEARCH_MODEL", "SUMMARIZATION_MODEL", "COMPRESSION_MODEL", "FINAL_REPORT_MODEL")
 STAGE_DEFAULTS = {
-    "RESEARCH_MODEL": "openai:gpt-4.1",
-    "SUMMARIZATION_MODEL": "openai:gpt-4.1-mini",
-    "COMPRESSION_MODEL": "openai:gpt-4.1",
-    "FINAL_REPORT_MODEL": "openai:gpt-4.1",
+    "RESEARCH_MODEL": "openai:gpt-5.5",
+    "SUMMARIZATION_MODEL": "openai:gpt-5.4-mini",
+    "COMPRESSION_MODEL": "openai:gpt-5.5",
+    "FINAL_REPORT_MODEL": "openai:gpt-5.5",
 }
 # Words that mark models unsuited to text review (audio, images, embeddings, previews, ...).
 EXCLUDE = re.compile(
@@ -219,6 +219,8 @@ def pick_openrouter(ids: list[str], exclude_vendors: set[str]) -> list[str]:
             continue
         cands = [i for i in ids if i.startswith(vendor + "/") and not EXCLUDE.search(i.split("/", 1)[1].replace("instruct", "")) and ":" not in i
                  and not unmet_needs("openrouter:" + i, "reviewer")]
+        if vendor == "google":  # Google's flagship line is Gemini; Gemma (open weights) has its own numbering
+            cands = [i for i in cands if i.startswith("google/gemini")] or cands
         if cands:
             picks.append("openrouter:" + sorted(cands, key=lambda i: (_version(i.split("/", 1)[1]), -len(i)), reverse=True)[0])
     return picks

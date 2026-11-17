@@ -33,6 +33,10 @@ This page records how Crossvet is evaluated and what the results were. **No resu
 | Jev support checks vs quote check alone | not run |
 | Fine-tuned vs base local reviewer | not run |
 
+## Model fit (v1.6)
+
+`crossvet-bench` complements these comparisons: it measures each pipeline role on its own (orchestration, research, compression, report writing, review, critic, revision) on synthetic cases scored by answer keys, and recommends a model per role. Its method, formulas and limits are in [MODEL-SELECTION.md](MODEL-SELECTION.md); its results are published there, under the same rule: only from real runs, with date, model ids, cases, repeats and cost.
+
 ## Limitations
 
 - URL matching shows a citation was read, not that it supports the claim; human grading covers that.

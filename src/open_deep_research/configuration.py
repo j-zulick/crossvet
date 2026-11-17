@@ -133,11 +133,11 @@ class Configuration(BaseModel):
     )
     # Model Configuration
     summarization_model: str = Field(
-        default="openai:gpt-4.1-mini",
+        default="openai:gpt-5.4-mini",
         json_schema_extra={
             "x_oap_ui_config": {
                 "type": "text",
-                "default": "openai:gpt-4.1-mini",
+                "default": "openai:gpt-5.4-mini",
                 "description": "Model for summarizing research results from Tavily search results"
             }
         }
@@ -165,11 +165,11 @@ class Configuration(BaseModel):
         }
     )
     research_model: str = Field(
-        default="openai:gpt-4.1",
+        default="openai:gpt-5.5",
         json_schema_extra={
             "x_oap_ui_config": {
                 "type": "text",
-                "default": "openai:gpt-4.1",
+                "default": "openai:gpt-5.5",
                 "description": "Model for conducting research. NOTE: Make sure your Researcher Model supports the selected search API."
             }
         }
@@ -205,11 +205,11 @@ class Configuration(BaseModel):
         }
     )
     compression_model: str = Field(
-        default="openai:gpt-4.1",
+        default="openai:gpt-5.5",
         json_schema_extra={
             "x_oap_ui_config": {
                 "type": "text",
-                "default": "openai:gpt-4.1",
+                "default": "openai:gpt-5.5",
                 "description": "Model for compressing research findings from sub-agents. NOTE: Make sure your Compression Model supports the selected search API."
             }
         }
@@ -225,11 +225,11 @@ class Configuration(BaseModel):
         }
     )
     final_report_model: str = Field(
-        default="openai:gpt-4.1",
+        default="openai:gpt-5.5",
         json_schema_extra={
             "x_oap_ui_config": {
                 "type": "text",
-                "default": "openai:gpt-4.1",
+                "default": "openai:gpt-5.5",
                 "description": "Model for writing the final report from all research findings"
             }
         }

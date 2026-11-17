@@ -924,7 +924,10 @@ def get_model_token_limit(model_string):
             return token_limit
     
     # Model not found in lookup table
-    return None
+    # Newer models: the OpenRouter catalog or LangChain's model profiles (no network call)
+    from open_deep_research.models import context_limit
+
+    return context_limit(model_string)
 
 def remove_up_to_last_ai_message(messages: list[MessageLikeRepresentation]) -> list[MessageLikeRepresentation]:
     """Truncate message history by removing up to the last AI message.
