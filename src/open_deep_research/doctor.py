@@ -22,6 +22,7 @@ from open_deep_research.cross_vendor_review import (
     reviser_conflicts,
     vendor_of,
 )
+from open_deep_research.models import unmet_needs
 
 PROVIDER_KEYS = {
     "openai": "OPENAI_API_KEY",
@@ -60,6 +61,8 @@ def check(config: Configuration | None = None) -> list[Finding]:
 
     stages = {
         "research": cfg.research_model,
+        **({"orchestration (supervisor)": cfg.supervisor_model} if cfg.supervisor_model else {}),
+        **({"researcher": cfg.researcher_model} if cfg.researcher_model else {}),
         "summarization": cfg.summarization_model,
         "compression": cfg.compression_model,
         "final report": cfg.final_report_model,
@@ -86,6 +89,16 @@ def check(config: Configuration | None = None) -> list[Finding]:
         else:
             out.append(Finding("FAIL", f"{role}: {model} needs {key}, which is not set"))
 
+    # Capabilities known before any call (OpenRouter catalog or model profile): a role that
+    # must call tools, or parse typed output, cannot run on a model that can't.
+    role_of = {"research model": "researcher", "orchestration (supervisor) model": "supervisor",
+               "researcher model": "researcher", "summarization model": "summarization"}
+    role_of.update({r: "reviewer" for r in models if r.startswith("reviewer ")})
+    for role, model in models.items():
+        missing = unmet_needs(model, role_of.get(role, ""))
+        if missing:
+            out.append(Finding("FAIL", f"{role}: {model} does not support {' or '.join(missing)}, which this role needs"))
+
     search = getattr(cfg.search_api, "value", str(cfg.search_api))
     if search == "tavily":
         out.append(Finding("OK", "search: tavily (TAVILY_API_KEY is set)") if os.getenv("TAVILY_API_KEY") else Finding("FAIL", "search: tavily needs TAVILY_API_KEY, which is not set"))
@@ -93,8 +106,8 @@ def check(config: Configuration | None = None) -> list[Finding]:
         missing = [v for v in ("RESEARCH_GATEWAY_URL", "RESEARCH_GATEWAY_TOKEN") if not os.getenv(v)]
         out.append(Finding("FAIL", f"search: gateway needs {', '.join(missing)}") if missing else Finding("OK", "search: research gateway (URL and token are set)"))
     elif search in ("openai", "anthropic"):
-        if not cfg.research_model.startswith(f"{search}:"):
-            out.append(Finding("FAIL", f"search: native {search} web search needs a {search}: research model (got {cfg.research_model})"))
+        if not cfg.model_for("researcher").startswith(f"{search}:"):
+            out.append(Finding("FAIL", f"search: native {search} web search needs a {search}: researcher model (got {cfg.model_for('researcher')})"))
         else:
             out.append(Finding("OK", f"search: {search} built-in web search (cited sources are checked; Tavily or a gateway also captures page text)"))
     else:
@@ -103,8 +116,8 @@ def check(config: Configuration | None = None) -> list[Finding]:
         also = cfg.search_also.strip().lower()
         if also not in ("openai", "anthropic"):
             out.append(Finding("FAIL", f"search: SEARCH_ALSO must be openai or anthropic (got {cfg.search_also})"))
-        elif not cfg.research_model.startswith(f"{also}:"):
-            out.append(Finding("WARN", f"search: SEARCH_ALSO={also} is ignored because the research model is {cfg.research_model}"))
+        elif not cfg.model_for("researcher").startswith(f"{also}:"):
+            out.append(Finding("WARN", f"search: SEARCH_ALSO={also} is ignored because the researcher model is {cfg.model_for('researcher')}"))
         else:
             out.append(Finding("OK", f"search: {also} built-in web search is added next to {search}"))
 

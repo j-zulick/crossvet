@@ -29,15 +29,14 @@ from datetime import UTC, datetime
 from typing import Any, Literal
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
-from langchain.chat_models import init_chat_model
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, Field
 
 from open_deep_research.configuration import Configuration
+from open_deep_research.models import build_chat_model, openrouter_preferences  # noqa: F401 (re-exported)
 from open_deep_research.utils import (
-    get_api_key_for_model,
     get_today_str,
     structured_output_kwargs,
 )
@@ -272,27 +271,6 @@ def support_summary(checker: Any, error: str = "") -> dict[str, Any] | None:
     }
 
 
-def openrouter_preferences() -> dict[str, Any]:
-    """OpenRouter provider routing from the environment (empty means OpenRouter's defaults).
-
-    OPENROUTER_PROVIDER_ORDER (comma-separated hosts to try first), OPENROUTER_ALLOW_FALLBACKS
-    (false = only those hosts) and OPENROUTER_DATA_COLLECTION (deny = only hosts that do not
-    store or train on prompts). These choose who *hosts* a model; the model, and so its
-    vendor on the panel, stays the one you named.
-    """
-    prefs: dict[str, Any] = {}
-    order = [h.strip() for h in os.getenv("OPENROUTER_PROVIDER_ORDER", "").split(",") if h.strip()]
-    if order:
-        prefs["order"] = order
-    fallbacks = os.getenv("OPENROUTER_ALLOW_FALLBACKS", "").strip().lower()
-    if fallbacks in ("true", "false"):
-        prefs["allow_fallbacks"] = fallbacks == "true"
-    collection = os.getenv("OPENROUTER_DATA_COLLECTION", "").strip().lower()
-    if collection in ("allow", "deny"):
-        prefs["data_collection"] = collection
-    return prefs
-
-
 async def timed(awaitable: Any, seconds: float) -> Any:
     """Await with a time limit (seconds <= 0 means no limit); a timeout raises TimeoutError."""
     if seconds and seconds > 0:
@@ -301,34 +279,8 @@ async def timed(awaitable: Any, seconds: float) -> Any:
 
 
 def build_reviewer(model: str, max_tokens: int, config: RunnableConfig) -> BaseChatModel:
-    """Create a chat model.
-
-    Supports ``provider:model`` strings (e.g. ``ollama:gemma3`` for a model served by
-    Ollama on this machine), ``openrouter:<model>``, and ``local:<model>`` for any
-    OpenAI-compatible server (llama.cpp, LM Studio, MLX, vLLM) at LOCAL_LLM_BASE_URL.
-    """
-    if model.startswith("local:"):
-        from langchain_openai import ChatOpenAI
-
-        return ChatOpenAI(
-            model=model.split(":", 1)[1],
-            base_url=os.getenv("LOCAL_LLM_BASE_URL", "http://localhost:8080/v1"),
-            api_key=os.getenv("LOCAL_LLM_API_KEY", "not-needed"),
-            max_tokens=max_tokens,
-        )
-    if model.startswith("openrouter:"):
-        from langchain_openai import ChatOpenAI
-
-        prefs = openrouter_preferences()
-        return ChatOpenAI(
-            model=model.split(":", 1)[1],
-            base_url="https://openrouter.ai/api/v1",
-            api_key=os.getenv("OPENROUTER_API_KEY"),
-            max_tokens=max_tokens,
-            default_headers={"X-Title": "Crossvet"},
-            **({"extra_body": {"provider": prefs}} if prefs else {}),
-        )
-    return init_chat_model(model=model, max_tokens=max_tokens, api_key=get_api_key_for_model(model, config))
+    """Create a chat model for a review role (any ``provider:model``; see ``models.build_chat_model``)."""
+    return build_chat_model(model, max_tokens, config)
 
 
 ###################

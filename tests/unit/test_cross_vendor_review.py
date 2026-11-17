@@ -416,5 +416,6 @@ def test_openrouter_preferences_from_environment(monkeypatch):
     monkeypatch.setenv("OPENROUTER_API_KEY", "x")
     assert rc.openrouter_preferences() == {"order": ["together", "fireworks"], "allow_fallbacks": False, "data_collection": "deny"}
     llm = rc.build_reviewer("openrouter:z-ai/glm-5", 100, {"configurable": {}})
-    assert llm.extra_body == {"provider": {"order": ["together", "fireworks"], "allow_fallbacks": False, "data_collection": "deny"}}
+    assert llm.openrouter_provider == {"order": ["together", "fireworks"], "allow_fallbacks": False, "data_collection": "deny"}
+    assert llm.app_title == "Crossvet" and llm.app_url == "https://github.com/j-zulick/crossvet"
     assert rc.vendor_of("openrouter:z-ai/glm-5") == "z-ai"

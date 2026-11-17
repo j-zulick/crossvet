@@ -184,6 +184,26 @@ class Configuration(BaseModel):
             }
         }
     )
+    supervisor_model: str = Field(
+        default="",
+        json_schema_extra={
+            "x_oap_ui_config": {
+                "type": "text",
+                "default": "",
+                "description": "Orchestration: the model that plans sub-questions, delegates them to researchers and decides when research is done. Must support tool calls. Empty = the research model."
+            }
+        }
+    )
+    researcher_model: str = Field(
+        default="",
+        json_schema_extra={
+            "x_oap_ui_config": {
+                "type": "text",
+                "default": "",
+                "description": "Research: the model that searches, calls tools and reads sources for each sub-question. Must support tool calls and the selected search API. Empty = the research model."
+            }
+        }
+    )
     compression_model: str = Field(
         default="openai:gpt-4.1",
         json_schema_extra={
@@ -461,6 +481,18 @@ class Configuration(BaseModel):
         }
     )
 
+
+    def model_for(self, role: str) -> str:
+        """Model for a pipeline role; the orchestration and research roles fall back to ``research_model``."""
+        if role == "supervisor":
+            return self.supervisor_model or self.research_model
+        if role == "researcher":
+            return self.researcher_model or self.research_model
+        return {
+            "summarization": self.summarization_model,
+            "compression": self.compression_model,
+            "final_report": self.final_report_model,
+        }.get(role, self.research_model)
 
     @classmethod
     def from_runnable_config(

@@ -82,12 +82,11 @@ async def tavily_search(
     max_char_to_include = configurable.max_content_length
     
     # Initialize summarization model with retry logic
-    model_api_key = get_api_key_for_model(configurable.summarization_model, config)
-    summarization_model = init_chat_model(
-        model=configurable.summarization_model,
-        max_tokens=configurable.summarization_model_max_tokens,
-        api_key=model_api_key,
-        tags=["langsmith:nostream"]
+    summarization_model = stage_chat_model(
+        configurable.summarization_model,
+        configurable.summarization_model_max_tokens,
+        config,
+        tags=["langsmith:nostream"],
     ).with_structured_output(Summary, **structured_output_kwargs(configurable.summarization_model)).with_retry(
         stop_after_attempt=configurable.max_structured_output_retries
     )
@@ -596,7 +595,7 @@ async def get_all_tools(config: RunnableConfig):
 
     # Combined search: add a model's built-in web search next to the main search.
     also = (get_config_value(configurable.search_also) or "").strip().lower()
-    if also in ("openai", "anthropic") and also != search_api.value and configurable.research_model.startswith(f"{also}:"):
+    if also in ("openai", "anthropic") and also != search_api.value and configurable.model_for("researcher").startswith(f"{also}:"):
         tools.extend(await get_search_tool(SearchAPI(also)))
     
     # Track existing tool names to prevent conflicts
@@ -723,16 +722,21 @@ def flatten_native_search(message: AIMessage) -> AIMessage:
     )
 
 
-def structured_output_kwargs(model: str) -> dict:
-    """Extra arguments for ``with_structured_output`` that a provider needs.
+def stage_chat_model(model: str, max_tokens: int, config: RunnableConfig, tags: list[str] | None = None):
+    """Build the chat model for a pipeline stage: any ``provider:model``, including OpenRouter and local servers."""
+    from open_deep_research.models import build_chat_model, is_routed
 
-    Current Claude models reject structured output through forced tool calling; they use
-    Anthropic's native JSON-schema output instead. Other providers keep their defaults.
-    """
-    provider = (model or "").split(":", 1)[0].lower()
-    if provider == "anthropic" or (model or "").lower().startswith("claude"):
-        return {"method": "json_schema"}
-    return {}
+    if is_routed(model):
+        return build_chat_model(model, max_tokens, config, tags=tags)
+    return init_chat_model(model=model, max_tokens=max_tokens, api_key=get_api_key_for_model(model, config),
+                           **({"tags": tags} if tags else {}))
+
+
+def structured_output_kwargs(model: str) -> dict:
+    """Extra arguments for ``with_structured_output`` that a model needs (see ``models``)."""
+    from open_deep_research.models import structured_output_kwargs as _kwargs
+
+    return _kwargs(model)
 
 
 ##########################
@@ -967,28 +971,10 @@ def get_config_value(value):
         return value.value
 
 def get_api_key_for_model(model_name: str, config: RunnableConfig):
-    """Get API key for a specific model from environment or config."""
-    should_get_from_config = os.getenv("GET_API_KEYS_FROM_CONFIG", "false")
-    model_name = model_name.lower()
-    if should_get_from_config.lower() == "true":
-        api_keys = config.get("configurable", {}).get("apiKeys", {})
-        if not api_keys:
-            return None
-        if model_name.startswith("openai:"):
-            return api_keys.get("OPENAI_API_KEY")
-        elif model_name.startswith("anthropic:"):
-            return api_keys.get("ANTHROPIC_API_KEY")
-        elif model_name.startswith("google"):
-            return api_keys.get("GOOGLE_API_KEY")
-        return None
-    else:
-        if model_name.startswith("openai:"): 
-            return os.getenv("OPENAI_API_KEY")
-        elif model_name.startswith("anthropic:"):
-            return os.getenv("ANTHROPIC_API_KEY")
-        elif model_name.startswith("google"):
-            return os.getenv("GOOGLE_API_KEY")
-        return None
+    """Get API key for a specific model from environment or config (any provider in ``models.KEY_ENV``)."""
+    from open_deep_research.models import api_key_for
+
+    return api_key_for(model_name, config)
 
 def get_tavily_api_key(config: RunnableConfig):
     """Get Tavily API key from environment or config."""

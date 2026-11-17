@@ -16,6 +16,7 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command
 
+from open_deep_research.models import build_chat_model, is_routed
 from open_deep_research.configuration import (
     Configuration,
 )
@@ -62,6 +63,19 @@ configurable_model = init_chat_model(
     configurable_fields=("model", "max_tokens", "api_key"),
 )
 
+
+def stage_model(model_config: dict, shape=lambda model: model):
+    """Build the model for one stage call, shaped by ``shape`` (tools, structured output, retries).
+
+    ``openrouter:`` and ``local:`` models get their own client (see ``models``); every other
+    provider goes through LangChain's configurable model, configured last as before.
+    """
+    name = model_config["model"]
+    if is_routed(name):
+        return shape(build_chat_model(name, model_config.get("max_tokens"), {"configurable": {}},
+                                      tags=model_config.get("tags")))
+    return shape(configurable_model).with_config(model_config)
+
 async def clarify_with_user(state: AgentState, config: RunnableConfig) -> Command[Literal["write_research_brief", "__end__"]]:
     """Analyze user messages and ask clarifying questions if the research scope is unclear.
     
@@ -91,11 +105,9 @@ async def clarify_with_user(state: AgentState, config: RunnableConfig) -> Comman
     }
     
     # Configure model with structured output and retry logic
-    clarification_model = (
-        configurable_model
-        .with_structured_output(ClarifyWithUser, **structured_output_kwargs(configurable.research_model))
-        .with_retry(stop_after_attempt=configurable.max_structured_output_retries)
-        .with_config(model_config)
+    clarification_model = stage_model(
+        model_config,
+        lambda m: m.with_structured_output(ClarifyWithUser, **structured_output_kwargs(configurable.research_model)).with_retry(stop_after_attempt=configurable.max_structured_output_retries),
     )
     
     # Step 3: Analyze whether clarification is needed
@@ -144,11 +156,9 @@ async def write_research_brief(state: AgentState, config: RunnableConfig) -> Com
     }
     
     # Configure model for structured research question generation
-    research_model = (
-        configurable_model
-        .with_structured_output(ResearchQuestion, **structured_output_kwargs(configurable.research_model))
-        .with_retry(stop_after_attempt=configurable.max_structured_output_retries)
-        .with_config(research_model_config)
+    research_model = stage_model(
+        research_model_config,
+        lambda m: m.with_structured_output(ResearchQuestion, **structured_output_kwargs(configurable.research_model)).with_retry(stop_after_attempt=configurable.max_structured_output_retries),
     )
     
     # Step 2: Generate structured research brief from user messages
@@ -197,9 +207,9 @@ async def supervisor(state: SupervisorState, config: RunnableConfig) -> Command[
     # Step 1: Configure the supervisor model with available tools
     configurable = Configuration.from_runnable_config(config)
     research_model_config = {
-        "model": configurable.research_model,
+        "model": configurable.model_for("supervisor"),
         "max_tokens": configurable.research_model_max_tokens,
-        "api_key": get_api_key_for_model(configurable.research_model, config),
+        "api_key": get_api_key_for_model(configurable.model_for("supervisor"), config),
         "tags": ["langsmith:nostream"]
     }
     
@@ -207,11 +217,9 @@ async def supervisor(state: SupervisorState, config: RunnableConfig) -> Command[
     lead_researcher_tools = [ConductResearch, ResearchComplete, think_tool]
     
     # Configure model with tools, retry logic, and model settings
-    research_model = (
-        configurable_model
-        .bind_tools(lead_researcher_tools)
-        .with_retry(stop_after_attempt=configurable.max_structured_output_retries)
-        .with_config(research_model_config)
+    research_model = stage_model(
+        research_model_config,
+        lambda m: m.bind_tools(lead_researcher_tools).with_retry(stop_after_attempt=configurable.max_structured_output_retries),
     )
     
     # Step 2: Generate supervisor response based on current context
@@ -395,9 +403,9 @@ async def researcher(state: ResearcherState, config: RunnableConfig) -> Command[
     
     # Step 2: Configure the researcher model with tools
     research_model_config = {
-        "model": configurable.research_model,
+        "model": configurable.model_for("researcher"),
         "max_tokens": configurable.research_model_max_tokens,
-        "api_key": get_api_key_for_model(configurable.research_model, config),
+        "api_key": get_api_key_for_model(configurable.model_for("researcher"), config),
         "tags": ["langsmith:nostream"]
     }
     
@@ -412,13 +420,11 @@ async def researcher(state: ResearcherState, config: RunnableConfig) -> Command[
     # research notes (and the review's citation check) see them, not only the cited ones.
     bind_kwargs = {}
     builtin = {get_config_value(configurable.search_api), (configurable.search_also or "").strip().lower()}
-    if "openai" in builtin and configurable.research_model.startswith("openai:"):
+    if "openai" in builtin and configurable.model_for("researcher").startswith("openai:"):
         bind_kwargs["include"] = ["web_search_call.action.sources"]
-    research_model = (
-        configurable_model
-        .bind_tools(tools, **bind_kwargs)
-        .with_retry(stop_after_attempt=configurable.max_structured_output_retries)
-        .with_config(research_model_config)
+    research_model = stage_model(
+        research_model_config,
+        lambda m: m.bind_tools(tools, **bind_kwargs).with_retry(stop_after_attempt=configurable.max_structured_output_retries),
     )
     
     # Step 3: Generate researcher response with system context
@@ -538,7 +544,7 @@ async def compress_research(state: ResearcherState, config: RunnableConfig):
     """
     # Step 1: Configure the compression model
     configurable = Configuration.from_runnable_config(config)
-    synthesizer_model = configurable_model.with_config({
+    synthesizer_model = stage_model({
         "model": configurable.compression_model,
         "max_tokens": configurable.compression_model_max_tokens,
         "api_key": get_api_key_for_model(configurable.compression_model, config),
@@ -661,7 +667,7 @@ async def final_report_generation(state: AgentState, config: RunnableConfig):
             )
             
             # Generate the final report
-            final_report = await configurable_model.with_config(writer_model_config).ainvoke([
+            final_report = await stage_model(writer_model_config).ainvoke([
                 HumanMessage(content=final_report_prompt)
             ])
             

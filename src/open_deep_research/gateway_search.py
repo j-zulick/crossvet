@@ -168,12 +168,10 @@ async def gateway_search_raw(queries: List[str], max_results: int = 5) -> list[t
 async def gateway_search(queries: List[str], config: RunnableConfig = None) -> str:
     """Search via the research gateway and return summarized, source-labelled results."""
     # Local imports avoid a circular import with utils.
-    from langchain.chat_models import init_chat_model
-
     from open_deep_research.configuration import Configuration
     from open_deep_research.state import Summary
     from open_deep_research.utils import (
-        get_api_key_for_model,
+        stage_chat_model,
         structured_output_kwargs,
         summarize_webpage,
     )
@@ -194,10 +192,10 @@ async def gateway_search(queries: List[str], config: RunnableConfig = None) -> s
         )
 
     configurable = Configuration.from_runnable_config(config)
-    model = init_chat_model(
-        model=configurable.summarization_model,
-        max_tokens=configurable.summarization_model_max_tokens,
-        api_key=get_api_key_for_model(configurable.summarization_model, config),
+    model = stage_chat_model(
+        configurable.summarization_model,
+        configurable.summarization_model_max_tokens,
+        config,
         tags=["langsmith:nostream"],
     ).with_structured_output(Summary, **structured_output_kwargs(configurable.summarization_model)).with_retry(stop_after_attempt=configurable.max_structured_output_retries)
 

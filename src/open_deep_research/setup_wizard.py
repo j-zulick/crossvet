@@ -32,6 +32,8 @@ from typing import Any, Callable
 import httpx
 from pydantic import BaseModel, Field
 
+from open_deep_research.models import save_openrouter_catalog, unmet_needs
+
 KEY_VARS = {
     "openai": "OPENAI_API_KEY",
     "anthropic": "ANTHROPIC_API_KEY",
@@ -136,6 +138,7 @@ async def discover(env: dict[str, str], transport: httpx.AsyncBaseTransport | No
         async def openrouter() -> None:
             data = await _get(client, "https://openrouter.ai/api/v1/models")
             out.models["openrouter"] = sorted(m["id"] for m in data.get("data", []))
+            save_openrouter_catalog(data.get("data", []))  # tools / structured output / price per model
 
         async def ollama() -> None:
             host = env.get("OLLAMA_HOST") or "http://localhost:11434"
@@ -214,7 +217,8 @@ def pick_openrouter(ids: list[str], exclude_vendors: set[str]) -> list[str]:
     for vendor in OPENROUTER_VENDORS:
         if vendor in exclude_vendors:
             continue
-        cands = [i for i in ids if i.startswith(vendor + "/") and not EXCLUDE.search(i.split("/", 1)[1].replace("instruct", "")) and ":" not in i]
+        cands = [i for i in ids if i.startswith(vendor + "/") and not EXCLUDE.search(i.split("/", 1)[1].replace("instruct", "")) and ":" not in i
+                 and not unmet_needs("openrouter:" + i, "reviewer")]
         if cands:
             picks.append("openrouter:" + sorted(cands, key=lambda i: (_version(i.split("/", 1)[1]), -len(i)), reverse=True)[0])
     return picks

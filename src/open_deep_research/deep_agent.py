@@ -151,8 +151,11 @@ def report_from(result: dict[str, Any]) -> str:
     return ""
 
 
-def build_agent(model: Any, search_tools: list[Any]) -> Any:
-    """Create the Deep Agent with a researcher sub-agent."""
+def build_agent(model: Any, search_tools: list[Any], researcher_model: Any = None) -> Any:
+    """Create the Deep Agent (the orchestrator) with a researcher sub-agent.
+
+    ``researcher_model`` lets the sub-agent run on a different model than the orchestrator.
+    """
     from deepagents import create_deep_agent
 
     date = get_today_str()
@@ -162,6 +165,8 @@ def build_agent(model: Any, search_tools: list[Any]) -> Any:
         "system_prompt": RESEARCHER_PROMPT.format(date=date),
         "tools": search_tools,
     }
+    if researcher_model is not None:
+        researcher["model"] = researcher_model
     return create_deep_agent(
         model=model,
         tools=search_tools,
@@ -176,10 +181,14 @@ async def deep_research(state: DeepAgentState, config: RunnableConfig) -> dict[s
     configurable = Configuration.from_runnable_config(config)
     search_tools = await get_search_tool(SearchAPI(get_config_value(configurable.search_api)))
     names = {t.name for t in search_tools if hasattr(t, "name")}
-    model = build_reviewer(configurable.research_model, configurable.research_model_max_tokens, config)
-    if get_config_value(configurable.search_api) == "openai" and hasattr(model, "include"):
-        model.include = ["web_search_call.action.sources"]  # return every consulted source
-    agent = build_agent(model, search_tools)
+    orchestrator, researcher = configurable.model_for("supervisor"), configurable.model_for("researcher")
+    model = build_reviewer(orchestrator, configurable.research_model_max_tokens, config)
+    sub_model = None if researcher == orchestrator else build_reviewer(researcher, configurable.research_model_max_tokens, config)
+    if get_config_value(configurable.search_api) == "openai":
+        for m in (model, sub_model):
+            if m is not None and hasattr(m, "include"):
+                m.include = ["web_search_call.action.sources"]  # return every consulted source
+    agent = build_agent(model, search_tools, sub_model)
     collector = SourceCollector(names)
     messages = state.get("messages") or []
     question = next((_text(m.content) for m in reversed(messages) if isinstance(m, HumanMessage)), "")
