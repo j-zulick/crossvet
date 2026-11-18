@@ -472,3 +472,25 @@ def test_review_notes_list_sources_flagged_by_the_injection_check(monkeypatch, e
     disputed = out["final_report"].split("### Disputed", 1)[1]
     assert "REVISED REPORT with https://example.com/a" in disputed and "flagged by the injection check" in disputed
     assert any(d["id"] == "injection" for d in out["review"]["critic"]["disputed"])
+
+
+def test_review_notes_list_cited_urls_found_only_inside_a_page(monkeypatch, enabled_env):
+    """A URL that the notes hold only inside a page's text, never on a URL: line, is listed as unverified."""
+    monkeypatch.setattr(rc, "build_reviewer", lambda m, t, c: FakeModel(m, critique=_c(7, m)))
+    state = _state()
+    state["raw_notes"] = [
+        "--- SOURCE 1: Roundup ---\nURL: https://roundup.example/x\n\n"
+        "SUMMARY:\nThe page says the primary source is https://example.com/a.\n"
+    ]
+    out = asyncio.run(rc.cross_vendor_review(state, {"configurable": {}}))
+    assert out["review"]["text_only_urls"] == ["https://example.com/a"]
+    notes = out["final_report"].split("## Review notes", 1)[1]
+    assert "appear only inside another page's text" in notes and "https://example.com/a" in notes
+    assert "unverified" in notes
+
+
+def test_review_notes_skip_the_text_only_check_without_url_lines(monkeypatch, enabled_env):
+    monkeypatch.setattr(rc, "build_reviewer", lambda m, t, c: FakeModel(m, critique=_c(7, m)))
+    out = asyncio.run(rc.cross_vendor_review(_state(), {"configurable": {}}))  # notes: "Found at https://example.com/a"
+    assert out["review"]["text_only_urls"] == []
+    assert "only inside another page's text" not in out["final_report"]

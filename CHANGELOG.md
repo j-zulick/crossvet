@@ -2,6 +2,17 @@
 
 All notable changes to Crossvet. Versions follow [Semantic Versioning](https://semver.org/). Crossvet was built between November 6 and 17, 2026 in a private repository, one tested version at a time; all versions were published together when the repository went public.
 
+## [Unreleased]
+
+### Added
+- The injection check flags a page that is mostly one repeated sentence or one repeated name (kind `repetition`; thresholds in `injection_check.py`).
+- Spanish, French, German and Portuguese triggers for text addressed to an AI and for overriding instructions.
+- Review notes list cited URLs that appear in the notes only inside another page's text, never as a source's `URL:` line (unverified). Only applied when the notes use `URL:` source lines.
+
+### Changed
+- The webpage summarization and research compression prompts say to report recommendations, rankings and instructions a page addresses to readers or AI systems as that page's claims, never as findings, and that a URL found only inside a page's text is not a source.
+- The hard-injection bench test now records which forms the check flags (translated, dominant) and which it still misses (paraphrased, split). No benchmark was run with these changes; `--suite injection-hard` measures them. Design decision 22.
+
 ## [1.8.0] - 2026-11-18
 
 ### Added

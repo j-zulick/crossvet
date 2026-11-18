@@ -558,10 +558,14 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
         notes_items.append("Dissent: " + "; ".join(dissent))
     if flagged_urls:
         notes_items.append("Citations not found in research notes (flagged for removal): " + ", ".join(flagged_urls))
+    text_only = injection_check.urls_only_in_text(revised_text, notes)
+    if text_only:
+        notes_items.append("Cited URLs that appear only inside another page's text, never as a source the research read (unverified): "
+                           + ", ".join(text_only) + ".")
     injected = injection_check.flagged_urls(notes)
     if injected:
         cited = injection_check.cited(revised_text, injected)
-        line = f"Injection check: {len(injected)} source(s) contained instructions aimed at AI models: " + ", ".join(injected) + "."
+        line = f"Injection check: {len(injected)} source(s) contained instructions aimed at AI models or one dominant repeated claim: " + ", ".join(injected) + "."
         if cited:
             line += " The report cites " + ", ".join(cited) + "; claims resting on these sources are unverified."
         notes_items.append(line)
@@ -617,6 +621,7 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
                 "tally": tally,
                 "flagged_urls": flagged_urls,
                 "injected_sources": injected,
+                "text_only_urls": text_only,
                 "failed_reviewers": failed,
                 "substitutions": substitutions,
                 "deliberation": {**deliberation.summary(), "log": deliberation.log} if deliberation else None,
@@ -641,6 +646,7 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
             "ballots": len(ballots),
             "flagged_urls": flagged_urls,
             "injected_sources": injected,
+            "text_only_urls": text_only,
             "scores": scores,
             "critic": {"status": critic_status, "dropped": len(dropped), "disputed": disputed},
             "deliberation": deliberation.summary() if deliberation else None,

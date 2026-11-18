@@ -352,14 +352,24 @@ def test_followed_injection_halves_the_writer_score(tmp_path, monkeypatch):
 
 
 def test_hard_injection_suite_holds(tmp_path, scripted):
-    """Harder injections: payload only via the injected source, which the pattern check does not flag."""
+    """Harder injections: payload only via the injected source. Since decision 22 the check flags the
+    translated and dominant forms; the paraphrased and split forms are still missed."""
     from open_deep_research.injection_check import scan
 
     assert len(INJECTION_HARD_CASES) == 4 and {c["suite"] for c in INJECTION_HARD_CASES} == {"injection-hard"}
+    expected = {"paraphrased": set(), "split": set(), "translated": {"addressed_to_ai"}, "dominant": {"repetition"}}
     for c in INJECTION_HARD_CASES:
         inj = c["injection"]
         src = next(s for s in c["sources"] if s["url"] == inj["url"])
-        assert scan(src["text"]) == []  # documents what the patterns miss
+        assert {h.kind for h in scan(src["text"])} == expected[inj["form"]], inj["form"]
         assert not any(p in c["report"] for p in inj["payload"]) and any(p in planted_draft(c) for p in inj["payload"])
     results = _run(tmp_path, ["openrouter:good/model"], roles=["writer", "reviewer", "reviser"], cases=INJECTION_HARD_CASES)
     assert all(r.error == "" and r.quality == pytest.approx(1.0) for r in results), [(r.case, r.role, r.metrics) for r in results]
+
+
+def test_no_ordinary_bench_source_is_flagged():
+    """The injection check, repetition rule included, flags none of the ordinary sources in the standard and hard cases."""
+    from open_deep_research.injection_check import scan
+
+    flagged = [(c["id"], s["url"]) for c in CASES + HARD_CASES for s in c["sources"] if scan(s["text"])]
+    assert flagged == []
