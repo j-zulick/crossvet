@@ -6,6 +6,7 @@ A research pipeline is not one job. Planning the research, searching, compressin
 uv run crossvet-bench suggest                                    # your models + the newest per vendor on OpenRouter
 uv run crossvet-bench run --models <comma-separated ids> --dry-run
 uv run crossvet-bench run --models <comma-separated ids> --max-usd 5
+uv run crossvet-bench run --models <comma-separated ids> --suite hard   # long notes, conflicting sources, subtler errors
 uv run crossvet-bench apply --preset best-value                  # write the winners to .env
 uv run crossvet-doctor                                           # check the result
 ```
@@ -14,7 +15,7 @@ Any model Crossvet can call can be benchmarked: `openai:`, `anthropic:`, `google
 
 ## Method
 
-**One role at a time, on frozen inputs.** Every candidate gets the same notes, the same draft and the same findings, built from six synthetic cases. Each role is called with the prompt and schema Crossvet uses in a real run, with the same output limits and turn caps, so the benchmark measures the work Crossvet actually asks for.
+**One role at a time, on frozen inputs.** Every candidate gets the same notes, the same draft and the same findings, built from synthetic cases: six standard ones (`--suite standard`, the default) and three hard ones with long notes, conflicting sources and subtler errors (`--suite hard`; `--suite all` runs both). Each role is called with the prompt and schema Crossvet uses in a real run, with the same output limits and turn caps, so the benchmark measures the work Crossvet actually asks for.
 
 **Synthetic cases.** Every organization, place and number is invented, and every URL is on the reserved `.example` domain, so a model can't answer from memory and has to use the notes. The cases cover SEO, public policy, real estate, technology, marketing and health policy (`src/open_deep_research/bench_cases.py`).
 
@@ -133,15 +134,37 @@ What this run says:
 
 The caveats above apply here too: most roles saturate on these cases, and one repeat on six cases leaves differences of a few hundredths within the standard errors.
 
+### November 18, 2026 (UTC): hard suite
+
+On the standard cases most roles saturate, so three harder cases were added (`--suite hard`; see the [benchmark folder](benchmarks/2026-11-18-hard/) for how they're built). Same seven models, 147 jobs with no failures, $2.19.
+
+| Role | Best quality | Best value | What the hard cases showed |
+|---|---|---|---|
+| Orchestration | gpt-6.1-sol (0.92) | gpt-6-luna (0.84) | the spread widened from 0.82–0.97 to 0.68–0.92; gpt-5.4-mini delegated one broad topic and covered under half the aspects (0.68) |
+| Research | gpt-6.1-terra (0.82) | claude-haiku-5-5 (0.76) | gpt-6-luna again ran out of turns in one case in three |
+| Compression | six of seven (1.00) | gpt-6-luna | still saturated; gpt-5.4-mini dropped a URL once (0.98) |
+| Report writing | gpt-5.4-mini, claude-sonnet-5-5, claude-opus-5-5 (1.00) | gpt-6-luna (0.97) | the rest missed one fact in one case, within the standard error |
+| Review | gpt-6.1-sol (0.79) | gpt-6-luna (0.75) | gpt-6.1-sol caught every planted error; gpt-5.4-mini missed the look-alike unread source in one case (0.59); the Claude models caught everything but raised the most findings on clean drafts |
+| Critic | GPT-6.1 Terra and Sol, Claude Sonnet and Opus 5.5 (1.00) | gpt-6-luna (0.92) | gpt-5.4-mini is again the weakest critic (0.88) |
+| Revision | five of seven (1.00) | gpt-6-luna | gpt-5.4-mini and GPT-6.1 Terra each missed restoring one caveat (0.92) |
+
+What this run says:
+
+- **Harder cases separate the planning, research and review roles.** Writing, compression and revision stay close to 1.00 even with distractors and conflicting sources, so those roles are still cheap to fill.
+- **gpt-5.4-mini is the weakest reviewer and critic once errors get subtle.** It was the most precise reviewer on the standard cases, but here it missed a citation to a source with a look-alike title. The critic is picked from the review panel, so this matters twice. The example panel in `.env.example` now uses gpt-6.1-sol instead (v1.7).
+- **GPT-6 Luna stays the value pick** for every role except research, where Claude Haiku 5.5 is cheaper for nearly the same score.
+
+Caveats: three cases with one repeat each, so a single miss moves a score by 0.08 or more. Treat differences under about 0.1 as ties. Every score can be checked against the model output saved in `results.jsonl`.
+
 ### Default models
 
-The built-in defaults use only OpenAI models, so one OpenAI key runs the research pipeline (review still needs a second vendor). They come from the runs above (updated in v1.6.1):
+The built-in defaults use only OpenAI models, so one OpenAI key runs the research pipeline (review still needs a second vendor). They come from the runs above (updated in v1.6.1 and v1.7):
 
 | Setting | Default | Why |
 |---|---|---|
 | `RESEARCH_MODEL` (also orchestration and research unless set separately) | `openai:gpt-6.1-sol` | best orchestration score (0.97); orchestration is the role where a larger model leads |
 | `SUMMARIZATION_MODEL`, `COMPRESSION_MODEL`, `FINAL_REPORT_MODEL` | `openai:gpt-6-luna` | top score in compression and report writing (1.00) at the lowest cost per case of any model measured |
-| `REVIEW_MODELS` in `.env.example` | `openai:gpt-5.4-mini,anthropic:claude-sonnet-5-5` | the most precise reviewer plus a second vendor |
+| `REVIEW_MODELS` in `.env.example` | `openai:gpt-6.1-sol,anthropic:claude-sonnet-5-5` | the best reviewer on the hard suite, a perfect critic on both suites, plus a second vendor (v1.7; v1.6 used gpt-5.4-mini) |
 
 v1.6.0 used `openai:gpt-5.4-mini` for the three cheap roles; the [review pilot](evals/2026-11-17-pilot/) ran on those. `crossvet-setup` replaces defaults your keys can't call, and `crossvet-bench apply` replaces them with your own measured picks.
 

@@ -1,0 +1,127 @@
+{
+  "meta": {
+    "date": "2026-11-18",
+    "models": 7,
+    "roles": 5,
+    "cases": 4,
+    "repeats": 1,
+    "spent": 1.9807804500000001
+  },
+  "best-quality": {
+    "compression": "openai:gpt-6-luna",
+    "writer": "anthropic:claude-sonnet-5-5",
+    "reviewer": "openai:gpt-6.1-sol",
+    "critic": "openai:gpt-6.1-terra",
+    "reviser": "openai:gpt-6-luna"
+  },
+  "best-value": {
+    "compression": "openai:gpt-6-luna",
+    "writer": "openai:gpt-6-luna",
+    "reviewer": "openai:gpt-6-luna",
+    "critic": "openai:gpt-6-luna",
+    "reviser": "openai:gpt-6-luna"
+  },
+  "ranked": {
+    "compression": {
+      "best-quality": [
+        "openai:gpt-6-luna",
+        "openai:gpt-6.1-terra",
+        "anthropic:claude-haiku-5-5",
+        "openai:gpt-6.1-sol",
+        "anthropic:claude-opus-5-5",
+        "openai:gpt-5.4-mini",
+        "anthropic:claude-sonnet-5-5"
+      ],
+      "best-value": [
+        "openai:gpt-6-luna",
+        "openai:gpt-6.1-terra",
+        "anthropic:claude-haiku-5-5",
+        "openai:gpt-6.1-sol",
+        "anthropic:claude-opus-5-5",
+        "openai:gpt-5.4-mini",
+        "anthropic:claude-sonnet-5-5"
+      ]
+    },
+    "writer": {
+      "best-quality": [
+        "anthropic:claude-sonnet-5-5",
+        "openai:gpt-6-luna",
+        "anthropic:claude-haiku-5-5",
+        "openai:gpt-6.1-terra",
+        "openai:gpt-6.1-sol",
+        "openai:gpt-5.4-mini",
+        "anthropic:claude-opus-5-5"
+      ],
+      "best-value": [
+        "openai:gpt-6-luna",
+        "anthropic:claude-haiku-5-5",
+        "openai:gpt-5.4-mini",
+        "openai:gpt-6.1-terra",
+        "openai:gpt-6.1-sol",
+        "anthropic:claude-sonnet-5-5",
+        "anthropic:claude-opus-5-5"
+      ]
+    },
+    "reviewer": {
+      "best-quality": [
+        "openai:gpt-6.1-sol",
+        "openai:gpt-6-luna",
+        "openai:gpt-6.1-terra",
+        "anthropic:claude-opus-5-5",
+        "openai:gpt-5.4-mini",
+        "anthropic:claude-sonnet-5-5",
+        "anthropic:claude-haiku-5-5"
+      ],
+      "best-value": [
+        "openai:gpt-6-luna",
+        "openai:gpt-6.1-terra",
+        "openai:gpt-6.1-sol",
+        "anthropic:claude-opus-5-5",
+        "openai:gpt-5.4-mini",
+        "anthropic:claude-sonnet-5-5",
+        "anthropic:claude-haiku-5-5"
+      ]
+    },
+    "critic": {
+      "best-quality": [
+        "openai:gpt-6.1-terra",
+        "openai:gpt-6.1-sol",
+        "anthropic:claude-opus-5-5",
+        "openai:gpt-6-luna",
+        "anthropic:claude-haiku-5-5",
+        "anthropic:claude-sonnet-5-5",
+        "openai:gpt-5.4-mini"
+      ],
+      "best-value": [
+        "openai:gpt-6-luna",
+        "anthropic:claude-haiku-5-5",
+        "openai:gpt-6.1-terra",
+        "openai:gpt-6.1-sol",
+        "anthropic:claude-sonnet-5-5",
+        "anthropic:claude-opus-5-5",
+        "openai:gpt-5.4-mini"
+      ]
+    },
+    "reviser": {
+      "best-quality": [
+        "openai:gpt-6-luna",
+        "anthropic:claude-haiku-5-5",
+        "openai:gpt-6.1-terra",
+        "openai:gpt-6.1-sol",
+        "anthropic:claude-sonnet-5-5",
+        "anthropic:claude-opus-5-5",
+        "openai:gpt-5.4-mini"
+      ],
+      "best-value": [
+        "openai:gpt-6-luna",
+        "anthropic:claude-haiku-5-5",
+        "openai:gpt-5.4-mini",
+        "openai:gpt-6.1-terra",
+        "openai:gpt-6.1-sol",
+        "anthropic:claude-sonnet-5-5",
+        "anthropic:claude-opus-5-5"
+      ]
+    }
+  },
+  "value_band": 0.9
+}

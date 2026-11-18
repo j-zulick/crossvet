@@ -22,6 +22,8 @@ from typing import Any, List
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import BaseTool, tool
 
+from open_deep_research.injection_check import flag_line, scan
+
 DEFAULT_TOOL = "search_and_read"
 GATEWAY_SEARCH_DESCRIPTION = (
     "Web search through a self-hosted research gateway (SearXNG discovery with "
@@ -210,7 +212,9 @@ async def gateway_search(queries: List[str], config: RunnableConfig = None) -> s
     for i, ((url, (_, s)), summary) in enumerate(zip(unique.items(), summaries), start=1):
         body = summary or s.content[:2000] or s.snippet
         meta = ", ".join(x for x in (f"engine={s.engine}" if s.engine else "", f"read={s.status}") if x)
-        out.append(f"\n--- SOURCE {i}: {s.title or url} ---\nURL: {url}\n({meta})\n\nSUMMARY:\n{body}\n\n" + "-" * 80)
+        flag = flag_line(scan(s.content or s.snippet or ""))
+        flag = f"{flag}\n" if flag else ""
+        out.append(f"\n--- SOURCE {i}: {s.title or url} ---\nURL: {url}\n{flag}({meta})\n\nSUMMARY:\n{body}\n\n" + "-" * 80)
     if failures:
         out.append("\nGateway query failures: " + "; ".join(failures))
     return "\n".join(out)
