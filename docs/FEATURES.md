@@ -55,6 +55,8 @@ Code already refuses evidence that isn't a verbatim quote from the research note
 | A challenger's BUILD_ON | its quote | the addition is not applied |
 | A blind-pass point | its quote | the point is dropped |
 
+**What Jev is asked about.** By default (`REVIEW_SUPPORT_CLAIM=finding`) the claim is the reviewer's finding. Findings are usually statements about the draft, which a source passage rarely states directly, so Jev rejects most of them: 77–87% in the [Nov 18 runs](evals/2026-11-18-jev/). With `REVIEW_SUPPORT_CLAIM=fact`, reviewers state in one sentence what the quoted passage says, and Jev checks that instead (29% rejected). That is a weaker test of the verdict, so it is opt-in until it is measured against an answer key.
+
 Set `TYPESAFE_API_KEY` (from [console.typesafe.ai](https://console.typesafe.ai)) and `REVIEW_SUPPORT_CHECKER=jev`; `crossvet-setup` turns it on when the key is present. Pin a version with `REVIEW_SUPPORT_MODEL=jev-1.14.0` (default: `TYPESAFE_DEFAULT_MODEL`, else `jev-latest`). Check it with `uv run crossvet-doctor --jev`, which asks Jev two questions with known answers.
 
 If a Jev call fails, that claim is judged by the quote check alone and the Review notes say how many calls failed. Every score is kept in the run export; `crossvet-compare` and Langfuse record `support_checked` and `support_rejected`, and the compare plan adds a `deliberation-2-jev` setup when the key is set.

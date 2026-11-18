@@ -5,7 +5,7 @@
     "roles": 5,
     "cases": 4,
     "repeats": 1,
-    "spent": 1.62096075
+    "spent": 1.99980185
   },
   "roles": {
     "compression": [
@@ -410,18 +410,16 @@
         "model": "anthropic:claude-opus-5-5",
         "vendor": "anthropic",
         "jobs": 4,
-        "ok": 3,
-        "failure_rate": 0.25,
-        "quality": 0.7509,
-        "stderr": 0.0183,
-        "cost_per_case": 0.054785,
+        "ok": 4,
+        "failure_rate": 0.0,
+        "quality": 0.7298,
+        "stderr": 0.0247,
+        "cost_per_case": 0.060613,
         "cost_source": "estimated",
-        "p50_seconds": 20.52,
-        "tokens_per_case": 6019,
+        "p50_seconds": 23.42,
+        "tokens_per_case": 6412,
         "skipped": false,
-        "errors": [
-          "AnthropicInvalidRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011Ch9mndyxoCnZWFD8uXsQL'}"
-        ],
+        "errors": [],
         "metrics": {
           "catch_rate": 1.0,
           "caught_injected_claim": 1.0,
@@ -429,9 +427,9 @@
           "caught_unread_citation": 1.0,
           "caught_unsupported_claim": 1.0,
           "caught_wrong_number": 1.0,
-          "false_alarms_clean": 3.333,
-          "score_clean": 6.667,
-          "score_planted": 2.0
+          "false_alarms_clean": 3.75,
+          "score_clean": 6.5,
+          "score_planted": 2.25
         }
       },
       {
@@ -464,20 +462,16 @@
         "model": "anthropic:claude-haiku-5-5",
         "vendor": "anthropic",
         "jobs": 4,
-        "ok": 1,
-        "failure_rate": 0.75,
-        "quality": 0.5882,
-        "stderr": null,
-        "cost_per_case": 0.0026,
+        "ok": 4,
+        "failure_rate": 0.0,
+        "quality": 0.5923,
+        "stderr": 0.0288,
+        "cost_per_case": 0.002397,
         "cost_source": "estimated",
-        "p50_seconds": 22.48,
-        "tokens_per_case": 8877,
+        "p50_seconds": 21.13,
+        "tokens_per_case": 8176,
         "skipped": false,
-        "errors": [
-          "AnthropicInvalidRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011Ch9mndyiNNKY82ULUTNKd'}",
-          "AnthropicInvalidRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011Ch9mndzhKYQNQxjDgN3aD'}",
-          "AnthropicInvalidRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011Ch9mne1hRgLnT1HZnXpU2'}"
-        ],
+        "errors": [],
         "metrics": {
           "catch_rate": 1.0,
           "caught_injected_claim": 1.0,
@@ -486,8 +480,8 @@
           "caught_unsupported_claim": 1.0,
           "caught_wrong_number": 1.0,
           "false_alarms_clean": 7.0,
-          "score_clean": 5.0,
-          "score_planted": 2.0
+          "score_clean": 5.25,
+          "score_planted": 2.75
         }
       },
       {
@@ -588,6 +582,75 @@
         }
       },
       {
+        "model": "anthropic:claude-sonnet-5-5",
+        "vendor": "anthropic",
+        "jobs": 4,
+        "ok": 4,
+        "failure_rate": 0.0,
+        "quality": 0.95,
+        "stderr": 0.0289,
+        "cost_per_case": 0.011271,
+        "cost_source": "estimated",
+        "p50_seconds": 4.65,
+        "tokens_per_case": 3184,
+        "skipped": false,
+        "errors": [],
+        "metrics": {
+          "accuracy": 0.95,
+          "false_rejected": 1.0,
+          "invalid_quotes": 0.25,
+          "missing_verdicts": 0.0,
+          "raw_accuracy": 0.938,
+          "true_agreed": 0.9
+        }
+      },
+      {
+        "model": "anthropic:claude-opus-5-5",
+        "vendor": "anthropic",
+        "jobs": 4,
+        "ok": 4,
+        "failure_rate": 0.0,
+        "quality": 0.95,
+        "stderr": 0.0289,
+        "cost_per_case": 0.026981,
+        "cost_source": "estimated",
+        "p50_seconds": 7.97,
+        "tokens_per_case": 3406,
+        "skipped": false,
+        "errors": [],
+        "metrics": {
+          "accuracy": 0.95,
+          "false_rejected": 1.0,
+          "invalid_quotes": 0.0,
+          "missing_verdicts": 0.0,
+          "raw_accuracy": 0.938,
+          "true_agreed": 0.9
+        }
+      },
+      {
+        "model": "anthropic:claude-haiku-5-5",
+        "vendor": "anthropic",
+        "jobs": 4,
+        "ok": 4,
+        "failure_rate": 0.0,
+        "quality": 0.925,
+        "stderr": 0.0479,
+        "cost_per_case": 0.001159,
+        "cost_source": "estimated",
+        "p50_seconds": 7.4,
+        "tokens_per_case": 4375,
+        "skipped": false,
+        "errors": [],
+        "metrics": {
+          "accuracy": 0.925,
+          "false_rejected": 1.0,
+          "invalid_quotes": 0.0,
+          "missing_verdicts": 0.0,
+          "raw_accuracy": 0.906,
+          "true_agreed": 0.85
+        }
+      },
+      {
         "model": "openai:gpt-5.4-mini",
         "vendor": "openai",
         "jobs": 4,
@@ -609,66 +672,6 @@
           "raw_accuracy": 0.902,
           "true_agreed": 0.85
         }
-      },
-      {
-        "model": "anthropic:claude-sonnet-5-5",
-        "vendor": "anthropic",
-        "jobs": 4,
-        "ok": 0,
-        "failure_rate": 1.0,
-        "quality": null,
-        "stderr": null,
-        "cost_per_case": null,
-        "cost_source": "unknown",
-        "p50_seconds": null,
-        "tokens_per_case": null,
-        "skipped": false,
-        "errors": [
-          "AnthropicInvalidRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011Ch9mo8poMu19e8FEuDZ2v'}",
-          "AnthropicInvalidRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011Ch9mo9cfumn7A6oSnuNMZ'}",
-          "AnthropicInvalidRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011Ch9moAKqmsvx1jPra1b77'}"
-        ],
-        "metrics": {}
-      },
-      {
-        "model": "anthropic:claude-opus-5-5",
-        "vendor": "anthropic",
-        "jobs": 4,
-        "ok": 0,
-        "failure_rate": 1.0,
-        "quality": null,
-        "stderr": null,
-        "cost_per_case": null,
-        "cost_source": "unknown",
-        "p50_seconds": null,
-        "tokens_per_case": null,
-        "skipped": false,
-        "errors": [
-          "AnthropicInvalidRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011Ch9moBntc2YbveWhwViSi'}",
-          "AnthropicInvalidRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011Ch9moCamaXAB82dt86WkR'}",
-          "AnthropicInvalidRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011Ch9moDFwjsNi84LnE4gMW'}"
-        ],
-        "metrics": {}
-      },
-      {
-        "model": "anthropic:claude-haiku-5-5",
-        "vendor": "anthropic",
-        "jobs": 4,
-        "ok": 0,
-        "failure_rate": 1.0,
-        "quality": null,
-        "stderr": null,
-        "cost_per_case": null,
-        "cost_source": "unknown",
-        "p50_seconds": null,
-        "tokens_per_case": null,
-        "skipped": false,
-        "errors": [
-          "AnthropicInvalidRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011Ch9moEkVahfKCxz9FX9Am'}",
-          "AnthropicInvalidRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011Ch9moFXdCqJeCf1DyHVy4'}",
-          "AnthropicInvalidRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011Ch9moGHWJdMo8fV3GEndi'}"
-        ],
-        "metrics": {}
       }
     ],
     "reviser": [
@@ -684,6 +687,31 @@
         "cost_source": "estimated",
         "p50_seconds": 8.54,
         "tokens_per_case": 1990,
+        "skipped": false,
+        "errors": [],
+        "metrics": {
+          "fixed_injected_claim": 1.0,
+          "fixed_omission": 1.0,
+          "fixed_rate": 1.0,
+          "fixed_unread_citation": 1.0,
+          "fixed_unsupported_claim": 1.0,
+          "fixed_wrong_number": 1.0,
+          "narrates": 0.0,
+          "unread_urls": 0.0
+        }
+      },
+      {
+        "model": "anthropic:claude-haiku-5-5",
+        "vendor": "anthropic",
+        "jobs": 4,
+        "ok": 4,
+        "failure_rate": 0.0,
+        "quality": 1.0,
+        "stderr": 0.0,
+        "cost_per_case": 0.00102,
+        "cost_source": "estimated",
+        "p50_seconds": 7.55,
+        "tokens_per_case": 3447,
         "skipped": false,
         "errors": [],
         "metrics": {
@@ -748,6 +776,56 @@
         }
       },
       {
+        "model": "anthropic:claude-sonnet-5-5",
+        "vendor": "anthropic",
+        "jobs": 4,
+        "ok": 4,
+        "failure_rate": 0.0,
+        "quality": 1.0,
+        "stderr": 0.0,
+        "cost_per_case": 0.009225,
+        "cost_source": "estimated",
+        "p50_seconds": 4.9,
+        "tokens_per_case": 2329,
+        "skipped": false,
+        "errors": [],
+        "metrics": {
+          "fixed_injected_claim": 1.0,
+          "fixed_omission": 1.0,
+          "fixed_rate": 1.0,
+          "fixed_unread_citation": 1.0,
+          "fixed_unsupported_claim": 1.0,
+          "fixed_wrong_number": 1.0,
+          "narrates": 0.0,
+          "unread_urls": 0.0
+        }
+      },
+      {
+        "model": "anthropic:claude-opus-5-5",
+        "vendor": "anthropic",
+        "jobs": 4,
+        "ok": 4,
+        "failure_rate": 0.0,
+        "quality": 1.0,
+        "stderr": 0.0,
+        "cost_per_case": 0.023784,
+        "cost_source": "estimated",
+        "p50_seconds": 8.21,
+        "tokens_per_case": 2596,
+        "skipped": false,
+        "errors": [],
+        "metrics": {
+          "fixed_injected_claim": 1.0,
+          "fixed_omission": 1.0,
+          "fixed_rate": 1.0,
+          "fixed_unread_citation": 1.0,
+          "fixed_unsupported_claim": 1.0,
+          "fixed_wrong_number": 1.0,
+          "narrates": 0.0,
+          "unread_urls": 0.0
+        }
+      },
+      {
         "model": "openai:gpt-5.4-mini",
         "vendor": "openai",
         "jobs": 4,
@@ -771,66 +849,6 @@
           "narrates": 0.0,
           "unread_urls": 0.0
         }
-      },
-      {
-        "model": "anthropic:claude-sonnet-5-5",
-        "vendor": "anthropic",
-        "jobs": 4,
-        "ok": 0,
-        "failure_rate": 1.0,
-        "quality": null,
-        "stderr": null,
-        "cost_per_case": null,
-        "cost_source": "unknown",
-        "p50_seconds": null,
-        "tokens_per_case": null,
-        "skipped": false,
-        "errors": [
-          "AnthropicInvalidRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011Ch9movxwjC37poNgM3ExL'}",
-          "AnthropicInvalidRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011Ch9mox3BAGZtFGWtCX7yt'}",
-          "AnthropicInvalidRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011Ch9moybBw6ZvW1g1iTkGR'}"
-        ],
-        "metrics": {}
-      },
-      {
-        "model": "anthropic:claude-opus-5-5",
-        "vendor": "anthropic",
-        "jobs": 4,
-        "ok": 0,
-        "failure_rate": 1.0,
-        "quality": null,
-        "stderr": null,
-        "cost_per_case": null,
-        "cost_source": "unknown",
-        "p50_seconds": null,
-        "tokens_per_case": null,
-        "skipped": false,
-        "errors": [
-          "AnthropicInvalidRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011Ch9mp1ZWWBUuSbMoyuF6q'}",
-          "AnthropicInvalidRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011Ch9mp2hxs6JqtgGLZNPTv'}",
-          "AnthropicInvalidRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011Ch9mp39mTEojv9AS1CaV7'}"
-        ],
-        "metrics": {}
-      },
-      {
-        "model": "anthropic:claude-haiku-5-5",
-        "vendor": "anthropic",
-        "jobs": 4,
-        "ok": 0,
-        "failure_rate": 1.0,
-        "quality": null,
-        "stderr": null,
-        "cost_per_case": null,
-        "cost_source": "unknown",
-        "p50_seconds": null,
-        "tokens_per_case": null,
-        "skipped": false,
-        "errors": [
-          "AnthropicInvalidRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011Ch9mp49XzYc6dMXPjP7Rp'}",
-          "AnthropicInvalidRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011Ch9mp4JiB7hv5JndbpJ84'}",
-          "AnthropicInvalidRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011Ch9mp4rhnNix5YnNcyz71'}"
-        ],
-        "metrics": {}
       }
     ]
   }

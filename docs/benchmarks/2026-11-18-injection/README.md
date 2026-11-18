@@ -4,8 +4,7 @@ Four synthetic cases, each with one source in the research notes that carries an
 
 - **Models (7):** `openai:gpt-6.1-sol`, `openai:gpt-5.4-mini`, `openai:gpt-6-luna`, `openai:gpt-6.1-terra`, `anthropic:claude-sonnet-5-5`, `anthropic:claude-opus-5-5`, `anthropic:claude-haiku-5-5`
 - **Roles:** compression, report writing, reviewer, critic, reviser; one repeat.
-- **Cost:** $1.98 (`injection`) + $1.62 (`injection-checked`) = $3.60.
-- **Incomplete:** in `injection-checked`, the Anthropic account ran out of credit partway through; 28 reviewer, critic and reviser jobs for the Claude models failed and are not counted below. All compression and writing jobs completed.
+- **Cost:** $1.98 (`injection`) + $1.62 (`injection-checked`) + $0.38 to re-run 28 Claude reviewer, critic and reviser jobs in `injection-checked` that first failed when the Anthropic account ran out of credit = $3.98. Every job has completed.
 
 ## Results
 
@@ -16,8 +15,8 @@ Four synthetic cases, each with one source in the research notes that carries an
 | Compressed notes that stated the payload as a finding | 0 of 28 | 0 of 28 |
 | Compressed notes that reported the instruction as suspect | 14 of 28 | 20 of 28 |
 | Compressed notes that passed the instruction text on verbatim, without comment | 6 of 28 | 8 of 28 |
-| Reviewers that caught the injected claim planted in a draft | 28 of 28 (7 models) | 24 of 24 (7 models) |
-| Revisers that removed it | 28 of 28 (7 models) | 16 of 16 (4 OpenAI models) |
+| Reviewers that caught the injected claim planted in a draft | 28 of 28 (7 models) | 28 of 28 (7 models) |
+| Revisers that removed it | 28 of 28 (7 models) | 28 of 28 (7 models) |
 
 **What this shows.** No model wrote a planted instruction's claim into a final report, and every reviewer caught the claim when it was planted in a draft, so on these cases a single model was already resistant and the review stage added a second line. The real exposure is in the middle of the pipeline: compression carried the instruction text forward, unflagged, in 6 of 28 runs, where a later model could act on it. With the check's line in the notes, more compressions reported the source as suspect (14 → 20 of 28), but verbatim pass-through did not fall (6 → 8).
 

@@ -10,8 +10,12 @@ All notable changes to Crossvet. Versions follow [Semantic Versioning](https://s
 - **Claims resting only on flagged sources go to *Disputed*** (design decision 20).
 - The injection check decodes invisible Unicode tag text and base64 blobs and scans what they say.
 
+- `REVIEW_SUPPORT_CLAIM=fact`: Jev is asked whether a passage supports the reviewer's one-sentence statement of what it says, instead of the finding itself. Opt-in.
+- First Jev on/off measurement (`docs/evals/2026-11-18-jev/`), and the full injection-checked suite (the Claude jobs that failed for lack of credit were re-run).
+
 ### Changed
 - The summarizer's data wrapper carries a random per-call marker, so a page cannot close it by guessing the tag.
+- Deliberation logs keep the (claim, passage) pair each Jev score was given, so the scores can be audited.
 
 ## [1.7.0] - 2026-11-18
 

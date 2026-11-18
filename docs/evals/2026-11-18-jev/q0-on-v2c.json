@@ -1,0 +1,103 @@
+{
+ "question": 0,
+ "jev": "on",
+ "seconds": 108.8,
+ "usage": {
+  "gpt-5.4-mini-2026-03-17": {
+   "input": 31548,
+   "output": 4963
+  },
+  "claude-sonnet-5-5": {
+   "input": 63243,
+   "output": 8105
+  },
+  "gpt-6.1-sol": {
+   "input": 7021,
+   "output": 2341
+  }
+ },
+ "review": {
+  "status": "ok",
+  "scores": {
+   "openai:gpt-5.4-mini": 7,
+   "anthropic:claude-sonnet-5-5": 5
+  },
+  "flagged_urls": [],
+  "critic": {
+   "status": "ok",
+   "dropped": 2,
+   "disputed": [
+    {
+     "id": "C1-U1",
+     "finding": "\u201cThe Agreement also establishes a five-year cycle for nationally determined contributions (NDCs), with each new contribution expected to move beyond the previous one and reflect the highest possible ambition in light of national circumstances.\u201d This is broadly right, but the draft presents it as a straightforward expectation without noting that Article 4(9) says each NDC is to be communicated every five years and be informed by the stocktake; the five-year cycle is a communication schedule, not merely an update rhythm.",
+     "objection": "The draft has a dedicated section on the five-year cycle that quotes Article 4(9) on communication every five years and stocktake input, so the claimed omission is not borne out."
+    },
+    {
+     "id": "C1-F3",
+     "finding": "The draft states the first global stocktake was in 2023 and every five years thereafter, but it does not note the precise wording that Article 14 links the stocktake to assessing collective progress toward the Agreement\u2019s purpose and long-term goals. It is accurate, but somewhat compressed in a way that risks understating the article\u2019s scope.",
+     "objection": "The draft quotes Article 14(1) on assessing collective progress toward the purpose and long-term goals, so there is no real compression or understatement."
+    },
+    {
+     "id": "C2-U2",
+     "finding": "Article 2 is said to link the goal to 'sustainable development and efforts to eradicate poverty'; the notes quote only 2(1)(a) and the UNFCCC explainer summary, so this is unsupported.",
+     "objection": "The notes do mention Article 2 linking the temperature goal to a broader purpose in the draft, but they do not contain the specific sustainable-development/poverty language, so this is unsupported rather than contradicted."
+    },
+    {
+     "id": "C2-U7",
+     "finding": "The claim that the UNFCCC NDC page 'emphasiz[es]' responsibility to pursue domestic mitigation measures is only partly supported; the notes say the page mentions it. No evidence the pages were actually opened and read for exact phrasing, since the reflection only says the snippets 'suffice'.",
+     "objection": "The notes say the UNFCCC NDC page was consulted and that it 'states the same framework in plain language,' which supports the draft\u2019s reliance on it even if exact phrasing was not fully reproduced."
+    },
+    {
+     "id": "C2-F2",
+     "finding": "The draft writes that the five-year cycle means 'NDCs are submitted' with 'each new contribution expected to reflect information from the global stocktake'. 4(9) says 'informed by'. Also, stocktake timing is oversimplified: 2023 stocktake concludes in late 2023, and NDCs due 2025 are the first post-stocktake round. The draft omits that, and as of Nov 2026 the first stocktake (COP28, UAE consensus) and the 2025 NDC 3.0 round have already occurred, making the report stale and purely textual.",
+     "objection": "The notes do say the stocktake and NDC cycle are aligned and that the first stocktake is in 2023, but they do not discuss the 2025 timing or the report being stale, so that part is unsupported."
+    },
+    {
+     "id": "C2-F3",
+     "finding": "The 'Article 14(1)' stocktake wording is quoted partly out of order. Phrase 'in the light of equity and the best available science' belongs to 14(1) but 14(2) sets the 2023 start and 'unless otherwise decided'. The draft omits that qualifier.",
+     "objection": "The notes quote Article 14(1) and 14(2) separately, but they do not actually show a misquotation or the omitted qualifier, so this is an unsupported drafting critique rather than a settled contradiction."
+    }
+   ]
+  },
+  "deliberation": {
+   "rounds_requested": 2,
+   "rounds_run": 2,
+   "rounds_saved": 0,
+   "stop_reason": "max_rounds",
+   "guard_rounds": 0,
+   "agreement_rate": 0.333,
+   "model_calls": 6,
+   "challenges": 7,
+   "held": 1,
+   "changed_with_evidence": 4,
+   "unsupported_changes": 2,
+   "no_response": 0,
+   "agree": 14,
+   "agree_grounded": 0,
+   "disagree": 0,
+   "build_on_applied": 0,
+   "build_on_ignored": 10,
+   "support_checked": 16,
+   "support_rejected": 12
+  },
+  "blind_pass": {
+   "reviewers": 2,
+   "failed": [],
+   "points": 12,
+   "covered": 8,
+   "omitted": 0,
+   "ungrounded": 0,
+   "unsupported": 4,
+   "omissions": []
+  },
+  "support_check": {
+   "checker": "JevChecker",
+   "model": "jev-latest",
+   "served_by": [
+    "jev-1.14.0"
+   ],
+   "errors": 0
+  }
+ },
+ "note": "Run as \"fact\" before REVIEW_SUPPORT_CLAIM existed on the test machine, so it ran the default (finding) mode."
+}

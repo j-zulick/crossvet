@@ -1,0 +1,75 @@
+{
+ "question": 0,
+ "jev": "off",
+ "seconds": 110.8,
+ "usage": {
+  "gpt-5.4-mini-2026-03-17": {
+   "input": 38674,
+   "output": 5345
+  },
+  "claude-sonnet-5-5": {
+   "input": 64417,
+   "output": 10960
+  },
+  "gpt-6.1-sol": {
+   "input": 7742,
+   "output": 2215
+  }
+ },
+ "review": {
+  "status": "ok",
+  "scores": {
+   "anthropic:claude-sonnet-5-5": 6,
+   "openai:gpt-5.4-mini": 7
+  },
+  "flagged_urls": [],
+  "critic": {
+   "status": "ok",
+   "dropped": 1,
+   "disputed": [
+    {
+     "id": "C2-F2",
+     "finding": "\u201cThe UNFCCC\u2019s explanation of the Paris Agreement describes this temperature target as the Agreement\u2019s central aim and connects it to a wider package of climate action...\u201d This is broadly true, but the draft omits that the official Article 2 text also ties the goal to sustainable development and poverty eradication, which the notes flagged as part of the context.",
+     "objection": "The draft already says Article 2 links the goal to sustainable development and poverty eradication, and the notes do not flag that point, so the finding misdescribes both."
+    },
+    {
+     "id": "C2-F6",
+     "finding": "\u201cThe first stocktake was in 2023 and every five years thereafter.\u201d The draft states this correctly, but it could be clearer that this is from Article 14(2), not merely UNFCCC explanation.",
+     "objection": "The draft already quotes the 2023 date and five-year cadence under the heading 'Article 14(2)' with citation [1], so the attribution is clear."
+    }
+   ]
+  },
+  "deliberation": {
+   "rounds_requested": 2,
+   "rounds_run": 2,
+   "rounds_saved": 0,
+   "stop_reason": "max_rounds",
+   "guard_rounds": 0,
+   "agreement_rate": 0.684,
+   "model_calls": 8,
+   "challenges": 5,
+   "held": 5,
+   "changed_with_evidence": 0,
+   "unsupported_changes": 0,
+   "no_response": 0,
+   "agree": 26,
+   "agree_grounded": 21,
+   "disagree": 4,
+   "build_on_applied": 6,
+   "build_on_ignored": 2,
+   "support_checked": 0,
+   "support_rejected": 0
+  },
+  "blind_pass": {
+   "reviewers": 2,
+   "failed": [],
+   "points": 12,
+   "covered": 12,
+   "omitted": 0,
+   "ungrounded": 0,
+   "unsupported": 0,
+   "omissions": []
+  },
+  "support_check": null
+ }
+}

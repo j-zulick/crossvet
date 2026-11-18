@@ -5,7 +5,7 @@
     "roles": 5,
     "cases": 4,
     "repeats": 1,
-    "spent": 1.62096075
+    "spent": 1.99980185
   },
   "best-quality": {
     "compression": "openai:gpt-6-luna",
@@ -87,27 +87,39 @@
         "openai:gpt-6.1-terra",
         "openai:gpt-6.1-sol",
         "openai:gpt-6-luna",
+        "anthropic:claude-sonnet-5-5",
+        "anthropic:claude-opus-5-5",
+        "anthropic:claude-haiku-5-5",
         "openai:gpt-5.4-mini"
       ],
       "best-value": [
         "openai:gpt-6-luna",
+        "anthropic:claude-haiku-5-5",
         "openai:gpt-5.4-mini",
         "openai:gpt-6.1-terra",
-        "openai:gpt-6.1-sol"
+        "openai:gpt-6.1-sol",
+        "anthropic:claude-sonnet-5-5",
+        "anthropic:claude-opus-5-5"
       ]
     },
     "reviser": {
       "best-quality": [
         "openai:gpt-6-luna",
+        "anthropic:claude-haiku-5-5",
         "openai:gpt-6.1-terra",
         "openai:gpt-6.1-sol",
+        "anthropic:claude-sonnet-5-5",
+        "anthropic:claude-opus-5-5",
         "openai:gpt-5.4-mini"
       ],
       "best-value": [
         "openai:gpt-6-luna",
+        "anthropic:claude-haiku-5-5",
         "openai:gpt-5.4-mini",
         "openai:gpt-6.1-terra",
-        "openai:gpt-6.1-sol"
+        "openai:gpt-6.1-sol",
+        "anthropic:claude-sonnet-5-5",
+        "anthropic:claude-opus-5-5"
       ]
     }
   },
