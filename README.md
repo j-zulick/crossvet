@@ -47,11 +47,20 @@ Results are published only from real runs (protocol: [docs/EVALS.md](docs/EVALS.
 - **The critic separates true from false findings.** Critics scored 0.90 to 1.00 balanced accuracy at accepting the planted errors and rejecting findings the notes contradict (blanket agreement scores 0.5).
 - **Small models were enough for most roles.** Claude Haiku 5.5 came within 0.03 of the best score in six of seven roles at 7 to 19 times lower cost per case. Most roles saturate on these cases, so harder cases are next ([caveats](docs/MODEL-SELECTION.md#results)).
 - **A live run:** on [the JWST example](docs/examples/jwst-mirror.md), an OpenAI + Claude panel scored the first draft 4/10; the revised report and its Review notes are reproduced unedited.
-- **Not measured yet:** whether review improves reports end to end compared with no review, and the effect of deliberation, early stopping, the blind pass, Jev checks and domain packs. These are listed as "not run" in [docs/EVALS.md](docs/EVALS.md), with how each will be measured. The first one is a single command: `uv run crossvet-compare --setups examples/compare/review-vs-none.toml --questions examples/compare/questions-15.txt --repeats 3`.
+- **Review vs. no review, pilot:** 3 questions, one run each ([details](docs/evals/2026-11-17-pilot/)). Review cost $0.36 per report against $0.19 without it, and took 171 s against 100 s. The critic dropped 8 reviewer findings the notes contradict and listed 32 it couldn't confirm for a human. Review also caught a draft that a provider's content filter had cut off mid-sentence (panel score 3–4/10), which led to a fix: such reports are now written again or labelled incomplete.
+
+  | Pilot, Nov 17, 2026 | No review | Review |
+  |---|---|---|
+  | Cost per report | $0.19 | $0.36 |
+  | Time per report | 100 s | 171 s |
+  | Findings dropped by the critic / listed for a human | — | 8 / 32 |
+  | Draft score from the panel | — | 5.2 / 10 |
+
+- **Not measured yet:** whether review makes reports more accurate end to end (that needs blind grading) compared with no review, and the effect of deliberation, early stopping, the blind pass, Jev checks and domain packs. These are listed as "not run" in [docs/EVALS.md](docs/EVALS.md), with how each will be measured. The first one is a single command: `uv run crossvet-compare --setups examples/compare/review-vs-none.toml --questions examples/compare/questions-15.txt --repeats 3`.
 
 ## Cost and API keys
 
-Crossvet calls models through their APIs, so it needs API keys (or one OpenRouter key for most vendors, or local models for free). It does not drive consumer chat or coding subscriptions: it is a pipeline and a service, and those subscriptions are for interactive use. Every call's cost is real on OpenRouter and estimated from list prices elsewhere; Langfuse shows it per run, `crossvet-bench --dry-run` estimates a benchmark before you spend, and `--max-usd` caps it. A measured cost per report will be published with the first review-versus-no-review comparison.
+Crossvet calls models through their APIs, so it needs API keys (or one OpenRouter key for most vendors, or local models for free). It does not drive consumer chat or coding subscriptions: it is a pipeline and a service, and those subscriptions are for interactive use. Every call's cost is real on OpenRouter and estimated from list prices elsewhere; Langfuse shows it per run, `crossvet-bench --dry-run` estimates a benchmark before you spend, and `--max-usd` caps it. In the [Nov 17 pilot](docs/evals/2026-11-17-pilot/), a report cost about $0.19 without review and $0.36 with a two-vendor panel, at the benchmark's default models (token list prices; web search fees extra).
 
 ## Design principles
 

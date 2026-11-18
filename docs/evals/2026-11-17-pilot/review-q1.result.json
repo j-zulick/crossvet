@@ -1,0 +1,44 @@
+{
+ "setup": "review",
+ "question": "What is the EU General Data Protection Regulation's maximum fine, and what are the conditions for lawful processing of personal data?",
+ "repeat": 1,
+ "status": "ok",
+ "error": "",
+ "seconds": 262.67,
+ "input_tokens": 253045,
+ "output_tokens": 38594,
+ "tokens_by_model": {
+  "gpt-6.1-sol": {
+   "input": 59673,
+   "output": 6841
+  },
+  "gpt-5.4-mini": {
+   "input": 142253,
+   "output": 24055
+  },
+  "claude-sonnet-5-5": {
+   "input": 51119,
+   "output": 7698
+  }
+ },
+ "report_chars": 30200,
+ "cited_urls": 6,
+ "flagged_urls": 0,
+ "review_status": "ok",
+ "mean_reviewer_score": 5.5,
+ "failed_reviewers": 0,
+ "critic_dropped": 2,
+ "critic_disputed": 13,
+ "position_changes": 0,
+ "unsupported_changes": 0,
+ "deliberation_rounds": 0,
+ "rounds_saved": 0,
+ "stop_reason": "",
+ "agreement_rate": null,
+ "deliberation_calls": 0,
+ "blind_omissions": 0,
+ "support_checked": 0,
+ "support_rejected": 0,
+ "report_path": "reports/review-q1.md",
+ "langfuse_trace_id": ""
+}

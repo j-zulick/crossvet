@@ -1,0 +1,26 @@
+# Pilot for evaluation question 1: the same research, with and without cross-vendor review.
+# Models follow the Nov 17 benchmark role map (gpt-6.1-sol plans, gpt-5.4-mini researches and writes) so the result and its cost are reproducible.
+[[setup]]
+name = "no-review"
+[setup.config]
+search_api = "openai"
+research_model = "openai:gpt-6.1-sol"
+supervisor_model = "openai:gpt-6.1-sol"
+researcher_model = "openai:gpt-5.4-mini"
+summarization_model = "openai:gpt-5.4-mini"
+compression_model = "openai:gpt-5.4-mini"
+final_report_model = "openai:gpt-5.4-mini"
+cross_vendor_review_enabled = false
+
+[[setup]]
+name = "review"
+[setup.config]
+search_api = "openai"
+research_model = "openai:gpt-6.1-sol"
+supervisor_model = "openai:gpt-6.1-sol"
+researcher_model = "openai:gpt-5.4-mini"
+summarization_model = "openai:gpt-5.4-mini"
+compression_model = "openai:gpt-5.4-mini"
+final_report_model = "openai:gpt-5.4-mini"
+cross_vendor_review_enabled = true
+review_models = "openai:gpt-5.4-mini,anthropic:claude-sonnet-5-5"

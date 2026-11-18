@@ -317,6 +317,33 @@ def was_truncated(message: Any) -> bool:
     return isinstance(incomplete, dict) and incomplete.get("reason") == "max_output_tokens"
 
 
+FILTER_REASONS = {"content_filter", "refusal", "safety", "recitation", "prohibited_content", "blocklist", "spii"}
+
+
+def stopped_by_filter(message: Any) -> bool:
+    """Tell whether a provider's safety or recitation filter cut a reply short.
+
+    OpenAI reports ``finish_reason: content_filter`` (seen when a report quoted a long passage of a
+    statute), Anthropic ``stop_reason: refusal``, Google ``SAFETY`` or ``RECITATION``. The text that
+    came back stops mid-sentence and must not be treated as a finished report.
+    """
+    meta = getattr(message, "response_metadata", None) or {}
+    reasons = {str(meta.get(k) or "").lower() for k in ("stop_reason", "finish_reason")}
+    incomplete = meta.get("incomplete_details") or {}
+    if isinstance(incomplete, dict):
+        reasons.add(str(incomplete.get("reason") or "").lower())
+    return bool(reasons & FILTER_REASONS)
+
+
+def stop_problem(message: Any) -> str:
+    """Why a reply stopped before it was finished, or "" when it finished normally."""
+    if was_truncated(message):
+        return "it stopped at the output limit"
+    if stopped_by_filter(message):
+        return "a provider content filter stopped it"
+    return ""
+
+
 ###################
 # Cost
 ###################

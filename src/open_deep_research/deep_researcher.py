@@ -16,7 +16,7 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command
 
-from open_deep_research.models import build_chat_model, is_routed, message_text
+from open_deep_research.models import build_chat_model, is_routed, message_text, stop_problem
 from open_deep_research.configuration import (
     Configuration,
 )
@@ -630,6 +630,13 @@ researcher_builder.add_edge("compress_research", END)      # Exit point after co
 # Compile researcher subgraph for parallel execution by supervisor
 researcher_subgraph = researcher_builder.compile()
 
+REPORT_RETRY_NOTE = (
+    "\n\nYour previous attempt at this report was cut off before it finished. Write the complete "
+    "report again. Paraphrase sources instead of quoting long passages verbatim (keep any direct "
+    "quote under 25 words), and make sure the Sources section is included at the end."
+)
+
+
 async def final_report_generation(state: AgentState, config: RunnableConfig):
     """Generate the final comprehensive research report with retry logic for token limits.
     
@@ -676,10 +683,26 @@ async def final_report_generation(state: AgentState, config: RunnableConfig):
             final_report = await stage_model(writer_model_config).ainvoke([
                 HumanMessage(content=final_report_prompt)
             ])
-            
+            report_text = strip_tracking(message_text(final_report))
+
+            # A reply cut off by the output limit or a provider's content filter stops mid-sentence.
+            # Retry once asking for paraphrase over long quotes; if it still stops early, keep the
+            # longer text and say so at the end, so the review and the reader can see it.
+            problem = stop_problem(final_report)
+            if problem:
+                retry_prompt = final_report_prompt + REPORT_RETRY_NOTE
+                second = await stage_model(writer_model_config).ainvoke([HumanMessage(content=retry_prompt)])
+                second_text = strip_tracking(message_text(second))
+                if not stop_problem(second):
+                    final_report, report_text = second, second_text
+                else:
+                    if len(second_text) > len(report_text):
+                        final_report, report_text = second, second_text
+                    report_text += f"\n\n> **Incomplete report:** the report writer stopped early twice ({problem}). Check the sources directly.\n"
+
             # Return successful report generation
             return {
-                "final_report": strip_tracking(message_text(final_report)), 
+                "final_report": report_text,
                 "messages": [final_report],
                 **cleared_state
             }

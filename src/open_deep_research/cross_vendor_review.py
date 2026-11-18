@@ -39,6 +39,7 @@ from open_deep_research.models import (  # noqa: F401 (openrouter_preferences is
     build_chat_model,
     message_text,
     openrouter_preferences,
+    stopped_by_filter,
     was_truncated,
 )
 from open_deep_research.utils import (
@@ -535,7 +536,8 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
         writer = build_reviewer(reviser_model, configurable.final_report_model_max_tokens, config)
         revised = await timed(writer.ainvoke([HumanMessage(content=REVISE_PROMPT.format(date=get_today_str(), notes=notes_for_prompt, report=report, feedback=feedback))]), call_timeout)
         revised_text = message_text(revised)
-        problem = revision_problem(report, revised_text, was_truncated(revised), flagged_urls)
+        problem = revision_problem(report, revised_text, was_truncated(revised), flagged_urls) or (
+            "a provider content filter stopped it" if stopped_by_filter(revised) else "")
         if problem:  # never replace a complete draft with a damaged revision
             revised_text, revision_error = report, problem
     except Exception as exc:  # keep the draft and say so in the Review notes

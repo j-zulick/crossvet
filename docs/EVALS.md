@@ -1,6 +1,6 @@
 # Evaluations
 
-This page records how Crossvet is evaluated and what the results were. **No end-to-end comparison results are published yet**; the per-role benchmark has results (see [Model fit](#model-fit-v16)). Tables below are filled only from real runs with `crossvet-compare` and human grading; nothing here is estimated.
+This page records how Crossvet is evaluated and what the results were. **End-to-end results so far are one pilot** (review vs. no review, 3 questions, ungraded); the per-role benchmark also has results (see [Model fit](#model-fit-v16)). Tables below are filled only from real runs with `crossvet-compare` and human grading; nothing here is estimated.
 
 ## Questions this evaluation answers
 
@@ -26,7 +26,7 @@ This page records how Crossvet is evaluated and what the results were. **No end-
 
 | Comparison | Status |
 |---|---|
-| Review vs no review | not run |
+| Review vs no review | pilot run (3 questions, 1 run each, no grading yet): [2026-11-17-pilot](evals/2026-11-17-pilot/) |
 | Deliberation vs single round | not run |
 | Deep Agents vs LangGraph edition | not run |
 | Early stopping vs fixed rounds | not run |
