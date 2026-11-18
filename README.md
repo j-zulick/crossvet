@@ -163,10 +163,6 @@ The offline suite covers the review stage end to end, every check that decides a
 - [x] **v1.6** — model fit: any model in any role (official OpenRouter integration, real per-call cost, capability checks), separate orchestration and research models, and `crossvet-bench`, a per-role benchmark scored by answer keys with best-quality and best-value role maps
 - [x] **v1.6.1** — newer models benchmarked (GPT-6 Luna becomes the default for the cheap roles), incomplete reports flagged in the Deep Agents edition, contributor docs
 
-## Related projects
-
-Many tools now pair coding agents for review: [Magpie](https://github.com/liliu-z/magpie) (multi-model PR review with a ledger and a verifier), [Claude Octopus](https://github.com/nyldn/claude-octopus) (multi-provider councils and debates), and bridges such as [skill-codex](https://github.com/Arystos/skill-codex) that let Claude Code ask Codex for a review. They review code and plans from inside a coding agent. Crossvet reviews research reports and their sources in a pipeline, and decides outcomes with checks in code (citations, verbatim quotes, stop rules, support scores) rather than a vote or the lead model's judgment. It can be called from those agents over MCP. Crossvet does not use their code. The one design trade-off worth naming: Magpie asks every reviewer the same question so agreement means independent confirmation; Crossvet's rotating challenger takes a deliberate angle to resist sycophancy (see [design decision 18](docs/DESIGN-DECISIONS.md#18-a-rotating-challenger-trades-independent-agreement-for-pressure)).
-
 ## My role and AI assistance
 
 I designed Crossvet, set the scope of each release, chose what to adopt from other work and what to leave out, and reviewed every change. Most of the code, tests and documentation in this fork were written with Claude (Anthropic) through Claude Code under my direction; those commits carry a `Co-Authored-By: Claude` trailer. Details and how AI-written work is checked: [docs/CONTRIBUTIONS.md](docs/CONTRIBUTIONS.md).

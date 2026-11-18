@@ -20,6 +20,9 @@ All notable changes to Crossvet. Versions follow [Semantic Versioning](https://s
 ### Changed
 - The example review panel in `.env.example` is now `openai:gpt-6.1-sol` + Claude Sonnet 5.5. On the hard suite gpt-5.4-mini was the weakest reviewer and critic.
 
+### Removed
+- The README's *Related projects* section.
+
 ## [1.6.1]
 
 ### Changed
