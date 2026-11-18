@@ -190,3 +190,26 @@ def test_crossvet_doctor_command_is_installed():
 
     scripts = tomllib.loads((Path(__file__).resolve().parents[2] / "pyproject.toml").read_text())["project"]["scripts"]
     assert scripts["crossvet-doctor"] == "open_deep_research.doctor:main"
+
+
+def test_support_claim_mode_fact_uses_the_reviewers_fact(monkeypatch):
+    from open_deep_research.configuration import Configuration
+    from open_deep_research.deliberation import engagement_pair
+
+    a = Assessment(finding_id="C1-U1", verdict="AGREE", evidence_quote=QUOTE, fact="The plant employs 1,200 people.")
+    monkeypatch.delenv("REVIEW_SUPPORT_CLAIM", raising=False)
+    assert engagement_pair(a, "The draft overstates headcount", NOTES) == ("The draft overstates headcount", QUOTE)
+    monkeypatch.setenv("REVIEW_SUPPORT_CLAIM", "fact")
+    assert engagement_pair(a, "The draft overstates headcount", NOTES) == ("The plant employs 1,200 people.", QUOTE)
+    assert Configuration.from_runnable_config({}).review_support_claim == "fact"
+    no_fact = Assessment(finding_id="C1-U1", verdict="AGREE", evidence_quote=QUOTE)
+    assert engagement_pair(no_fact, "F", NOTES) == ("F", QUOTE)  # falls back to the finding
+
+
+def test_logged_support_entries_keep_the_scored_pair():
+    c = crit("Headcount is unsupported")
+    chs = [Challenge(finding_id="C1-U1", objection="the filing gives headcount", evidence_quote=QUOTE)]
+    rs = [ChallengeResponse(finding_id="C1-U1", stance="WITHDRAW", evidence_quote=QUOTE)]
+    support = {("This is wrong or unsupported: the filing gives headcount", QUOTE): 0.2}
+    _, log = apply_responses(c, "C1", chs, rs, NOTES, support, 0.5)
+    assert log[0]["support_pair"] == {"claim": "This is wrong or unsupported: the filing gives headcount", "passage": QUOTE}

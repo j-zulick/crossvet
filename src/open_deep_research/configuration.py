@@ -2,7 +2,7 @@
 
 import os
 from enum import Enum
-from typing import Any, List
+from typing import Any, List, Literal
 
 from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, ConfigDict, Field
@@ -329,6 +329,17 @@ class Configuration(BaseModel):
                 "type": "text",
                 "default": "",
                 "description": "Jev model id, e.g. jev-1.14.0 to pin a version (default: TYPESAFE_DEFAULT_MODEL, else jev-latest)."
+            }
+        }
+    )
+    review_support_claim: Literal["finding", "fact"] = Field(
+        default="finding",
+        json_schema_extra={
+            "x_oap_ui_config": {
+                "type": "select",
+                "default": "finding",
+                "options": [{"label": "The finding (default)", "value": "finding"}, {"label": "The reviewer's stated fact", "value": "fact"}],
+                "description": "What the support checker is asked about: the finding itself, or the one-sentence fact the reviewer says the passage states."
             }
         }
     )
