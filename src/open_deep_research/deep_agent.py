@@ -151,6 +151,22 @@ def report_from(result: dict[str, Any]) -> str:
     return ""
 
 
+def report_stop_problem(result: dict[str, Any]) -> str:
+    """Why the reply that produced the report stopped early, or "" when it finished.
+
+    Checks the message that wrote the report file (or, without one, the agent's last message)
+    for an output limit or a provider content filter.
+    """
+    from open_deep_research.models import stop_problem
+
+    msgs = [m for m in (result.get("messages") or []) if isinstance(m, AIMessage)]
+    for msg in reversed(msgs):
+        for call in getattr(msg, "tool_calls", None) or []:
+            if str((call.get("args") or {}).get("file_path", "")).endswith(REPORT_PATH.lstrip("/")):
+                return stop_problem(msg)
+    return stop_problem(msgs[-1]) if msgs else ""
+
+
 def build_agent(model: Any, search_tools: list[Any], researcher_model: Any = None) -> Any:
     """Create the Deep Agent (the orchestrator) with a researcher sub-agent.
 
@@ -200,6 +216,9 @@ async def deep_research(state: DeepAgentState, config: RunnableConfig) -> dict[s
     try:
         result = await agent.with_config({"callbacks": [collector], "recursion_limit": 300}).ainvoke({"messages": messages}, config)
         report = report_from(result)
+        problem = report_stop_problem(result)
+        if problem and report:
+            report += f"\n\n> **Incomplete report:** the agent's reply stopped early ({problem}). Check the sources directly.\n"
     except Exception as exc:
         report = f"Error generating final report: {type(exc).__name__}: {exc}"
     return {

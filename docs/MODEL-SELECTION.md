@@ -111,24 +111,46 @@ Caveats:
 - Costs are estimates from list prices (OpenRouter's catalog, which matches Anthropic's published Haiku 5.5 price), not invoices. Haiku 5.5 is priced higher above 100,000 prompt tokens; every bench prompt is far below that.
 - Synthetic notes are short and clean. A full-run check with `live-plan` is the way to confirm a role choice on real questions.
 
+### November 18, 2026 (UTC): three newer models added
+
+`openai:gpt-6-luna`, `openai:gpt-6.1-terra` and `anthropic:claude-opus-5-5` were added to the run above. The bench resumed from it, so the four earlier models were not run again. That makes 294 jobs with no failures; the new jobs cost $1.98 (estimated from tokens and list prices). Full tables, chart and every output: [benchmarks/2026-11-18](benchmarks/2026-11-18/).
+
+| Role | Best quality | Best value | What changed with the new models |
+|---|---|---|---|
+| Orchestration | gpt-6.1-sol (0.97) | claude-haiku-5-5 (0.95) | nothing: gpt-6-luna stopped researching cleanly in only 2 of 6 cases (0.82); Opus 5.5 scored 0.93 at about 2.6 times Sol's cost |
+| Research | gpt-5.4-mini (0.88) | claude-haiku-5-5 | gpt-6-luna ran 10.5 searches per case and hit the turn cap in 4 of 6 (0.78) |
+| Compression | all seven (1.00) | gpt-6-luna | gpt-6-luna is the cheapest model that kept every fact and URL |
+| Report writing | six of seven (1.00) | gpt-6-luna | gpt-6-luna matched the best at about a ninth of gpt-5.4-mini's cost per case, with a slower median (13 s against 6 s) |
+| Review | gpt-5.4-mini (0.91) | gpt-6-luna (0.85) | every model again caught every planted error; the Claude models, Opus included, raised the most findings on clean drafts |
+| Critic | Claude Haiku, Sonnet and Opus 5.5, GPT-6.1 Terra (1.00) | gpt-6-luna (0.98) | gpt-5.4-mini remains the weakest critic (0.90) |
+| Revision | six of seven (1.00) | gpt-6-luna | gpt-5.4-mini kept an unread citation in one case (0.92) |
+
+What this run says:
+
+- **GPT-6 Luna takes over the cheap roles.** It scored the top mark in compression, report writing and revision at the lowest cost of any model. It shouldn't plan or search, though: as orchestrator and researcher it kept searching instead of finishing.
+- **Claude Opus 5.5 won no role.** It tied for the top score in compression, writing, critique and revision, and was the most expensive model in each.
+- **The earlier picks hold where Luna is weak:** GPT-6.1 Sol leads orchestration, gpt-5.4-mini review, and Claude Haiku 5.5 is the best value for orchestration and research.
+
+The caveats above apply here too: most roles saturate on these cases, and one repeat on six cases leaves differences of a few hundredths within the standard errors.
+
 ### Default models
 
-The built-in defaults use only OpenAI models, so one OpenAI key runs the research pipeline (review still needs a second vendor). They come from the November 17, 2026 run above:
+The built-in defaults use only OpenAI models, so one OpenAI key runs the research pipeline (review still needs a second vendor). They come from the runs above (updated in v1.6.1):
 
 | Setting | Default | Why |
 |---|---|---|
-| `RESEARCH_MODEL` (also orchestration and research unless set separately) | `openai:gpt-6.1-sol` | best orchestration score (0.97); orchestration was the only role where a larger model led |
-| `SUMMARIZATION_MODEL`, `COMPRESSION_MODEL`, `FINAL_REPORT_MODEL` | `openai:gpt-5.4-mini` | tied for the top score in compression and report writing (1.00) at under half of GPT-6.1 Sol's cost per case and a quarter to a sixth of its latency |
-| `REVIEW_MODELS` in `.env.example` | `openai:gpt-5.4-mini,anthropic:claude-sonnet-5-5` | the `best-value` panel: the most precise reviewer plus a second vendor |
+| `RESEARCH_MODEL` (also orchestration and research unless set separately) | `openai:gpt-6.1-sol` | best orchestration score (0.97); orchestration is the role where a larger model leads |
+| `SUMMARIZATION_MODEL`, `COMPRESSION_MODEL`, `FINAL_REPORT_MODEL` | `openai:gpt-6-luna` | top score in compression and report writing (1.00) at the lowest cost per case of any model measured |
+| `REVIEW_MODELS` in `.env.example` | `openai:gpt-5.4-mini,anthropic:claude-sonnet-5-5` | the most precise reviewer plus a second vendor |
 
-`crossvet-setup` replaces defaults your keys can't call, and `crossvet-bench apply` replaces them with your own measured picks.
+v1.6.0 used `openai:gpt-5.4-mini` for the three cheap roles; the [review pilot](evals/2026-11-17-pilot/) ran on those. `crossvet-setup` replaces defaults your keys can't call, and `crossvet-bench apply` replaces them with your own measured picks.
 
 ### Not yet measured
 
-Newer models have been released that the published run doesn't include, among them `openai:gpt-6-luna` ($0.10 / $0.50 per million input / output tokens), `openai:gpt-6.1-terra` ($1 / $5) and `anthropic:claude-opus-5-5`. `gpt-6-luna` costs a fraction of `gpt-5.4-mini` and may replace it as a default; that will be decided by a benchmark run, not by release date. To measure them yourself:
+Google's models (Gemini) have not been benchmarked yet, and neither has any model through OpenRouter. To measure your own candidates:
 
 ```bash
-uv run crossvet-bench run --models openai:gpt-6-luna,openai:gpt-6.1-terra,openai:gpt-5.4-mini,openai:gpt-6.1-sol,anthropic:claude-haiku-5-5,anthropic:claude-opus-5-5 --dry-run
+uv run crossvet-bench run --models <comma-separated ids> --dry-run
 uv run crossvet-bench run --models <same list> --max-usd 5
 ```
 

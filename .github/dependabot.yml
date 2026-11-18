@@ -5,6 +5,9 @@ updates:
     open-pull-requests-limit: 3
     schedule:
       interval: "monthly"
+    ignore:
+      # build-system requirement in pyproject.toml; Dependabot's uv updater can't change it
+      - dependency-name: "setuptools"
   - package-ecosystem: "npm"
     directory: "/web"
     open-pull-requests-limit: 3

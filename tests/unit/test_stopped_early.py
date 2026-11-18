@@ -69,3 +69,16 @@ def test_a_report_that_stops_early_twice_says_so(monkeypatch):
 def test_a_finished_report_is_not_retried(monkeypatch):
     out, writer = run_writer(monkeypatch, [msg(FULL, finish_reason="stop")])
     assert out["final_report"] == FULL and len(writer.prompts) == 1
+
+
+def test_deep_agent_flags_a_report_written_by_a_filtered_reply():
+    from open_deep_research.deep_agent import REPORT_PATH, report_stop_problem
+
+    write = AIMessage(content="", tool_calls=[{"name": "write_file", "args": {"file_path": REPORT_PATH, "content": CUT}, "id": "1"}],
+                      response_metadata={"finish_reason": "content_filter"})
+    done = AIMessage(content="Report written.", response_metadata={"finish_reason": "stop"})
+    assert report_stop_problem({"messages": [write, done]}) == "a provider content filter stopped it"
+    ok = AIMessage(content="", tool_calls=[{"name": "write_file", "args": {"file_path": REPORT_PATH, "content": FULL}, "id": "2"}],
+                   response_metadata={"finish_reason": "stop"})
+    assert report_stop_problem({"messages": [ok, done]}) == ""
+    assert report_stop_problem({"messages": [msg("cut", finish_reason="length")]}) == "it stopped at the output limit"
