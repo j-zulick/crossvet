@@ -2,6 +2,24 @@
 
 All notable changes to Crossvet. Versions follow [Semantic Versioning](https://semver.org/). Crossvet was built between November 6 and 17, 2026 in a private repository, one tested version at a time; all versions were published together when the repository went public.
 
+## [Unreleased]
+
+### Added
+- **Hard benchmark suite** (`crossvet-bench run --suite hard`, or `all`). It has three cases, each with:
+  - 11 sources, several of them distractors;
+  - a secondary source that conflicts with the primary one;
+  - a digit-swapped number;
+  - an unread source whose title imitates a real one;
+  - an unsupported causal claim;
+  - a dropped caveat;
+  - false findings backed by a distractor.
+
+  Report writing on these cases is scored on citing the clean report's sources. `--cases` accepts ids from any suite.
+- First hard-suite results for seven models (`docs/benchmarks/2026-11-18-hard/`).
+
+### Changed
+- The example review panel in `.env.example` is now `openai:gpt-6.1-sol` + Claude Sonnet 5.5. On the hard suite gpt-5.4-mini was the weakest reviewer and critic.
+
 ## [1.6.1]
 
 ### Changed

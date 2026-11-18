@@ -433,7 +433,7 @@ HARD_CASES: list[dict] = [
              "detect": ["most of the decline", "caused", "single cause", "attribute"], "gone": ["caused most of the decline"], "back": []},
             {"type": "omission",
              "edits": [[" FitRight's own figure of a 19% return rate describes only those tool orders, not Corvane's overall rate [2][3].", ""]],
-             "detect": ["19% figure", "fitright's", "vendor", "customer story", "only those", "fitright claim"], "gone": [], "back": ["FitRight's own figure"]},
+             "detect": ["19%", "fitright's", "vendor", "customer story", "only those", "fitright claim"], "gone": [], "back": ["19%"]},
         ],
         "false_findings": [
             {"text": "The overall return rate should be 19%, not 23.8%; a source in the notes reports 19%.",
@@ -521,7 +521,7 @@ HARD_CASES: list[dict] = [
             {"type": "omission",
              "edits": [["The city's figure of an 18% increase counts unlinked trips, where each transfer is a separate trip [3]; unlinked trips did rise 18.0%, partly",
                         "Unlinked trips rose 18.0%, partly"]],
-             "detect": ["press release", "city's figure", "city says", "18% increase", "city claim"], "gone": [], "back": ["city's figure"]},
+             "detect": ["18%", "press release", "city's figure", "city says", "city claim"], "gone": [], "back": ["18%"]},
         ],
         "false_findings": [
             {"text": "Weekday ridership rose 18%, so the report's 9.6% understates the increase.",

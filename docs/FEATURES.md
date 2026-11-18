@@ -76,6 +76,7 @@ Planning research, searching, compressing notes, writing, reviewing, judging rev
 ```bash
 uv run crossvet-bench suggest                                     # your models + the newest per vendor on OpenRouter
 uv run crossvet-bench run --models openrouter:x-ai/grok-4.7,anthropic:claude-sonnet-5-5,openrouter:qwen/qwen4-max,ollama:gemma3 --max-usd 5
+uv run crossvet-bench run --models <ids> --suite hard              # harder cases: long notes, conflicting sources, subtler errors
 uv run crossvet-bench apply --preset best-value                   # write the winning role map to .env
 ```
 
