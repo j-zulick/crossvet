@@ -56,7 +56,13 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, Tool
 from langchain_core.tools import tool
 
 from open_deep_research import models as model_factory
-from open_deep_research.bench_cases import CASES, notes_for, planted_draft
+from open_deep_research.bench_cases import (  # noqa: F401
+    ALL_CASES,
+    CASES,
+    SUITES,
+    notes_for,
+    planted_draft,
+)
 from open_deep_research.cross_vendor_review import (
     CRITIC_PROMPT,
     CRITIQUE_PROMPT,
@@ -398,7 +404,8 @@ async def task_writer(r: Runner, case: dict) -> tuple[float, dict[str, Any]]:
     out = _text((await r.text([HumanMessage(content=prompt)])).content)
     r.details = {"output": out[:6000]}
     facts = sum(1 for f in case["facts"] if f["value"] in out) / len(case["facts"])
-    cited = sum(1 for s in case["sources"] if s["url"] in out) / len(case["sources"])
+    keys = case.get("key_sources") or [s["url"] for s in case["sources"]]
+    cited = sum(1 for u in keys if u in out) / len(keys)
     unread = check_citations(out, notes)
     return _clip(0.7 * facts + 0.3 * cited - 0.25 * len(unread)), {"facts_covered": facts, "sources_cited": cited,
                                                                    "unread_urls": len(unread), "words": len(out.split())}
@@ -944,7 +951,9 @@ def main(argv: list[str] | None = None) -> int:
     run = sub.add_parser("run", help="run the benchmark")
     run.add_argument("--models", required=True, help="comma-separated provider:model ids")
     run.add_argument("--roles", default=",".join(ROLES), help=f"comma-separated, from {','.join(ROLES)}")
-    run.add_argument("--cases", default="", help="comma-separated case ids (default: all)")
+    run.add_argument("--cases", default="", help="comma-separated case ids from any suite (default: every case in --suite)")
+    run.add_argument("--suite", choices=sorted(SUITES), default="standard",
+                     help="standard: the 6 original cases; hard: 3 cases with long notes, conflicting sources and subtler errors; all: both")
     run.add_argument("--repeats", type=int, default=1)
     run.add_argument("--max-usd", type=float, default=5.0, help="stop starting new jobs once this much is spent (default 5)")
     run.add_argument("--concurrency", type=int, default=4)
@@ -975,9 +984,10 @@ def main(argv: list[str] | None = None) -> int:
         if bad:
             parser.error(f"unknown role(s): {', '.join(bad)}")
         wanted = set(_split(args.cases))
-        cases = [c for c in CASES if not wanted or c["id"] in wanted]
+        pool = ALL_CASES if wanted else SUITES[args.suite]
+        cases = [c for c in pool if not wanted or c["id"] in wanted]
         if not cases:
-            parser.error("no matching cases; ids: " + ", ".join(c["id"] for c in CASES))
+            parser.error("no matching cases; ids: " + ", ".join(c["id"] for c in ALL_CASES))
         prices = parse_prices(args.price)
         if any(model_factory.provider_of(m) == "openrouter" for m in models_) and not model_factory._load_cache():
             try:  # OpenRouter's model list is public: capabilities and prices for the estimate

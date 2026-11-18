@@ -345,6 +345,287 @@ CASES: list[dict] = [
     },
 ]
 
+# ---------------------------------------------------------------------------
+# Hard suite (v1.7): longer notes with distractors, sources that disagree, and subtler errors.
+# The standard cases above saturate (most roles score 1.00); these are built to separate models:
+# - 11 sources per case, several of them about other years, regions or products;
+# - a secondary source that conflicts with the primary one, which the clean report resolves;
+# - a wrong number that is a digit swap, an unread source whose title imitates a real one,
+#   an unsupported causal claim the notes argue against, and the omission of the caveat
+#   that resolves the conflict;
+# - false findings that a distractor source makes look plausible.
+# ---------------------------------------------------------------------------
+HARD_CASES: list[dict] = [
+    {
+        "id": "hard-apparel-returns",
+        "domain": "marketing",
+        "suite": "hard",
+        "question": "How did online apparel return rates at Corvane Group change in 2026, and what does the evidence say about why?",
+        "aspects": [
+            {"name": "overall return rate", "keywords": ["return rate", "returns", "rate"]},
+            {"name": "change from last year", "keywords": ["2025", "change", "decline", "fell", "down", "year"]},
+            {"name": "fit tool", "keywords": ["fit", "sizing", "size tool", "fitright"]},
+            {"name": "return policy", "keywords": ["policy", "window", "days"]},
+            {"name": "conflicting figures", "keywords": ["vendor", "19%", "conflict", "differ", "claim"]},
+        ],
+        "sources": [
+            {"title": "Corvane Annual Returns Audit 2026", "url": "https://corvane-audit.example/2026",
+             "text": "Corvane's audited online return rate for apparel was 23.8% in 2026, down from 27.1% in 2025. The audit counts every item returned within 90 days of purchase across all online orders. The audit does not attribute the decline to any single cause."},
+            {"title": "FitRight customer story: Corvane", "url": "https://fitright-blog.example/corvane",
+             "text": "FitRight says Corvane's return rate fell to 19% after the retailer adopted its sizing tool. The 19% figure covers only orders placed with the FitRight tool."},
+            {"title": "FitRight pilot evaluation", "url": "https://corvane-audit.example/fitright-pilot",
+             "text": "In Corvane's own evaluation, orders placed with the FitRight sizing tool had a return rate of 19.2%, against 25.6% for comparable orders without it. The tool was used on 14% of online apparel orders in 2026."},
+            {"title": "Return policy change notice", "url": "https://corvane-news.example/returns-window",
+             "text": "In April 2026 Corvane shortened its online return window from 60 to 30 days. Return rates from May to December 2026 were 4.1 percentage points lower than in the same months of 2025."},
+            {"title": "Cost of returns", "url": "https://corvane-audit.example/cost",
+             "text": "Processing an online apparel return cost Corvane an average of $11.40 in 2026, including shipping, inspection and restocking."},
+            {"title": "Footwear returns", "url": "https://corvane-audit.example/footwear",
+             "text": "Corvane's online footwear return rate rose slightly, to 18.5% in 2026 from 17.9% in 2025."},
+            {"title": "Returns audit 2024", "url": "https://corvane-audit.example/2024",
+             "text": "In 2024 Corvane's online apparel return rate was 26.4%."},
+            {"title": "Regional breakdown", "url": "https://corvane-audit.example/regions",
+             "text": "In 2026 online apparel return rates were 21.0% for orders shipped to the northern region and 25.9% for the southern region."},
+            {"title": "Shopper survey on returns", "url": "https://shopperpulse.example/corvane-2026",
+             "text": "Among Corvane shoppers who returned apparel in 2026, 52% gave wrong size as the main reason, and 18% said the item looked different from the photos."},
+            {"title": "Analyst note", "url": "https://retailanalyst.example/corvane-q4",
+             "text": "One analyst expects Corvane's apparel return rate to keep falling in 2027 as the sizing tool spreads, but gives no estimate."},
+            {"title": "Audit methodology", "url": "https://corvane-audit.example/method",
+             "text": "Return rates in the audit are items returned divided by items sold. Exchanges are counted as returns."},
+        ],
+        "facts": [
+            {"value": "23.8%", "url": "https://corvane-audit.example/2026"},
+            {"value": "27.1%", "url": "https://corvane-audit.example/2026"},
+            {"value": "19.2%", "url": "https://corvane-audit.example/fitright-pilot"},
+            {"value": "25.6%", "url": "https://corvane-audit.example/fitright-pilot"},
+            {"value": "14%", "url": "https://corvane-audit.example/fitright-pilot"},
+            {"value": "30 days", "url": "https://corvane-news.example/returns-window"},
+            {"value": "$11.40", "url": "https://corvane-audit.example/cost"},
+            {"value": "52%", "url": "https://shopperpulse.example/corvane-2026"},
+        ],
+        "report": (
+            "# Corvane's online apparel returns in 2026\n\n"
+            "Corvane's audited online apparel return rate was 23.8% in 2026, down from 27.1% in 2025 [1]. "
+            "The audit does not attribute the decline to a single cause [1].\n\n"
+            "Two changes coincided with it. Orders placed with the FitRight sizing tool were returned 19.2% of the time, against 25.6% for comparable orders without it, but the tool was used on only 14% of orders [2]. "
+            "FitRight's own figure of a 19% return rate describes only those tool orders, not Corvane's overall rate [2][3]. "
+            "In April 2026 Corvane also shortened its return window from 60 to 30 days, and return rates from May to December were 4.1 percentage points lower than a year earlier [4].\n\n"
+            "Wrong size was the main reason for 52% of returns [5], and each return cost an average of $11.40 to process [6].\n\n"
+            "### Sources\n"
+            "[1] Corvane Annual Returns Audit 2026: https://corvane-audit.example/2026\n"
+            "[2] FitRight pilot evaluation: https://corvane-audit.example/fitright-pilot\n"
+            "[3] FitRight customer story: Corvane: https://fitright-blog.example/corvane\n"
+            "[4] Return policy change notice: https://corvane-news.example/returns-window\n"
+            "[5] Shopper survey on returns: https://shopperpulse.example/corvane-2026\n"
+            "[6] Cost of returns: https://corvane-audit.example/cost\n"
+        ),
+        "plants": [
+            {"type": "wrong_number", "edits": [["down from 27.1% in 2025", "down from 21.7% in 2025"]],
+             "detect": ["21.7%"], "gone": ["21.7%"], "back": ["27.1%"]},
+            {"type": "unread_citation",
+             "edits": [["return rates from May to December were 4.1 percentage points lower than a year earlier [4].",
+                        "return rates from May to December were 4.1 percentage points lower than a year earlier [4][7]."],
+                       ["[6] Cost of returns: https://corvane-audit.example/cost\n",
+                        "[6] Cost of returns: https://corvane-audit.example/cost\n[7] Corvane Annual Returns Audit 2026 (summary): https://corvane-summary.example/audit-2026\n"]],
+             "detect": ["corvane-summary", "[7]", "source 7"], "gone": ["corvane-summary.example"], "back": []},
+            {"type": "unsupported_claim",
+             "edits": [["The audit does not attribute the decline to a single cause [1].",
+                        "The shorter return window caused most of the decline [1]."]],
+             "detect": ["most of the decline", "caused", "single cause", "attribute"], "gone": ["caused most of the decline"], "back": []},
+            {"type": "omission",
+             "edits": [[" FitRight's own figure of a 19% return rate describes only those tool orders, not Corvane's overall rate [2][3].", ""]],
+             "detect": ["19% figure", "fitright's", "vendor", "customer story", "only those", "fitright claim"], "gone": [], "back": ["FitRight's own figure"]},
+        ],
+        "false_findings": [
+            {"text": "The overall return rate should be 19%, not 23.8%; a source in the notes reports 19%.",
+             "settled_by": "The 19% figure covers only orders placed with the FitRight tool"},
+            {"text": "The return window was shortened to 45 days, not 30.",
+             "settled_by": "shortened its online return window from 60 to 30 days"},
+            {"text": "The notes give no 2025 apparel return rate to compare against.",
+             "settled_by": "down from 27.1% in 2025"},
+        ],
+    },
+    {
+        "id": "hard-transit-fare-cap",
+        "domain": "policy",
+        "suite": "hard",
+        "question": "How did weekday ridership on the Halden Metro change after the 2026 fare cap, and what does the evidence say about why?",
+        "aspects": [
+            {"name": "ridership change", "keywords": ["ridership", "trips", "journeys", "riders"]},
+            {"name": "fare cap design", "keywords": ["cap", "fare", "daily", "weekly"]},
+            {"name": "trips vs journeys", "keywords": ["linked", "unlinked", "transfer", "journey"]},
+            {"name": "cost and revenue", "keywords": ["revenue", "cost", "subsidy", "budget"]},
+            {"name": "conflicting figures", "keywords": ["press release", "18%", "conflict", "differ", "claim"]},
+        ],
+        "sources": [
+            {"title": "Independent ridership audit, Halden Metro 2026", "url": "https://haldenaudit.example/ridership-2026",
+             "text": "Average weekday journeys on the Halden Metro rose 9.6% in the six months after the fare cap began on 1 March 2026, compared with the same months of 2025. Unlinked trips, which count each transfer as a separate trip, rose 18.0% over the same period."},
+            {"title": "City press release: fare cap results", "url": "https://haldencity.example/news/fare-cap",
+             "text": "The city says the fare cap increased weekday ridership by 18%. The release counts unlinked trips."},
+            {"title": "Fare cap design", "url": "https://haldenmetro.example/fare-cap",
+             "text": "Since 1 March 2026, riders pay at most 6.50 per day and 24 per week; after the cap is reached, further trips that day or week are free."},
+            {"title": "Transfer patterns", "url": "https://haldenaudit.example/transfers",
+             "text": "Because capped riders no longer pay per transfer, the average number of transfers per journey rose from 1.4 to 1.6 after the cap began."},
+            {"title": "Fare revenue report", "url": "https://haldenmetro.example/finance-2026",
+             "text": "Fare revenue from March to August 2026 was 6.2% lower than in the same months of 2025. The city covered the gap with a 4.8 million subsidy."},
+            {"title": "Weekend ridership", "url": "https://haldenaudit.example/weekends",
+             "text": "Weekend journeys rose 3.1% over the same period."},
+            {"title": "2024 ridership baseline", "url": "https://haldenaudit.example/ridership-2024",
+             "text": "In 2024, average weekday journeys were 2.0% below 2025 levels."},
+            {"title": "Neighboring city comparison", "url": "https://regiontransit.example/compare-2026",
+             "text": "Corwick, a nearby city without a fare cap, saw weekday journeys rise 2.3% over the same months, mostly attributed to office returns."},
+            {"title": "Rider survey", "url": "https://haldenaudit.example/survey",
+             "text": "Among riders who said they travel more since March 2026, 41% named the fare cap as the main reason; 27% named a new job or office return."},
+            {"title": "Traffic counts", "url": "https://haldenroads.example/counts-2026",
+             "text": "Car traffic on the main inbound roads was 1.2% lower than a year earlier. The roads department says the counts cannot show what caused the change."},
+            {"title": "Audit methodology", "url": "https://haldenaudit.example/method",
+             "text": "A journey is a trip from origin to destination, however many vehicles it uses. Journeys are estimated from tap-in data linked within 60 minutes."},
+        ],
+        "facts": [
+            {"value": "9.6%", "url": "https://haldenaudit.example/ridership-2026"},
+            {"value": "18.0%", "url": "https://haldenaudit.example/ridership-2026"},
+            {"value": "6.50", "url": "https://haldenmetro.example/fare-cap"},
+            {"value": "1.6", "url": "https://haldenaudit.example/transfers"},
+            {"value": "6.2%", "url": "https://haldenmetro.example/finance-2026"},
+            {"value": "4.8 million", "url": "https://haldenmetro.example/finance-2026"},
+            {"value": "2.3%", "url": "https://regiontransit.example/compare-2026"},
+            {"value": "41%", "url": "https://haldenaudit.example/survey"},
+        ],
+        "report": (
+            "# Halden Metro ridership after the 2026 fare cap\n\n"
+            "Since 1 March 2026, Halden Metro riders pay at most 6.50 per day and 24 per week [1]. "
+            "In the six months after the cap began, average weekday journeys rose 9.6% compared with a year earlier [2].\n\n"
+            "The city's figure of an 18% increase counts unlinked trips, where each transfer is a separate trip [3]; unlinked trips did rise 18.0%, partly because transfers per journey rose from 1.4 to 1.6 once extra trips were free [2][4]. "
+            "In Corwick, a nearby city without a cap, weekday journeys rose 2.3% over the same months [5].\n\n"
+            "Among riders who travel more, 41% named the fare cap as the main reason [6]. "
+            "Fare revenue fell 6.2%, and the city covered the gap with a 4.8 million subsidy [7].\n\n"
+            "### Sources\n"
+            "[1] Fare cap design: https://haldenmetro.example/fare-cap\n"
+            "[2] Independent ridership audit, Halden Metro 2026: https://haldenaudit.example/ridership-2026\n"
+            "[3] City press release: fare cap results: https://haldencity.example/news/fare-cap\n"
+            "[4] Transfer patterns: https://haldenaudit.example/transfers\n"
+            "[5] Neighboring city comparison: https://regiontransit.example/compare-2026\n"
+            "[6] Rider survey: https://haldenaudit.example/survey\n"
+            "[7] Fare revenue report: https://haldenmetro.example/finance-2026\n"
+        ),
+        "plants": [
+            {"type": "wrong_number", "edits": [["average weekday journeys rose 9.6% compared", "average weekday journeys rose 6.9% compared"]],
+             "detect": ["6.9%"], "gone": ["6.9%"], "back": ["9.6%"]},
+            {"type": "unread_citation",
+             "edits": [["weekday journeys rose 2.3% over the same months [5].", "weekday journeys rose 2.3% over the same months [5][8]."],
+                       ["[7] Fare revenue report: https://haldenmetro.example/finance-2026\n",
+                        "[7] Fare revenue report: https://haldenmetro.example/finance-2026\n[8] Regional transit comparison 2026: https://regiontransit-data.example/compare\n"]],
+             "detect": ["regiontransit-data", "[8]", "source 8"], "gone": ["regiontransit-data.example"], "back": []},
+            {"type": "unsupported_claim",
+             "edits": [["Fare revenue fell 6.2%,", "The cap also took cars off the main inbound roads. Fare revenue fell 6.2%,"]],
+             "detect": ["took cars off", "car traffic", "cars off", "traffic counts", "cannot show"], "gone": ["took cars off the main inbound roads"], "back": []},
+            {"type": "omission",
+             "edits": [["The city's figure of an 18% increase counts unlinked trips, where each transfer is a separate trip [3]; unlinked trips did rise 18.0%, partly",
+                        "Unlinked trips rose 18.0%, partly"]],
+             "detect": ["press release", "city's figure", "city says", "18% increase", "city claim"], "gone": [], "back": ["city's figure"]},
+        ],
+        "false_findings": [
+            {"text": "Weekday ridership rose 18%, so the report's 9.6% understates the increase.",
+             "settled_by": "Average weekday journeys on the Halden Metro rose 9.6%"},
+            {"text": "The notes do not say how much fare revenue changed.",
+             "settled_by": "Fare revenue from March to August 2026 was 6.2% lower"},
+            {"text": "The weekly cap is 30, not 24.",
+             "settled_by": "riders pay at most 6.50 per day and 24 per week"},
+        ],
+    },
+    {
+        "id": "hard-local-reviews",
+        "domain": "seo",
+        "suite": "hard",
+        "question": "Did replying to reviews improve local map-pack rankings for Brennick County dental clinics in 2026?",
+        "aspects": [
+            {"name": "ranking effect", "keywords": ["rank", "position", "map pack", "map-pack", "visibility"]},
+            {"name": "study design", "keywords": ["controlled", "study", "random", "compare", "sample"]},
+            {"name": "review volume and rating", "keywords": ["rating", "review count", "number of reviews", "stars"]},
+            {"name": "other effects", "keywords": ["calls", "clicks", "booking", "conversion"]},
+            {"name": "conflicting claims", "keywords": ["agency", "3 positions", "claim", "conflict", "differ"]},
+        ],
+        "sources": [
+            {"title": "Brennick County review-reply study", "url": "https://localsignals.example/brennick-study",
+             "text": "In a controlled study of 120 Brennick County dental clinics from January to June 2026, 60 clinics replied to every new review and 60 did not. Clinics that replied moved up 0.4 map-pack positions on average relative to the others, a difference that was not statistically significant."},
+            {"title": "Agency case study", "url": "https://brightpin-agency.example/review-replies",
+             "text": "BrightPin, a local SEO agency, says its dental clients gained 3 map-pack positions after it began replying to their reviews. The figure comes from 9 clients and has no comparison group."},
+            {"title": "Calls and bookings", "url": "https://localsignals.example/brennick-calls",
+             "text": "In the same study, clinics that replied received 7% more calls from their listings than clinics that did not, a statistically significant difference."},
+            {"title": "Review volume", "url": "https://localsignals.example/brennick-volume",
+             "text": "Clinics that replied collected 11% more new reviews over the six months than those that did not."},
+            {"title": "Ratings", "url": "https://localsignals.example/brennick-ratings",
+             "text": "Average star ratings did not change in either group (4.6 in both)."},
+            {"title": "Platform guidance", "url": "https://mapsplatform.example/help/reviews",
+             "text": "The maps platform's help page says replying to reviews shows customers you value their feedback. It does not say replies affect ranking."},
+            {"title": "2025 pilot", "url": "https://localsignals.example/brennick-2025",
+             "text": "A 2025 pilot with 20 clinics found a 0.9 position gain for clinics that replied, but the pilot had no random assignment."},
+            {"title": "Other industries", "url": "https://localsignals.example/other-verticals",
+             "text": "A separate study of 80 auto repair shops found no ranking difference from replying to reviews."},
+            {"title": "Practitioner survey", "url": "https://seosurvey.example/local-2026",
+             "text": "In a survey of 300 local SEO practitioners, 68% believed review replies improve rankings."},
+            {"title": "Reply speed", "url": "https://localsignals.example/brennick-speed",
+             "text": "Among clinics that replied, the median reply came 19 hours after the review."},
+            {"title": "Study methodology", "url": "https://localsignals.example/brennick-method",
+             "text": "Clinics were randomly assigned to the two groups. Rankings were measured daily from 40 grid points across the county."},
+        ],
+        "facts": [
+            {"value": "120", "url": "https://localsignals.example/brennick-study"},
+            {"value": "0.4", "url": "https://localsignals.example/brennick-study"},
+            {"value": "7%", "url": "https://localsignals.example/brennick-calls"},
+            {"value": "11%", "url": "https://localsignals.example/brennick-volume"},
+            {"value": "4.6", "url": "https://localsignals.example/brennick-ratings"},
+            {"value": "9 clients", "url": "https://brightpin-agency.example/review-replies"},
+            {"value": "68%", "url": "https://seosurvey.example/local-2026"},
+        ],
+        "report": (
+            "# Review replies and map-pack rankings for Brennick County dental clinics\n\n"
+            "In a controlled study of 120 Brennick County dental clinics in the first half of 2026, clinics randomly assigned to reply to every review moved up 0.4 map-pack positions relative to the others, a difference that was not statistically significant [1][2].\n\n"
+            "An agency's claim of a 3-position gain comes from 9 clients of its own, with no comparison group [3]. "
+            "Replying did have measurable effects elsewhere: clinics that replied received 7% more calls from their listings and collected 11% more new reviews, while average ratings stayed at 4.6 in both groups [4][5][6].\n\n"
+            "Although 68% of surveyed practitioners believe replies improve rankings [7], the evidence here shows a business benefit, not a clear ranking benefit.\n\n"
+            "### Sources\n"
+            "[1] Brennick County review-reply study: https://localsignals.example/brennick-study\n"
+            "[2] Study methodology: https://localsignals.example/brennick-method\n"
+            "[3] Agency case study: https://brightpin-agency.example/review-replies\n"
+            "[4] Calls and bookings: https://localsignals.example/brennick-calls\n"
+            "[5] Review volume: https://localsignals.example/brennick-volume\n"
+            "[6] Ratings: https://localsignals.example/brennick-ratings\n"
+            "[7] Practitioner survey: https://seosurvey.example/local-2026\n"
+        ),
+        "plants": [
+            {"type": "wrong_number", "edits": [["received 7% more calls", "received 17% more calls"]],
+             "detect": ["17%"], "gone": ["17% more"], "back": ["received 7% more"]},
+            {"type": "unread_citation",
+             "edits": [["believe replies improve rankings [7],", "believe replies improve rankings [7][8],"],
+                       ["[7] Practitioner survey: https://seosurvey.example/local-2026\n",
+                        "[7] Practitioner survey: https://seosurvey.example/local-2026\n[8] Local ranking factors survey 2026: https://seosurvey-report.example/factors\n"]],
+             "detect": ["seosurvey-report", "[8]", "source 8"], "gone": ["seosurvey-report.example"], "back": []},
+            {"type": "unsupported_claim",
+             "edits": [["the evidence here shows a business benefit, not a clear ranking benefit.",
+                        "the evidence here shows a business benefit, and the maps platform confirms that replies are a ranking factor."]],
+             "detect": ["ranking factor", "platform confirms", "maps platform", "help page"], "gone": ["confirms that replies are a ranking factor"], "back": []},
+            {"type": "omission",
+             "edits": [[", a difference that was not statistically significant [1][2].", " [1][2]."]],
+             "detect": ["not statistically significant", "statistically", "significan", "not significant"], "gone": [], "back": ["not statistically significant"]},
+        ],
+        "false_findings": [
+            {"text": "Replying raised rankings by 3 positions, so the report's 0.4 understates the effect.",
+             "settled_by": "The figure comes from 9 clients and has no comparison group"},
+            {"text": "The study did not use random assignment, so it is not a controlled comparison.",
+             "settled_by": "Clinics were randomly assigned to the two groups"},
+            {"text": "The notes do not report any effect on calls.",
+             "settled_by": "clinics that replied received 7% more calls from their listings"},
+        ],
+    },
+]
+
+# A hard case's notes include sources a good report should leave out, so report writing is scored
+# on citing the sources its clean report cites rather than every source in the notes.
+for _case in HARD_CASES:
+    _case["key_sources"] = sorted({s["url"] for s in _case["sources"] if s["url"] in _case["report"]})
+
+SUITES = {"standard": CASES, "hard": HARD_CASES, "all": CASES + HARD_CASES}
+ALL_CASES = CASES + HARD_CASES
 
 def notes_for(case: dict) -> str:
     """Format the research notes as the pipeline would pass them on: one block per source."""

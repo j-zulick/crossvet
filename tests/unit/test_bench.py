@@ -9,13 +9,19 @@ import pytest
 from langchain_core.messages import AIMessage
 
 from open_deep_research import bench, models
-from open_deep_research.bench_cases import CASES, notes_for, planted_draft
+from open_deep_research.bench_cases import (
+    ALL_CASES,
+    CASES,
+    HARD_CASES,
+    notes_for,
+    planted_draft,
+)
 from open_deep_research.compare import load_setups
 from open_deep_research.cross_vendor_review import CriticReport, CriticVerdict, Critique
 
 
 def _case_for(text: str) -> dict:
-    for c in CASES:
+    for c in ALL_CASES:
         if c["question"] in text or c["sources"][0]["url"] in text:
             return c
     raise AssertionError("no case found in prompt")
@@ -80,8 +86,10 @@ class Scripted:
                     calls = [{"name": "ConductResearch", "args": {"research_topic": "general background"}, "id": "c0"}] * 2
                 return AIMessage(content="", tool_calls=calls, **_usage(self.cost))
             if n_ai == 1 and self.quality == "good":
-                a = case["aspects"][3]
-                return AIMessage(content="", tool_calls=[{"name": "ConductResearch", "args": {"research_topic": f"Look into {a['keywords'][0]} specifically"}, "id": "c9"}], **_usage(self.cost))
+                rest = case["aspects"][3:]
+                calls = [{"name": "ConductResearch", "args": {"research_topic": f"Look into {a['keywords'][0]} specifically"}, "id": f"c9{i}"}
+                         for i, a in enumerate(rest)]
+                return AIMessage(content="", tool_calls=calls, **_usage(self.cost))
             return AIMessage(content="", tool_calls=[{"name": "ResearchComplete", "args": {}, "id": "done"}], **_usage(self.cost))
         if "tavily_search" in self.tools:  # researcher
             if n_ai == 0 and self.quality == "good":
@@ -115,7 +123,7 @@ def _run(tmp_path, models_, roles=bench.ROLES, cases=CASES[:2], **kw):
 
 
 def test_cases_are_consistent():
-    for c in CASES:
+    for c in ALL_CASES:
         assert len(c["plants"]) == 4 and {p["type"] for p in c["plants"]} == {"wrong_number", "unread_citation", "unsupported_claim", "omission"}
         assert len(bench.true_findings(c)) == 4
 
@@ -127,6 +135,31 @@ def test_perfect_model_scores_one_on_every_role(tmp_path, scripted):
         assert r.error == "", (r.role, r.error)
         assert r.quality == pytest.approx(1.0), (r.role, r.metrics)
         assert r.stats.calls >= 1 and r.stats.cost and r.stats.cost_source == "reported"
+
+
+def test_hard_suite_answer_keys_hold(tmp_path, scripted):
+    """The hard cases are internally consistent, and a perfect model scores 1.0 on them in every role."""
+    for c in HARD_CASES:
+        clean, draft, notes = c["report"], planted_draft(c), notes_for(c)
+        assert len(c["sources"]) >= 10
+        for p in c["plants"]:
+            assert all(g in draft and g not in clean for g in p["gone"]), (c["id"], p["type"])
+            assert all(b in clean and b not in draft for b in p["back"]), (c["id"], p["type"])
+        assert all(f["settled_by"] in notes for f in c["false_findings"])
+        assert all(f["url"] in notes for f in c["facts"])
+    results = _run(tmp_path, ["openrouter:good/model"], cases=HARD_CASES)
+    assert len(results) == len(bench.ROLES) * len(HARD_CASES)
+    for r in results:
+        assert r.error == "", (r.case, r.role, r.error)
+        assert r.quality == pytest.approx(1.0), (r.case, r.role, r.metrics)
+
+
+def test_suite_flag_selects_cases(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    assert bench.main(["run", "--models", "openrouter:x/y", "--suite", "hard", "--dry-run", "--out", str(tmp_path / "o")]) == 0
+    assert f"x {len(HARD_CASES)} cases" in capsys.readouterr().out
+    assert bench.main(["run", "--models", "openrouter:x/y", "--suite", "all", "--dry-run", "--out", str(tmp_path / "o")]) == 0
+    assert f"x {len(CASES) + len(HARD_CASES)} cases" in capsys.readouterr().out
 
 
 def test_weak_model_scores_low_and_broken_model_is_recorded(tmp_path, scripted):
