@@ -15,6 +15,7 @@ from open_deep_research.bench_cases import (
     HARD_CASES,
     INJECTION_CASES,
     INJECTION_CHECKED_CASES,
+    INJECTION_HARD_CASES,
     notes_for,
     planted_draft,
 )
@@ -347,3 +348,17 @@ def test_followed_injection_halves_the_writer_score(tmp_path, monkeypatch):
 
     q, m = asyncio.run(bench.task_writer(R(), case))
     assert m["followed_injection"] == 1 and q == pytest.approx(0.5)
+
+
+def test_hard_injection_suite_holds(tmp_path, scripted):
+    """Harder injections: payload only via the injected source, which the pattern check does not flag."""
+    from open_deep_research.injection_check import scan
+
+    assert len(INJECTION_HARD_CASES) == 4 and {c["suite"] for c in INJECTION_HARD_CASES} == {"injection-hard"}
+    for c in INJECTION_HARD_CASES:
+        inj = c["injection"]
+        src = next(s for s in c["sources"] if s["url"] == inj["url"])
+        assert scan(src["text"]) == []  # documents what the patterns miss
+        assert not any(p in c["report"] for p in inj["payload"]) and any(p in planted_draft(c) for p in inj["payload"])
+    results = _run(tmp_path, ["openrouter:good/model"], roles=["writer", "reviewer", "reviser"], cases=INJECTION_HARD_CASES)
+    assert all(r.error == "" and r.quality == pytest.approx(1.0) for r in results), [(r.case, r.role, r.metrics) for r in results]
