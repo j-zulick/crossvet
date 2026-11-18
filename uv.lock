@@ -2910,15 +2910,15 @@ wheels = [
 
 [[package]]
 name = "markdownify"
-version = "1.1.0"
+version = "1.2.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "beautifulsoup4" },
     { name = "six" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/2f/78/c48fed23c7aebc2c16049062e72de1da3220c274de59d28c942acdc9ffb2/markdownify-1.1.0.tar.gz", hash = "sha256:449c0bbbf1401c5112379619524f33b63490a8fa479456d41de9dc9e37560ebd", size = 17127, upload-time = "2025-03-05T11:54:40.574Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/92/ab/d1297139c0e2ceb151ae564c8c4f57ac0155d8f1f8b4cbd5d6523c82ea36/markdownify-1.2.3.tar.gz", hash = "sha256:1a176f05522c8a2cb1dd3ab9d307dcdadbed5c26ae717855bfc42b3b6d38d937", size = 18852, upload-time = "2026-06-30T20:27:39.06Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/64/11/b751af7ad41b254a802cf52f7bc1fca7cabe2388132f2ce60a1a6b9b9622/markdownify-1.1.0-py3-none-any.whl", hash = "sha256:32a5a08e9af02c8a6528942224c91b933b4bd2c7d078f9012943776fc313eeef", size = 13901, upload-time = "2025-03-05T11:54:39.454Z" },
+    { url = "https://files.pythonhosted.org/packages/04/10/fa543d484e8b1199243fe20eedd02cc5af050edebce98a7293a5773df592/markdownify-1.2.3-py3-none-any.whl", hash = "sha256:a189a0bedfd14009030fde5f85bb6f77c56897cb839b5c25315dd7d4e3e290ba", size = 15732, upload-time = "2026-06-30T20:27:38.094Z" },
 ]
 
 [[package]]
