@@ -45,7 +45,7 @@ All notable changes to Crossvet. Versions follow [Semantic Versioning](https://s
 - **A report cut off by a provider's content filter was treated as finished.** Seen in the first pilot: OpenAI stopped the report writer mid-quote of a statute (`finish_reason: content_filter`). The writer now tries again, asking for paraphrase over long quotes; a report that stops early twice ends with an *Incomplete report* notice, and a filtered revision no longer replaces the draft. Anthropic `refusal` and Google `SAFETY` / `RECITATION` count too.
 
 ### Docs
-- README: TL;DR, *Measured so far* (including what hasn't been measured), *Cost and API keys*, *Related projects*, *My role and AI assistance* and *Release history*; `docs/CONTRIBUTIONS.md`; design decision 18 (rotating challenger); `examples/compare/review-vs-none.toml` for the first end-to-end evaluation, and its first pilot results in `docs/evals/2026-11-17-pilot/`.
+- README: TL;DR, *Measured so far* (including what hasn't been measured), *Cost and API keys*, *My role and AI assistance* and *Release history*; `docs/CONTRIBUTIONS.md`; design decision 18 (rotating challenger); `examples/compare/review-vs-none.toml` for the first end-to-end evaluation, and its first pilot results in `docs/evals/2026-11-17-pilot/`.
 
 ## [1.5.0]
 
