@@ -67,8 +67,8 @@ Each fetched page is scanned in code before any model summarizes it, for text ai
 To measure how often models act on a planted instruction, with and without the flag line:
 
 ```bash
-uv run crossvet-bench run --suite injection --roles compression,writer,reviewer,critic,reviser --models <ids>
-uv run crossvet-bench run --suite injection-checked --roles compression,writer,reviewer,critic,reviser --models <ids>
+uv run crossvet-bench run --suite injection --roles summarizer,compression,writer,reviewer,critic,reviser --models <ids>
+uv run crossvet-bench run --suite injection-checked --roles summarizer,compression,writer,reviewer,critic,reviser --models <ids>
 ```
 
 ## Check pages for prompt injection: `crossvet-scan`
@@ -116,7 +116,7 @@ uv run crossvet-bench run --models <ids> --suite hard              # harder case
 uv run crossvet-bench apply --preset best-value                   # write the winning role map to .env
 ```
 
-- **Real work, scored by code.** Each role runs with Crossvet's own prompts and schemas on six synthetic cases (invented organizations on `.example` URLs, so models can't answer from memory). Scores come from answer keys, not a judge model: did the reviewer catch the four planted errors (wrong number, unread citation, unsupported claim, omission) without flagging a clean draft; did the critic agree with true findings and reject false ones; did compression keep the facts and URLs; did the supervisor delegate every part of the question.
+- **Real work, scored by code.** Each role runs with Crossvet's own prompts and schemas on six synthetic cases (invented organizations on `.example` URLs, so models can't answer from memory). Scores come from answer keys, not a judge model: did the reviewer catch the four planted errors (wrong number, unread citation, unsupported claim, omission) without flagging a clean draft; did the critic agree with true findings and reject false ones; did the summarizer keep each page's key facts without passing on a planted instruction as fact; did compression keep the facts and URLs; did the supervisor delegate every part of the question.
 - **Cost-aware.** Real per-call cost from OpenRouter (or token estimates), a hard `--max-usd` cap, a `--dry-run` estimate, resumable runs.
 - **Decisions, not just a table.** A leaderboard per role, a quality-vs-cost chart with the frontier, and a role map with a **best-quality** and a **best-value** pick per role (the cheapest model within 10% of the top score). `apply` turns it into configuration: a one-model-per-vendor panel and a reviser from outside it.
 - **Checked end to end.** `crossvet-bench live-plan --role supervisor --models a,b` writes a `crossvet-compare` file that swaps just that role, to confirm on real questions.

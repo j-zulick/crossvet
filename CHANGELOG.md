@@ -2,6 +2,14 @@
 
 All notable changes to Crossvet. Versions follow [Semantic Versioning](https://semver.org/). Crossvet was built between November 6 and 17, 2026 in a private repository, one tested version at a time; all versions were published together when the repository went public.
 
+## [Unreleased]
+
+### Added
+- **`crossvet-bench` summarizer role**: the first model to read each fetched page is benchmarked with the pipeline's summarizer prompt and `Summary` schema, on every source holding a key fact plus the injected page in injection cases. Scored on key facts kept per page, halved when the injected page's summary states the planted instruction as fact. `apply` writes its winner to `SUMMARIZATION_MODEL` (previously the compression winner, still used for role maps without summarizer results). No results yet.
+
+### Changed
+- The summarizer prompt is built by one helper, `utils.build_summarize_prompt`, shared by the pipeline and the benchmark (no change in behaviour).
+
 ## [1.8.0] - 2026-11-18
 
 ### Added
