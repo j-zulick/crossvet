@@ -22,6 +22,7 @@ import os
 import sys
 import uuid
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any, AsyncIterator, Callable
 
 from dotenv import load_dotenv
@@ -208,15 +209,46 @@ def build_parser() -> argparse.ArgumentParser:
     ask.add_argument("question")
     ask.add_argument("--model", help="model for the answer (default: FINAL_REPORT_MODEL)")
     ask.add_argument("--out", help="append the answer to this markdown file")
+    review = sub.add_parser("review", help="review an existing report against its sources (files or URLs)")
+    review.add_argument("report", help="the report to review (Markdown or text file)")
+    review.add_argument("--sources", nargs="+", required=True, help="files (Markdown, text, HTML) or http(s) URLs the report should rest on")
+    review.add_argument("--brief", default="", help="the question the report answers (helps reviewers judge coverage)")
+    review.add_argument("--panel", help="comma-separated review models (default: REVIEW_MODELS)")
+    review.add_argument("--out", help="write the reviewed report to this file (default: print it)")
     sessions = sub.add_parser("sessions", help="list saved runs, newest first")
     sessions.add_argument("--limit", type=int, default=20)
     return p
+
+
+async def _review(args: argparse.Namespace) -> int:
+    from open_deep_research.review_doc import areview
+
+    report = Path(args.report).read_text(encoding="utf-8")
+    config = {"review_models": args.panel} if args.panel else {}
+    try:
+        result = await areview(report, args.sources, args.brief, config)
+    except (ValueError, RuntimeError, OSError) as exc:
+        print(f"crossvet review: {exc}", file=sys.stderr)
+        return 1
+    review = result.get("review", {})
+    disputed = len((review.get("critic") or {}).get("disputed") or [])
+    print(f"review: {review.get('status')}; scores {review.get('scores')}; citations not in sources: "
+          f"{len(review.get('flagged_urls') or [])}; flagged sources: {len(review.get('injected_sources') or [])}; disputed: {disputed}",
+          file=sys.stderr)
+    if args.out:
+        Path(args.out).write_text(result["final_report"], encoding="utf-8")
+        print(f"Reviewed report written to {args.out}", file=sys.stderr)
+    else:
+        print(result["final_report"])
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
     """Entry point."""
     load_dotenv()
     args = build_parser().parse_args(argv)
+    if args.command == "review":
+        return asyncio.run(_review(args))
     return asyncio.run(_run(args))
 
 

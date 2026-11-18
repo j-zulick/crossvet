@@ -2,6 +2,17 @@
 
 All notable changes to Crossvet. Versions follow [Semantic Versioning](https://semver.org/). Crossvet was built between November 6 and 17, 2026 in a private repository, one tested version at a time; all versions were published together when the repository went public.
 
+## [Unreleased]
+
+### Added
+- **`crossvet-scan`**: check any page, file or pasted text for prompt injection, by channel (visible text, hidden elements, HTML comments, attributes and meta tags), with JSON output and an exit code for CI. Also an MCP tool, `scan_for_injection`, that refuses non-public addresses.
+- **`crossvet review`** and `api.review`: run the cross-vendor review on an existing report against files or URLs.
+- **Claims resting only on flagged sources go to *Disputed*** (design decision 20).
+- The injection check decodes invisible Unicode tag text and base64 blobs and scans what they say.
+
+### Changed
+- The summarizer's data wrapper carries a random per-call marker, so a page cannot close it by guessing the tag.
+
 ## [1.7.0] - 2026-11-18
 
 ### Added

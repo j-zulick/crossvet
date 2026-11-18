@@ -151,14 +151,31 @@ def scan_text(source: str, text: str) -> PageResult:
     return PageResult(source, findings)
 
 
-def fetch(url: str, timeout: float = 20.0) -> str:
-    """Fetch a URL over http(s) and return its body as text."""
+def _refuse_private(request: object) -> None:
+    """Refuse a request (including each redirect) to a loopback, private or link-local address."""
+    import ipaddress
+    import socket
+
+    host = request.url.host  # type: ignore[attr-defined]
+    for info in socket.getaddrinfo(host, None):
+        ip = ipaddress.ip_address(info[4][0])
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast:
+            raise ValueError(f"refusing to fetch {host}: it resolves to a non-public address")
+
+
+def fetch(url: str, timeout: float = 20.0, allow_private: bool = True) -> str:
+    """Fetch a URL over http(s) and return its body as text.
+
+    ``allow_private=False`` refuses hosts that resolve to non-public addresses, checked on every
+    redirect; the MCP tool uses it, since an agent chooses the URL there.
+    """
     import httpx
 
     if not re.match(r"https?://", url, re.I):
         raise ValueError("only http(s) URLs are fetched")
     headers = {"User-Agent": "crossvet-scan (+https://github.com/j-zulick/crossvet)"}
-    with httpx.Client(follow_redirects=True, timeout=timeout, headers=headers) as client:
+    hooks = {} if allow_private else {"request": [_refuse_private]}
+    with httpx.Client(follow_redirects=True, timeout=timeout, headers=headers, event_hooks=hooks) as client:
         resp = client.get(url)
         resp.raise_for_status()
         return resp.text

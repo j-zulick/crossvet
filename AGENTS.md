@@ -11,6 +11,7 @@ Crossvet is a fork of LangChain's Open Deep Research (MIT). It writes a research
   - `deep_agent.py`: Deep Agents edition (graph `deep_agent`), same review
   - `cross_vendor_review.py`: critiques, anonymized Borda vote, citation check, critic, revision
   - `deliberation.py`, `blind_pass.py`, `support_check.py`: debate rounds and early stopping, the blind first pass, Jev support checks
+  - `injection_check.py`, `scan_cli.py`, `review_doc.py`: the prompt-injection check, `crossvet-scan`, and `crossvet review` for existing reports
   - `models.py`: the model factory (`provider:model`, OpenRouter, local servers) and the capability catalog
   - `bench.py`, `bench_cases.py`: the role benchmark and its synthetic cases
   - `configuration.py`: every setting (environment variable = upper-case field name)
@@ -27,6 +28,7 @@ uv sync                          # install
 uv run pytest tests/unit -q      # tests: offline, must pass before any commit
 uvx ruff@0.17.4 check <files>    # lint: CI's file list is in .github/workflows/ci.yml
 uv run crossvet-doctor           # check a configuration without spending tokens
+uv run crossvet-scan <url|file>  # check a page for prompt injection (no model, no key)
 uvx langgraph dev                # LangGraph Studio
 ```
 

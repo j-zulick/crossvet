@@ -4,6 +4,8 @@ Tools:
     ask_model       Ask one model (cloud, OpenRouter, Ollama or local) a question.
     compare_models  Ask several models the same question in parallel and return
                     their answers side by side, with per-model errors reported.
+    scan_for_injection  Check a public web page (or pasted text) for text aimed at AI
+                    models, by channel (visible, hidden elements, comments, attributes).
 
 Run over stdio (Claude Code, Codex, Cursor):
     uv run crossvet-mcp
@@ -96,6 +98,32 @@ async def compare_models(prompt: str, models: list[str] | None = None, max_token
         "answers": {m: a for m, a, _ in results if a is not None},
         "errors": {m: e for m, _, e in results if e is not None},
     }
+
+
+@mcp.tool()
+async def scan_for_injection(url: str = "", text: str = "") -> dict[str, Any]:
+    """Check a public web page, or pasted text or HTML, for prompt injection: text aimed at AI models.
+
+    Give ``url`` (http or https; non-public addresses are refused) or ``text``. Returns each
+    channel where Crossvet's pattern check matched (visible text, hidden elements, HTML comments,
+    attributes and meta tags) with the kinds of pattern and a short excerpt. Pattern matching
+    only: no findings does not prove a page is safe. Uses no model and no API key.
+    """
+    from dataclasses import asdict
+
+    from open_deep_research.scan_cli import fetch, scan_text
+
+    if bool(url) == bool(text):
+        return {"error": "give exactly one of url or text"}
+    if text and len(text) > 2_000_000:
+        return {"error": "text is too long (limit 2,000,000 characters)"}
+    try:
+        body = text or await asyncio.to_thread(fetch, url, 20.0, False)
+    except Exception as exc:  # report fetch problems to the caller
+        return {"error": f"{type(exc).__name__}: {exc}"[:300]}
+    result = asdict(scan_text(url or "text", body))
+    result["note"] = "Pattern matching only: no findings does not prove a page is safe."
+    return result
 
 
 def main() -> None:
