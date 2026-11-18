@@ -30,6 +30,7 @@ from mcp import McpError
 from tavily import AsyncTavilyClient
 
 from open_deep_research.configuration import Configuration, SearchAPI
+from open_deep_research.injection_check import flag_line, neutralize, scan
 from open_deep_research.prompts import summarize_webpage_prompt
 from open_deep_research.state import ResearchComplete, Summary
 
@@ -112,7 +113,8 @@ async def tavily_search(
     summarized_results = {
         url: {
             'title': result['title'], 
-            'content': result['content'] if summary is None else summary
+            'content': result['content'] if summary is None else summary,
+            'flag': flag_line(scan(result.get('raw_content') or result.get('content') or '')),
         }
         for url, result, summary in zip(
             unique_results.keys(), 
@@ -128,7 +130,10 @@ async def tavily_search(
     formatted_output = "Search results: \n\n"
     for i, (url, result) in enumerate(summarized_results.items()):
         formatted_output += f"\n\n--- SOURCE {i+1}: {result['title']} ---\n"
-        formatted_output += f"URL: {url}\n\n"
+        formatted_output += f"URL: {url}\n"
+        if result['flag']:
+            formatted_output += result['flag'] + "\n"
+        formatted_output += "\n"
         formatted_output += f"SUMMARY:\n{result['content']}\n\n"
         formatted_output += "\n\n" + "-" * 80 + "\n"
     
@@ -184,7 +189,7 @@ async def summarize_webpage(model: BaseChatModel, webpage_content: str) -> str:
     try:
         # Create prompt with current date context
         prompt_content = summarize_webpage_prompt.format(
-            webpage_content=webpage_content, 
+            webpage_content=neutralize(webpage_content), 
             date=get_today_str()
         )
         

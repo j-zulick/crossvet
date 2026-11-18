@@ -34,6 +34,7 @@ This page records how Crossvet is evaluated and what the results were. **End-to-
 | Jev support checks vs quote check alone | not run |
 | Domain pack vs none | not run |
 | Fine-tuned vs base local reviewer | not run |
+| Injected instructions followed, without vs with the injection check (`--suite injection` / `injection-checked`) | not run |
 
 ## Model fit (v1.6)
 

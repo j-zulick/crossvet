@@ -8,6 +8,10 @@ Please report security issues privately through GitHub's **Report a vulnerabilit
 
 Only the latest release receives fixes.
 
+## Security model
+
+What Crossvet defends against (fake citations, made-up quotes, prompt injection in fetched pages, SSRF in the search gateway) and what it does not: [docs/SECURITY-MODEL.md](docs/SECURITY-MODEL.md).
+
 ## Handling of secrets
 
 - API keys are read from environment variables or a local `.env` file, which is gitignored. Never commit keys; `.env.example` holds placeholders only.

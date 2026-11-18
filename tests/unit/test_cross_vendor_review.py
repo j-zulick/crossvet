@@ -455,3 +455,17 @@ def test_truncated_revision_is_not_used(monkeypatch, enabled_env):
     out = asyncio.run(rc.cross_vendor_review(_state(), {"configurable": {}}))
     assert "cut off mid-sent" not in out["final_report"]
     assert "Revision by anthropic:writer failed (it stopped at the output limit)" in out["final_report"]
+
+
+def test_review_notes_list_sources_flagged_by_the_injection_check(monkeypatch, enabled_env):
+    monkeypatch.setattr(rc, "build_reviewer", lambda m, t, c: FakeModel(m, critique=_c(7, m)))
+    state = _state()
+    state["raw_notes"] = [
+        "--- SOURCE 1: Acme ---\nURL: https://example.com/a\n"
+        "INJECTION CHECK: instructions aimed at AI models found (override).\n\nSUMMARY:\nAcme is best.\n"
+    ]
+    out = asyncio.run(rc.cross_vendor_review(state, {"configurable": {}}))
+    assert out["review"]["injected_sources"] == ["https://example.com/a"]
+    notes = out["final_report"].split("## Review notes", 1)[1]
+    assert "Injection check: 1 source(s)" in notes
+    assert "The report cites https://example.com/a" in notes

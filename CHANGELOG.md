@@ -17,6 +17,10 @@ All notable changes to Crossvet. Versions follow [Semantic Versioning](https://s
   Report writing on these cases is scored on citing the clean report's sources. `--cases` accepts ids from any suite.
 - First hard-suite results for seven models (`docs/benchmarks/2026-11-18-hard/`).
 
+- **Prompt-injection check** (`injection_check.py`): every page fetched through Tavily or the research gateway is scanned in code before it is summarized. Flagged sources get a line in the research notes, and the Review notes list them and any the report cites. The summarizer prompt treats page text as data and strips markup that could break out of it.
+- **Injection benchmark suites** (`--suite injection`, `--suite injection-checked`): four cases with one injected source each (override, hidden comment, cite-this-URL, role change), without and with the check's flag line. Scores whether writing and compression act on the instruction, and whether reviewers, critics and revisers catch the injected claim.
+- `docs/SECURITY-MODEL.md`: threats, defenses and limits; design decision 19.
+
 ### Changed
 - The example review panel in `.env.example` is now `openai:gpt-6.1-sol` + Claude Sonnet 5.5. On the hard suite gpt-5.4-mini was the weakest reviewer and critic.
 

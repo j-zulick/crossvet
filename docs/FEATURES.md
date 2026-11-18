@@ -59,6 +59,16 @@ Set `TYPESAFE_API_KEY` (from [console.typesafe.ai](https://console.typesafe.ai))
 
 If a Jev call fails, that claim is judged by the quote check alone and the Review notes say how many calls failed. Every score is kept in the run export; `crossvet-compare` and Langfuse record `support_checked` and `support_rejected`, and the compare plan adds a `deliberation-2-jev` setup when the key is set.
 
+## Prompt-injection check
+Each fetched page is scanned in code before any model summarizes it, for text aimed at the model rather than the reader: instructions to ignore or override, text addressed to an AI, role changes, instructions to recommend, cite or leave something out, chat markup, and hidden text alongside any of those. A hit adds a line to that source in the research notes (naming the kinds of pattern, not the injected text), and the Review notes list flagged sources and any the report cites. The summarizer prompt treats page text as data. Works with `SEARCH_API=tavily` and the research gateway; vendor-hosted search returns no page text to scan. No setting: the check is always on. Threat model and limits: [docs/SECURITY-MODEL.md](SECURITY-MODEL.md); design decision 19.
+
+To measure how often models act on a planted instruction, with and without the flag line:
+
+```bash
+uv run crossvet-bench run --suite injection --roles compression,writer,reviewer,critic,reviser --models <ids>
+uv run crossvet-bench run --suite injection-checked --roles compression,writer,reviewer,critic,reviser --models <ids>
+```
+
 ## Blind first pass
 
 A draft anchors whoever reads it: reviewers check what it says and tend to miss what it leaves out. With `REVIEW_BLIND_PASS_ENABLED=true`, each reviewer first answers from the research notes alone, without seeing the draft: up to `REVIEW_BLIND_MAX_POINTS` (6) points, each with the passage that supports it, in one short call (`REVIEW_BLIND_MAX_TOKENS`, 1500). Then code:

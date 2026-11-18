@@ -31,6 +31,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, Field
 
+from open_deep_research import injection_check
 from open_deep_research.configuration import Configuration
 from open_deep_research.models import (  # noqa: F401 (openrouter_preferences is re-exported)
     build_chat_model,
@@ -557,6 +558,13 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
         notes_items.append("Dissent: " + "; ".join(dissent))
     if flagged_urls:
         notes_items.append("Citations not found in research notes (flagged for removal): " + ", ".join(flagged_urls))
+    injected = injection_check.flagged_urls(notes)
+    if injected:
+        cited = injection_check.cited(revised_text, injected)
+        line = f"Injection check: {len(injected)} source(s) contained instructions aimed at AI models: " + ", ".join(injected) + "."
+        if cited:
+            line += " The report cites " + ", ".join(cited) + "; claims resting on these sources are unverified."
+        notes_items.append(line)
     if configurable.review_critic_enabled:
         notes_items.append(f"Independent critic: {critic_status}; {len(dropped)} finding(s) dropped as contradicted by the notes, {len(disputed)} disputed.")
     if blind is not None:
@@ -605,6 +613,7 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
                 "ballots": [b.model_dump() for b in ballots],
                 "tally": tally,
                 "flagged_urls": flagged_urls,
+                "injected_sources": injected,
                 "failed_reviewers": failed,
                 "substitutions": substitutions,
                 "deliberation": {**deliberation.summary(), "log": deliberation.log} if deliberation else None,
@@ -628,6 +637,7 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
             "tally": tally,
             "ballots": len(ballots),
             "flagged_urls": flagged_urls,
+            "injected_sources": injected,
             "scores": scores,
             "critic": {"status": critic_status, "dropped": len(dropped), "disputed": disputed},
             "deliberation": deliberation.summary() if deliberation else None,
