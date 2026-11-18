@@ -12,9 +12,6 @@ After the draft report is written, reviewer models from different vendors:
    never appeared in the gathered research notes.
 4. **Revise**: the report writer applies the top-ranked critiques, and a
    "Review notes" section records adopted points, dissent, and citation flags.
-
-Anonymized peer review is inspired by Andrej Karpathy's llm-council; this module
-is an independent implementation (see NOTICES.md).
 """
 
 from __future__ import annotations
