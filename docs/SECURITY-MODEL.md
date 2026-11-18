@@ -28,6 +28,8 @@ Measured gaps (`--suite injection-hard`): paraphrased, translated, split and rep
 
 Still open: paraphrased and split instructions; other languages; measuring the items above.
 
+A first, partial run of these defenses (`docs/benchmarks/2026-11-18-injection-defenses/`) found that the prompt rule did not stop report writers from adopting a planted claim: 2 of 16 OpenAI runs, against 1 of 16 before. A flagged-notes copy of the hard suite is needed to measure the new flags.
+
 ## Not covered
 - A source that is wrong but honest: the checks confirm what the notes say, not that the notes are true.
 - Compromise of a model vendor or of a dependency.

@@ -12,6 +12,8 @@ All notable changes to Crossvet. Versions follow [Semantic Versioning](https://s
 - **`crossvet-scan` reports**: `--format text|json|csv|html` (`--json` kept as an alias) and `--out FILE`. CSV has one row per finding plus one per clean page and per error, with formula-like cells neutralised; HTML is one self-contained page (summary, then a section per page, inline CSS, no JavaScript, all page text escaped) to hand to a client.
 - **`crossvet-scan` on many pages**: `--sitemap URL_OR_FILE` (sitemap index followed one level deep, 5 MB cap, DTDs and non-http(s) page locations refused) and `--urls FILE` (one URL per line, `#` comments skipped), with `--max-pages` (default 50) and `--delay` (default 0.5 s). Design decision 24.
 
+- First, partial check of the decision 22 defenses on `injection-hard` (`docs/benchmarks/2026-11-18-injection-defenses/`). With the prompt rule, OpenAI report writers adopted a planted claim in 2 of 16 runs (1 of 16 before). The Claude writing jobs failed for lack of credit.
+
 ### Changed
 - The webpage summarization and research compression prompts say to report recommendations, rankings and instructions a page addresses to readers or AI systems as that page's claims, never as findings, and that a URL found only inside a page's text is not a source.
 - The hard-injection bench test now records which forms the check flags (translated, dominant) and which it still misses (paraphrased, split). No benchmark was run with these changes; `--suite injection-hard` measures them. Design decision 22.
