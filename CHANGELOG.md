@@ -8,10 +8,12 @@ All notable changes to Crossvet. Versions follow [Semantic Versioning](https://s
 - The injection check flags a page that is mostly one repeated sentence or one repeated name (kind `repetition`; thresholds in `injection_check.py`).
 - Spanish, French, German and Portuguese triggers for text addressed to an AI and for overriding instructions.
 - Review notes list cited URLs that appear in the notes only inside another page's text, never as a source's `URL:` line (unverified). Only applied when the notes use `URL:` source lines.
+- **`crossvet-bench` summarizer role**: the first model to read each fetched page is benchmarked with the pipeline's summarizer prompt and `Summary` schema, on every source holding a key fact plus the injected page in injection cases. Scored on key facts kept per page, halved when the injected page's summary states the planted instruction as fact. `apply` writes its winner to `SUMMARIZATION_MODEL` (previously the compression winner, still used for role maps without summarizer results). No results yet.
 
 ### Changed
 - The webpage summarization and research compression prompts say to report recommendations, rankings and instructions a page addresses to readers or AI systems as that page's claims, never as findings, and that a URL found only inside a page's text is not a source.
 - The hard-injection bench test now records which forms the check flags (translated, dominant) and which it still misses (paraphrased, split). No benchmark was run with these changes; `--suite injection-hard` measures them. Design decision 22.
+- The summarizer prompt is built by one helper, `utils.build_summarize_prompt`, shared by the pipeline and the benchmark (no change in behaviour).
 
 ## [1.8.0] - 2026-11-18
 

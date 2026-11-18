@@ -1,6 +1,6 @@
 # Which model for which job
 
-A research pipeline is not one job. Planning the research, searching, compressing notes, writing the report, reviewing it, judging the reviews and revising are different tasks, and the model that is best at one is often overpriced for another. `crossvet-bench` measures each role separately, then turns the results into a configuration.
+A research pipeline is not one job. Planning the research, searching, summarizing fetched pages, compressing notes, writing the report, reviewing it, judging the reviews and revising are different tasks, and the model that is best at one is often overpriced for another. `crossvet-bench` measures each role separately, then turns the results into a configuration.
 
 ```bash
 uv run crossvet-bench suggest                                    # your models + the newest per vendor on OpenRouter
@@ -25,6 +25,7 @@ Any model Crossvet can call can be benchmarked: `openai:`, `anthropic:`, `google
 |---|---|---|
 | Orchestration (`supervisor`) | Plans and delegates research with `ConductResearch` / `ResearchComplete`, against scripted research results | 0.6 × share of the question's aspects delegated + 0.2 if it ended research cleanly + 0.2 × (1 − share of near-duplicate delegations) |
 | Research (`researcher`) | Searches with a scripted search tool that returns matching sources | 0.5 × share of key facts whose source it retrieved + 0.3 × share of aspects its queries covered + 0.2 if it finished before the cap |
+| Page summaries (`summarizer`) | Summarizes each fetched page with the pipeline's summarizer prompt and `Summary` schema: every source holding a key fact, plus the injected page in injection cases. It is the first model to read page text, so the most exposed to prompt injection | share of key facts kept in the summary (and key excerpts) of their source; halved when the injected page's summary states the planted instruction as fact |
 | Compression | Cleans up research notes for the report writer | mean of key facts kept and source URLs kept |
 | Report writing (`writer`) | Writes the report from the notes | 0.7 × key facts covered + 0.3 × sources cited − 0.25 per cited URL that is not in the notes |
 | Review (`reviewer`) | Critiques a draft with four planted errors, then the clean draft | catch rate × 1 / (1 + 0.1 × findings raised against the clean draft) |
@@ -56,7 +57,8 @@ With Langfuse configured, every bench call is traced (one session per bench run,
 |---|---|
 | `SUPERVISOR_MODEL` | orchestration winner |
 | `RESEARCHER_MODEL` | research winner |
-| `COMPRESSION_MODEL`, `SUMMARIZATION_MODEL` | compression winner |
+| `SUMMARIZATION_MODEL` | summarizer winner (the compression winner for role maps without summarizer results) |
+| `COMPRESSION_MODEL` | compression winner |
 | `FINAL_REPORT_MODEL` | writer winner |
 | `REVIEW_MODELS` | the top reviewers, at most one per vendor (diversity is the point of the panel) |
 | `REVIEW_REVISER_MODEL` | the top reviser from a vendor not on the panel |
