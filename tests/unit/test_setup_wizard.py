@@ -10,7 +10,7 @@ import httpx
 from open_deep_research import setup_wizard as sw
 from open_deep_research.setup_wizard import Discovery
 
-OPENAI_IDS = ["gpt-4.1", "gpt-4.1-mini", "gpt-5.4-mini", "gpt-5.5", "gpt-6.1-sol", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-mini", "gpt-realtime-2.1",
+OPENAI_IDS = ["gpt-4.1", "gpt-4.1-mini", "gpt-5.4-mini", "gpt-5.5", "gpt-6.1-sol", "gpt-6-luna", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-mini", "gpt-realtime-2.1",
               "gpt-image-2", "text-embedding-3-large", "gpt-5.5-2026-06-01", "o4-mini"]
 ANTHROPIC_IDS = ["claude-sonnet-5-5", "claude-haiku-5-5", "claude-opus-5-5", "claude-sonnet-4-5-20250929"]
 GOOGLE_IDS = ["gemini-3.8-flash", "gemini-3.1-pro-preview", "gemini-3.5-flash-lite", "gemini-2.5-flash"]

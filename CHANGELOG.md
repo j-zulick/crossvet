@@ -2,6 +2,21 @@
 
 All notable changes to Crossvet. Versions follow [Semantic Versioning](https://semver.org/). Crossvet was built between November 6 and 17, 2026 in a private repository, one tested version at a time; all versions were published together when the repository went public.
 
+## [1.6.1]
+
+### Changed
+- **Default models for summarization, compression and the report are now `openai:gpt-6-luna`** (from `gpt-5.4-mini`). In the November 18 benchmark it matched the top score in compression, report writing and revision at the lowest cost of any model. Research and orchestration stay on `gpt-6.1-sol`, and the example review panel stays `gpt-5.4-mini` + Claude Sonnet 5.5. Results: `docs/benchmarks/2026-11-18/` and `docs/MODEL-SELECTION.md`.
+- README shortened: the feature-by-feature sections now live in `docs/FEATURES.md`, and the design-principles table and its references in `docs/DESIGN-PRINCIPLES.md`. A feature table links to each one.
+
+### Added
+- Second benchmark run: GPT-6 Luna, GPT-6.1 Terra and Claude Opus 5.5 next to the first run's four models (294 jobs, $1.98 for the new ones).
+- `CONTRIBUTING.md`, issue templates (bug, feature) with security reports routed to private advisories, and a pull request checklist.
+- Latest-release badge in the README.
+
+### Fixed
+- **The Deep Agents edition now flags a report cut off by an output limit or a provider content filter** with an *Incomplete report* notice, as the LangGraph edition does since 1.6.0.
+- Dependabot no longer tries to update `setuptools`, the build requirement, which its uv updater can't change.
+
 ## [1.6.0]
 
 ### Added

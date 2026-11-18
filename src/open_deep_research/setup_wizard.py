@@ -44,9 +44,9 @@ SEARCH_KEY = "TAVILY_API_KEY"
 STAGE_VARS = ("RESEARCH_MODEL", "SUMMARIZATION_MODEL", "COMPRESSION_MODEL", "FINAL_REPORT_MODEL")
 STAGE_DEFAULTS = {
     "RESEARCH_MODEL": "openai:gpt-6.1-sol",
-    "SUMMARIZATION_MODEL": "openai:gpt-5.4-mini",
-    "COMPRESSION_MODEL": "openai:gpt-5.4-mini",
-    "FINAL_REPORT_MODEL": "openai:gpt-5.4-mini",
+    "SUMMARIZATION_MODEL": "openai:gpt-6-luna",
+    "COMPRESSION_MODEL": "openai:gpt-6-luna",
+    "FINAL_REPORT_MODEL": "openai:gpt-6-luna",
 }
 # Words that mark models unsuited to text review (audio, images, embeddings, previews, ...).
 EXCLUDE = re.compile(
