@@ -166,6 +166,7 @@ The offline suite covers the review stage end to end, every check that decides a
 - [x] **v1.6** — model fit: any model in any role (official OpenRouter integration, real per-call cost, capability checks), separate orchestration and research models, and `crossvet-bench`, a per-role benchmark scored by answer keys with best-quality and best-value role maps
 - [x] **v1.6.1** — newer models benchmarked (GPT-6 Luna becomes the default for the cheap roles), incomplete reports flagged in the Deep Agents edition, contributor docs
 - [x] **v1.7** — prompt-injection check in code (fetched pages flagged before any model reads them, flagged sources in the Review notes), injection and hard benchmark suites, Jev support checks live-tested
+- [x] **v1.8** — `crossvet-scan` (CLI and MCP tool) checks any page for prompt injection; `crossvet review` reviews any report against its sources; claims resting only on flagged sources go to *Disputed*
 
 ## My role and AI assistance
 
