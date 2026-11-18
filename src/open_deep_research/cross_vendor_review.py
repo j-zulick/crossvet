@@ -565,6 +565,9 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
         if cited:
             line += " The report cites " + ", ".join(cited) + "; claims resting on these sources are unverified."
         notes_items.append(line)
+        for claim in injection_check.claims_on_flagged(revised_text, injected):
+            disputed.append({"id": "injection", "finding": claim,
+                             "objection": "every source it cites was flagged by the injection check"})
     if configurable.review_critic_enabled:
         notes_items.append(f"Independent critic: {critic_status}; {len(dropped)} finding(s) dropped as contradicted by the notes, {len(disputed)} disputed.")
     if blind is not None:

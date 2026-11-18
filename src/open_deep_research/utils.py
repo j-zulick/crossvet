@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import os
+import secrets
 import warnings
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, Any, Dict, List, Literal, Optional
@@ -192,6 +193,9 @@ async def summarize_webpage(model: BaseChatModel, webpage_content: str) -> str:
             webpage_content=neutralize(webpage_content), 
             date=get_today_str()
         )
+        # A per-call marker on the wrapper, so a page cannot close it by guessing the tag.
+        tag = f"webpage_content_{secrets.token_hex(4)}"
+        prompt_content = prompt_content.replace("<webpage_content>", f"<{tag}>").replace("</webpage_content>", f"</{tag}>")
         
         # Execute summarization with timeout to prevent hanging
         summary = await asyncio.wait_for(
