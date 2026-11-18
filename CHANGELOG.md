@@ -2,6 +2,11 @@
 
 All notable changes to Crossvet. Versions follow [Semantic Versioning](https://semver.org/). Crossvet was built between November 6 and 17, 2026 in a private repository, one tested version at a time; all versions were published together when the repository went public.
 
+## [Unreleased]
+
+### Removed
+- The README's *Related projects* section.
+
 ## [1.6.1]
 
 ### Changed
