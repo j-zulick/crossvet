@@ -172,7 +172,7 @@ I designed Crossvet, set the scope of each release, chose what to adopt from oth
 Crossvet was built between November 6 and 17, 2026 in a private repository, one tested version at a time, and every version was published together when the repository went public. Each release is the tagged commit that passed the full offline test suite, with its own notes in [docs/releases/](docs/releases/) and an entry in [CHANGELOG.md](CHANGELOG.md).
 
 ## Credits
-Built on [Open Deep Research](https://github.com/langchain-ai/open_deep_research) and [Agent Chat UI](https://github.com/langchain-ai/agent-chat-ui) (both MIT). Anonymized model peer review is inspired by Andrej Karpathy's *llm-council*; explicit agree / disagree / build-on engagement, a blind first pass and stopping on consensus also appear in Terry Li's MIT-licensed *consilium* (Crossvet's versions are reimplemented and verified against the research notes in code; see [design decision 12](docs/DESIGN-DECISIONS.md#12-stop-deliberation-in-code-not-by-a-models-say-so)); the critic's agree / disagree-with-evidence / disagree-concern protocol is adapted from the MIT-licensed *review-council* skill and the research it cites. Details in [NOTICES.md](NOTICES.md); the original upstream README is in [docs/UPSTREAM-README.md](docs/UPSTREAM-README.md).
+Built on [Open Deep Research](https://github.com/langchain-ai/open_deep_research) and [Agent Chat UI](https://github.com/langchain-ai/agent-chat-ui) (both MIT). License notices are in [NOTICES.md](NOTICES.md); the original upstream README is in [docs/UPSTREAM-README.md](docs/UPSTREAM-README.md).
 
 ## License
 MIT — see [LICENSE](LICENSE) (upstream) and [NOTICES.md](NOTICES.md).
