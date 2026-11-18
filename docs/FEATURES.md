@@ -77,7 +77,13 @@ The same check, as a standalone command and an MCP tool, for any page: your own 
 ```bash
 uv run crossvet-scan https://example.com/pricing saved-page.html notes.md
 uv run crossvet-scan --json https://example.com/ > scan.json   # exit code 1 if anything was found
+uv run crossvet-scan --sitemap https://example.com/sitemap.xml --format html --out report.html
+uv run crossvet-scan --urls pages.txt --format csv --out scan.csv --max-pages 200 --delay 1
 ```
+
+Reports: `--format text` (default), `json` (`--json` still works), `csv` or `html`; `--out FILE` writes to a file instead of the terminal. The CSV has one row per finding (`source`, `status`, `channel`, `kinds` joined by `;`, `excerpt`, `error`) plus a row for each clean page and each page that could not be read; cells a spreadsheet would run as a formula are prefixed with `'`. The HTML report is a single file to hand to a client: a summary (pages scanned, pages with findings, errors), then a section per page, with inline CSS, no JavaScript and no external assets, and all page text escaped.
+
+Many pages: `--sitemap URL_OR_FILE` scans the `<loc>` URLs of a sitemap.xml and follows a sitemap index one level deep (up to 50 child sitemaps; files over 5 MB, DTDs and non-http(s) page locations are refused). `--urls FILE` reads one URL per line, skipping blank lines and `#` comments. Both can be repeated and combined with paths and URLs on the command line; duplicates are scanned once. `--max-pages N` (default 50) caps the pages fetched over http(s) and `--delay SECONDS` (default 0.5) pauses between those fetches; URLs past the cap are counted on stderr. Exit codes: 0 when nothing was found, 1 when any page has a finding, 2 on a usage error, or when a page or sitemap could not be read and nothing was found.
 
 From Claude Code, Codex or Cursor, the MCP server's `scan_for_injection` tool takes a public URL (non-public addresses are refused) or pasted text. Pattern matching only: a clean result is not proof a page is safe.
 

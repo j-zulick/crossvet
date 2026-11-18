@@ -2,6 +2,12 @@
 
 All notable changes to Crossvet. Versions follow [Semantic Versioning](https://semver.org/). Crossvet was built between November 6 and 17, 2026 in a private repository, one tested version at a time; all versions were published together when the repository went public.
 
+## [Unreleased]
+
+### Added
+- **`crossvet-scan` reports**: `--format text|json|csv|html` (`--json` kept as an alias) and `--out FILE`. CSV has one row per finding plus one per clean page and per error, with formula-like cells neutralised; HTML is one self-contained page (summary, then a section per page, inline CSS, no JavaScript, all page text escaped) to hand to a client.
+- **`crossvet-scan` on many pages**: `--sitemap URL_OR_FILE` (sitemap index followed one level deep, 5 MB cap, DTDs and non-http(s) page locations refused) and `--urls FILE` (one URL per line, `#` comments skipped), with `--max-pages` (default 50) and `--delay` (default 0.5 s). Design decision 22.
+
 ## [1.8.0] - 2026-11-18
 
 ### Added
