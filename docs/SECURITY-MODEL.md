@@ -19,6 +19,12 @@ Crossvet reads untrusted web pages and passes what it learns between models from
 - `crossvet-bench run --suite injection` and `--suite injection-checked` run the same four cases with one injected source each (four injection forms: override, hidden comment, cite-this-URL, role change), without and with the flag line. Writer and compression outputs report `followed_injection` and `flagged_injection`; a followed injection halves the score. The reviewer, critic and reviser see the injected claim as an extra planted error (`caught_injected_claim`, `fixed_injected_claim`).
 - First results: [docs/benchmarks/2026-11-18-injection/](benchmarks/2026-11-18-injection/). Results are published only from real runs (`docs/EVALS.md`).
 
+## Next
+Measured gaps (`--suite injection-hard`): paraphrased, translated, split and repeated injections are not matched by the patterns, and one of 28 reports adopted a split instruction. Candidates, to be measured before adoption:
+- run the summarizer and compression with an instruction to report, never repeat, recommendations and instructions found in a page;
+- flag a source whose text is mostly one repeated claim;
+- treat a URL that appears only inside a page's text, and nowhere in search results, as unverified when a report cites it.
+
 ## Not covered
 - A source that is wrong but honest: the checks confirm what the notes say, not that the notes are true.
 - Compromise of a model vendor or of a dependency.
