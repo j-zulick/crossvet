@@ -1,0 +1,112 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1040" height="934" viewBox="0 0 1040 934" font-family="system-ui, sans-serif" font-size="11">
+<rect width="1040" height="934" fill="#ffffff"/>
+<text x="12" y="22" font-size="14" font-weight="600" fill="#1f2328">Quality vs cost per case (blue: no other model is both better and cheaper)</text>
+<text x="52" y="60" font-size="13" font-weight="600" fill="#1f2328">compression</text>
+<line x1="52" y1="294" x2="370" y2="294" stroke="#8c959f"/>
+<line x1="52" y1="294" x2="52" y2="78" stroke="#8c959f"/>
+<text x="46" y="298" text-anchor="end" fill="#57606a">0.5</text>
+<text x="46" y="82.0" text-anchor="end" fill="#57606a">1</text>
+<text x="52" y="310" fill="#57606a">$0.0007</text>
+<text x="370" y="310" text-anchor="end" fill="#57606a">$0.0418 per case (log)</text>
+<circle cx="52.0" cy="78.0" r="4.5" fill="#0969da"/>
+<text x="60.0" y="82.0" fill="#1f2328">gpt-6-luna (1.00)</text>
+<circle cx="206.5" cy="78.0" r="4.5" fill="#8c959f"/>
+<text x="214.5" y="82.0" fill="#1f2328">gpt-6.1-terra (1.00)</text>
+<circle cx="95.1" cy="186.0" r="4.5" fill="#8c959f"/>
+<text x="103.1" y="190.0" fill="#1f2328">claude-haiku-5-5 (0.75)</text>
+<circle cx="262.3" cy="186.0" r="4.5" fill="#8c959f"/>
+<text x="270.3" y="202.0" fill="#1f2328">gpt-6.1-sol (0.75)</text>
+<circle cx="370.0" cy="186.0" r="4.5" fill="#8c959f"/>
+<text x="378.0" y="190.0" fill="#1f2328">claude-opus-5-5 (0.75)</text>
+<circle cx="206.5" cy="240.0" r="4.5" fill="#8c959f"/>
+<text x="214.5" y="256.0" fill="#1f2328">gpt-5.4-mini (0.62)</text>
+<circle cx="303.6" cy="240.0" r="4.5" fill="#8c959f"/>
+<text x="311.6" y="244.0" fill="#1f2328">claude-sonnet-5-5 (0.62)</text>
+<text x="572" y="60" font-size="13" font-weight="600" fill="#1f2328">writer</text>
+<line x1="572" y1="294" x2="890" y2="294" stroke="#8c959f"/>
+<line x1="572" y1="294" x2="572" y2="78" stroke="#8c959f"/>
+<text x="566" y="298" text-anchor="end" fill="#57606a">0.8</text>
+<text x="566" y="82.0" text-anchor="end" fill="#57606a">1</text>
+<text x="572" y="310" fill="#57606a">$0.0012</text>
+<text x="890" y="310" text-anchor="end" fill="#57606a">$0.0856 per case (log)</text>
+<polyline points="572.0,105.0 831.7,78.0" fill="none" stroke="#0969da" stroke-width="1.5" stroke-dasharray="4 3"/>
+<circle cx="831.7" cy="78.0" r="4.5" fill="#0969da"/>
+<text x="839.7" y="82.0" fill="#1f2328">claude-sonnet-5-5 (1.00)</text>
+<circle cx="572.0" cy="105.0" r="4.5" fill="#0969da"/>
+<text x="580.0" y="121.0" fill="#1f2328">gpt-6-luna (0.97)</text>
+<circle cx="634.8" cy="105.0" r="4.5" fill="#8c959f"/>
+<text x="642.8" y="97.0" fill="#1f2328">claude-haiku-5-5 (0.97)</text>
+<circle cx="743.0" cy="105.0" r="4.5" fill="#8c959f"/>
+<text x="751.0" y="121.0" fill="#1f2328">gpt-6.1-terra (0.97)</text>
+<circle cx="808.7" cy="105.0" r="4.5" fill="#8c959f"/>
+<text x="816.7" y="109.0" fill="#1f2328">gpt-6.1-sol (0.97)</text>
+<circle cx="726.0" cy="155.7" r="4.5" fill="#8c959f"/>
+<text x="734.0" y="159.7" fill="#1f2328">gpt-5.4-mini (0.93)</text>
+<circle cx="890.0" cy="213.0" r="4.5" fill="#8c959f"/>
+<text x="898.0" y="217.0" fill="#1f2328">claude-opus-5-5 (0.88)</text>
+<text x="52" y="360" font-size="13" font-weight="600" fill="#1f2328">reviewer</text>
+<line x1="52" y1="594" x2="370" y2="594" stroke="#8c959f"/>
+<line x1="52" y1="594" x2="52" y2="378" stroke="#8c959f"/>
+<text x="46" y="598" text-anchor="end" fill="#57606a">0.5</text>
+<text x="46" y="382.0" text-anchor="end" fill="#57606a">1</text>
+<text x="52" y="610" fill="#57606a">$0.0013</text>
+<text x="370" y="610" text-anchor="end" fill="#57606a">$0.0628 per case (log)</text>
+<polyline points="52.0,473.6 259.2,441.8" fill="none" stroke="#0969da" stroke-width="1.5" stroke-dasharray="4 3"/>
+<circle cx="259.2" cy="441.8" r="4.5" fill="#0969da"/>
+<text x="267.2" y="445.8" fill="#1f2328">gpt-6.1-sol (0.85)</text>
+<circle cx="52.0" cy="473.6" r="4.5" fill="#0969da"/>
+<text x="60.0" y="477.6" fill="#1f2328">gpt-6-luna (0.78)</text>
+<circle cx="206.9" cy="476.7" r="4.5" fill="#8c959f"/>
+<text x="214.9" y="480.7" fill="#1f2328">gpt-6.1-terra (0.77)</text>
+<circle cx="370.0" cy="495.5" r="4.5" fill="#8c959f"/>
+<text x="378.0" y="499.5" fill="#1f2328">claude-opus-5-5 (0.73)</text>
+<circle cx="201.5" cy="543.5" r="4.5" fill="#8c959f"/>
+<text x="209.5" y="535.5" fill="#1f2328">gpt-5.4-mini (0.62)</text>
+<circle cx="318.7" cy="547.9" r="4.5" fill="#8c959f"/>
+<text x="326.7" y="551.9" fill="#1f2328">claude-sonnet-5-5 (0.61)</text>
+<circle cx="106.1" cy="559.0" r="4.5" fill="#8c959f"/>
+<text x="114.1" y="563.0" fill="#1f2328">claude-haiku-5-5 (0.58)</text>
+<text x="572" y="360" font-size="13" font-weight="600" fill="#1f2328">critic</text>
+<line x1="572" y1="594" x2="890" y2="594" stroke="#8c959f"/>
+<line x1="572" y1="594" x2="572" y2="378" stroke="#8c959f"/>
+<text x="566" y="598" text-anchor="end" fill="#57606a">0.7</text>
+<text x="566" y="382.0" text-anchor="end" fill="#57606a">1</text>
+<text x="572" y="610" fill="#57606a">$0.0006</text>
+<text x="890" y="610" text-anchor="end" fill="#57606a">$0.0259 per case (log)</text>
+<polyline points="572.0,432.0 737.9,396.0" fill="none" stroke="#0969da" stroke-width="1.5" stroke-dasharray="4 3"/>
+<circle cx="737.9" cy="396.0" r="4.5" fill="#0969da"/>
+<text x="745.9" y="412.0" fill="#1f2328">gpt-6.1-terra (0.97)</text>
+<circle cx="791.2" cy="396.0" r="4.5" fill="#8c959f"/>
+<text x="799.2" y="400.0" fill="#1f2328">gpt-6.1-sol (0.97)</text>
+<circle cx="890.0" cy="414.0" r="4.5" fill="#8c959f"/>
+<text x="898.0" y="418.0" fill="#1f2328">claude-opus-5-5 (0.95)</text>
+<circle cx="572.0" cy="432.0" r="4.5" fill="#0969da"/>
+<text x="580.0" y="448.0" fill="#1f2328">gpt-6-luna (0.93)</text>
+<circle cx="617.9" cy="432.0" r="4.5" fill="#8c959f"/>
+<text x="625.9" y="436.0" fill="#1f2328">claude-haiku-5-5 (0.93)</text>
+<circle cx="818.5" cy="432.0" r="4.5" fill="#8c959f"/>
+<text x="826.5" y="436.0" fill="#1f2328">claude-sonnet-5-5 (0.93)</text>
+<circle cx="714.0" cy="558.0" r="4.5" fill="#8c959f"/>
+<text x="722.0" y="562.0" fill="#1f2328">gpt-5.4-mini (0.75)</text>
+<text x="52" y="660" font-size="13" font-weight="600" fill="#1f2328">reviser</text>
+<line x1="52" y1="894" x2="370" y2="894" stroke="#8c959f"/>
+<line x1="52" y1="894" x2="52" y2="678" stroke="#8c959f"/>
+<text x="46" y="898" text-anchor="end" fill="#57606a">0.9</text>
+<text x="46" y="682.0" text-anchor="end" fill="#57606a">1</text>
+<text x="52" y="910" fill="#57606a">$0.0006</text>
+<text x="370" y="910" text-anchor="end" fill="#57606a">$0.0224 per case (log)</text>
+<circle cx="52.0" cy="678.0" r="4.5" fill="#0969da"/>
+<text x="60.0" y="694.0" fill="#1f2328">gpt-6-luna (1.00)</text>
+<circle cx="103.5" cy="678.0" r="4.5" fill="#8c959f"/>
+<text x="111.5" y="670.0" fill="#1f2328">claude-haiku-5-5 (1.00)</text>
+<circle cx="212.6" cy="678.0" r="4.5" fill="#8c959f"/>
+<text x="220.6" y="694.0" fill="#1f2328">gpt-6.1-terra (1.00)</text>
+<circle cx="276.7" cy="678.0" r="4.5" fill="#8c959f"/>
+<text x="284.7" y="670.0" fill="#1f2328">gpt-6.1-sol (1.00)</text>
+<circle cx="290.7" cy="678.0" r="4.5" fill="#8c959f"/>
+<text x="298.7" y="706.0" fill="#1f2328">claude-sonnet-5-5 (1.00)</text>
+<circle cx="370.0" cy="678.0" r="4.5" fill="#8c959f"/>
+<text x="378.0" y="682.0" fill="#1f2328">claude-opus-5-5 (1.00)</text>
+<circle cx="176.4" cy="786.0" r="4.5" fill="#8c959f"/>
+<text x="184.4" y="790.0" fill="#1f2328">gpt-5.4-mini (0.95)</text>
+</svg>

@@ -34,7 +34,7 @@ This page records how Crossvet is evaluated and what the results were. **End-to-
 | Jev support checks vs quote check alone | not run |
 | Domain pack vs none | not run |
 | Fine-tuned vs base local reviewer | not run |
-| Injected instructions followed, without vs with the injection check (`--suite injection` / `injection-checked`) | not run |
+| Injected instructions followed, without vs with the injection check (`--suite injection` / `injection-checked`) | [Nov 18, 2026](benchmarks/2026-11-18-injection/): 0 of 55 inspectable reports stated a planted claim; compression passed the instruction on verbatim in 6–8 of 28 runs |
 
 ## Model fit (v1.6)
 

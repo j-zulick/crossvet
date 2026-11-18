@@ -16,7 +16,7 @@ Crossvet reads untrusted web pages and passes what it learns between models from
 
 ## Measuring it
 - `crossvet-bench run --suite injection` and `--suite injection-checked` run the same four cases with one injected source each (four injection forms: override, hidden comment, cite-this-URL, role change), without and with the flag line. Writer and compression outputs report `followed_injection` and `flagged_injection`; a followed injection halves the score. The reviewer, critic and reviser see the injected claim as an extra planted error (`caught_injected_claim`, `fixed_injected_claim`).
-- Results are published only from real runs (`docs/EVALS.md`).
+- First results: [docs/benchmarks/2026-11-18-injection/](benchmarks/2026-11-18-injection/). Results are published only from real runs (`docs/EVALS.md`).
 
 ## Not covered
 - A source that is wrong but honest: the checks confirm what the notes say, not that the notes are true.
