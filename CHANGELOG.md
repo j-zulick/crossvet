@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Crossvet. Versions follow [Semantic Versioning](https://semver.org/). Crossvet was built between November 6 and 17, 2026 in a private repository, one tested version at a time; all versions were published together when the repository went public.
+All notable changes to Crossvet. Versions follow [Semantic Versioning](https://semver.org/). Crossvet was built between November 6 and 17, 2026 in a private repository, one tested version at a time; versions up to v1.6.0 were published together when the repository went public, and later versions as each was finished.
 
 ## [Unreleased]
 
@@ -15,6 +15,10 @@ All notable changes to Crossvet. Versions follow [Semantic Versioning](https://s
 - **`crossvet-scan` on many pages**: `--sitemap URL_OR_FILE` (sitemap index followed one level deep, 5 MB cap, DTDs and non-http(s) page locations refused) and `--urls FILE` (one URL per line, `#` comments skipped), with `--max-pages` (default 50) and `--delay` (default 0.5 s). Design decision 24.
 
 - First, partial check of the decision 22 defenses on `injection-hard` (`docs/benchmarks/2026-11-18-injection-defenses/`). With the prompt rule, OpenAI report writers adopted a planted claim in 2 of 16 runs (1 of 16 before); Claude report writers in 0 of 12 (0 of 12 before), checked by hand.
+
+### Documentation
+- **`docs/SETTINGS.md`:** every setting with its default and description, generated from `configuration.py` (`python -m open_deep_research.settings_doc`). A unit test fails if it is stale, or if `.env.example` misses a setting.
+- `.env.example` now lists the 17 research-pipeline settings it was missing (models per step, token limits, research limits, clarification, MCP tools), with empty values (the default).
 
 ### Security
 - Dependencies with published advisories updated in `uv.lock`: aiohttp, langgraph-api (0.10 → 0.17), oauthlib, pyasn1, pygments, pyjwt, setuptools, soupsieve, tornado, urllib3. `pip-audit` on the runtime dependencies now reports none.

@@ -51,6 +51,7 @@ Results are published only from real runs (protocol: [docs/EVALS.md](docs/EVALS.
 - **Newer models, measured** (Nov 18 run, 7 models, $1.98 for the new jobs): GPT-6 Luna matched the top score in compression, report writing and revision at the lowest cost of any model, so v1.6.1 makes it the default for those roles. It is weak at planning and search, where GPT-6.1 Sol and gpt-5.4-mini stay ahead. Claude Opus 5.5 won no role ([details](docs/MODEL-SELECTION.md#results)).
 - **Harder cases separate the models** (hard suite, Nov 18, 7 models, $2.19): with long notes, conflicting sources and subtler errors, scores spread out in planning (0.68–0.92), research and review. GPT-6.1 Sol was the only reviewer that caught every planted error with few false alarms, and gpt-5.4-mini missed a look-alike citation, so the example review panel now uses Sol ([details](docs/MODEL-SELECTION.md#november-18-2026-utc-hard-suite)).
 - **Prompt injection** (Nov 18, 7 models, $3.60): a source carrying a planted instruction (override, hidden comment, cite-this-URL, role change). No model wrote the planted claim into a final report (0 of 55 inspectable reports), and every reviewer caught it when it was planted in a draft (56 of 56 across both suites). The exposure is in compression, which passed the instruction text on unflagged in 6 of 28 runs; the injection check's line raised the share that reported the source as suspect from 14 to 18 of 28. Harder forms (paraphrased, translated, split across sentences) got past the pattern check every time, and one of 28 reports adopted one; reviewers still caught every planted claim ([details](docs/benchmarks/2026-11-18-injection/)).
+- **Injection defenses, first check** (Nov 18–19, 7 models, about $1.59): with v1.9's prompt rule on the hard suite, 2 of 16 OpenAI reports adopted a planted claim (1 of 16 before) and 0 of 12 Claude reports did (0 before), checked by hand. On this small run the rule did not help; the new repetition and multilingual flags are not measured yet ([details](docs/benchmarks/2026-11-18-injection-defenses/)).
 - **Jev support checks** (Nov 18, 28 review runs, $7.82 in model calls): in default mode Jev rejected 77–87% of the passages reviewers cited, because findings describe the draft and a source can't state that; asking about the reviewer's stated fact instead (`REVIEW_SUPPORT_CLAIM=fact`) cut it to 29%. Neither has been checked against an answer key yet ([details](docs/evals/2026-11-18-jev/)).
 - **A live run:** on [the JWST example](docs/examples/jwst-mirror.md), an OpenAI + Claude panel scored the first draft 4/10; the revised report and its Review notes are reproduced unedited.
 - **Review vs. no review, pilot:** 3 questions, one run each ([details](docs/evals/2026-11-17-pilot/)). Review cost $0.36 per report against $0.19 without it, and took 171 s against 100 s. The critic dropped 8 reviewer findings the notes contradict and listed 32 it couldn't confirm for a human. Review also caught a draft that a provider's content filter had cut off mid-sentence (panel score 3–4/10), which led to a fix: such reports are now written again or labelled incomplete.
@@ -76,6 +77,9 @@ Each design choice answers a documented failure mode of using LLMs to judge LLM 
 
 | Feature | What it does |
 |---|---|
+| [Prompt-injection check](docs/FEATURES.md#prompt-injection-check) | Every fetched page is checked in code before a model reads it; flagged sources are listed in the Review notes, claims resting only on them go to *Disputed*, and URLs found only inside a page's text are marked unverified (v1.7, v1.9). |
+| [`crossvet-scan`](docs/FEATURES.md#check-pages-for-prompt-injection-crossvet-scan) | The same check on any page, file, sitemap or URL list, as text, JSON, CSV or a client-ready HTML report, and as an MCP tool (v1.8, v1.9). |
+| [`crossvet review`](docs/FEATURES.md#review-any-report-crossvet-review) | The cross-vendor review on a report from any tool or person, against the files or URLs it should rest on (v1.8). |
 | [Early stopping in deliberation](docs/FEATURES.md#early-stopping-in-deliberation) | Debate between reviewers stops by rule on consensus or a stable disagreement, with a guard against agreement the notes don't back (v1.1). |
 | [Context, follow-ups and the Python API](docs/FEATURES.md#context-follow-ups-and-the-python-api) | Domain packs (SEO/GEO, marketing, real estate), follow-up questions answered from a run's own notes (`crossvet ask`), and `run` / `ask` in Python (v1.5). |
 | [Support checks with Jev](docs/FEATURES.md#support-checks-with-jev) | A decision model scores whether each quoted passage supports the claim made from it; code still requires the verbatim quote first (v1.4). |
@@ -115,7 +119,7 @@ cd web && cp .env.example .env && pnpm install && pnpm dev   # http://localhost:
 
 **Or with Docker** — one command for the API (both editions) and the web UI, bound to localhost:
 ```bash
-cp .env.example .env            # add your keys
+cp .env.example .env            # add your keys; every setting: docs/SETTINGS.md
 docker compose up --build       # API http://localhost:2024 · web UI http://localhost:3000
 ```
 
@@ -135,9 +139,10 @@ uv run crossvet-setup --panel openrouter:x-ai/grok-4.7,anthropic:claude-opus-5-5
 - **Spares and time limits.** `REVIEW_FALLBACK_MODELS` lists spare reviewers; when one fails, the next spare takes its place, preferring a vendor not already on the panel, and the Review notes say who replaced whom. `REVIEW_CALL_TIMEOUT` (seconds, 0 = off) abandons any single review call that hangs and handles it as a failure.
 
 ## Use it from Claude Code, Codex or Cursor (MCP)
-`crossvet-mcp` is an MCP server (stdio) with two tools:
+`crossvet-mcp` is an MCP server (stdio) with three tools:
 - `ask_model(model, prompt)` — ask any configured model, cloud or local;
-- `compare_models(prompt, models?)` — ask several models in parallel; per-model failures are reported, never hidden.
+- `compare_models(prompt, models?)` — ask several models in parallel; per-model failures are reported, never hidden;
+- `scan_for_injection(url | text)` — check a public page or pasted HTML for prompt injection, by channel; non-public addresses are refused.
 
 ```bash
 claude mcp add crossvet -- uv --directory /path/to/crossvet run crossvet-mcp
@@ -176,7 +181,7 @@ I designed Crossvet, set the scope of each release, chose what to adopt from oth
 
 ## Release history
 
-Crossvet was built between November 6 and 17, 2026 in a private repository, one tested version at a time, and every version was published together when the repository went public. Each release is the tagged commit that passed the full offline test suite, with its own notes in [docs/releases/](docs/releases/) and an entry in [CHANGELOG.md](CHANGELOG.md).
+Crossvet was built between November 6 and 17, 2026 in a private repository, one tested version at a time, and versions up to v1.6.0 were published together when the repository went public; later versions are published as each is finished. Each release is the tagged commit that passed the full offline test suite, with its own notes in [docs/releases/](docs/releases/) and an entry in [CHANGELOG.md](CHANGELOG.md).
 
 ## Credits
 Built on [Open Deep Research](https://github.com/langchain-ai/open_deep_research) and [Agent Chat UI](https://github.com/langchain-ai/agent-chat-ui) (both MIT). License notices are in [NOTICES.md](NOTICES.md); the original upstream README is in [docs/UPSTREAM-README.md](docs/UPSTREAM-README.md).

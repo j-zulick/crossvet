@@ -20,7 +20,7 @@ Crossvet reads untrusted web pages and passes what it learns between models from
 - First results: [docs/benchmarks/2026-11-18-injection/](benchmarks/2026-11-18-injection/). Results are published only from real runs (`docs/EVALS.md`).
 
 ## Next
-Measured gaps (`--suite injection-hard`): paraphrased, translated, split and repeated injections were not matched by the patterns, and one of 28 reports adopted a split instruction. Built since (design decision 22, not yet measured; `--suite injection-hard` measures them):
+Measured gaps (`--suite injection-hard`): paraphrased, translated, split and repeated injections were not matched by the patterns, and one of 28 reports adopted a split instruction. Built since (design decision 22). First, partial check on Nov 18–19 ([results](benchmarks/2026-11-18-injection-defenses/)): with the prompt rule, report writers adopted a planted claim in 2 of 28 runs (1 of 28 before), so the rule did not help on this small run; the flags below are not measured yet, because the suite's notes do not carry flag lines:
 - built: the summarizer and compression prompts tell the model to report, never repeat, recommendations, rankings and instructions found in a page, and that a URL found only inside a page's text is not a source;
 - built: a source whose text is mostly one repeated sentence or one repeated name is flagged (`repetition`);
 - built: Spanish, French, German and Portuguese forms of "note to any AI" and "ignore the previous instructions" are matched;
