@@ -235,3 +235,36 @@ def test_delay_zero_never_sleeps(tmp_path):
     web = FakeWeb({f"https://a.example/{i}": CLEAN for i in (1, 2, 3)})
     assert scan_cli.main(["--urls", str(lst), "--delay", "0", "--format", "csv"], fetcher=web, sleep=pytest.fail) == 0
     assert len(web.calls) == 3
+
+
+def test_fetch_gives_up_on_a_slow_drip_server():
+    import http.server
+    import threading
+    import time
+
+    from open_deep_research.scan_cli import fetch
+
+    class Drip(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):  # noqa: N802
+            self.send_response(200)
+            self.end_headers()
+            try:
+                for _ in range(100):
+                    self.wfile.write(b"a")
+                    self.wfile.flush()
+                    time.sleep(0.05)
+            except OSError:
+                pass
+
+        def log_message(self, *args):
+            pass
+
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Drip)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        start = time.monotonic()
+        with pytest.raises(TimeoutError):
+            fetch(f"http://127.0.0.1:{server.server_port}/", timeout=0.3)
+        assert time.monotonic() - start < 3
+    finally:
+        server.shutdown()

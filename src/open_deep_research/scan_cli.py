@@ -190,7 +190,8 @@ def fetch(url: str, timeout: float = 20.0, allow_private: bool = True, max_bytes
 
     ``allow_private=False`` refuses hosts that resolve to non-public addresses, checked on every
     redirect; the MCP tool uses it, since an agent chooses the URL there. ``max_bytes`` stops
-    reading the body after that many bytes (sitemaps use it).
+    reading the body after that many bytes (sitemaps use it). The whole download is limited to
+    three times ``timeout``, so a server that sends bytes slowly cannot hold the scan open.
     """
     import httpx
 
@@ -198,19 +199,19 @@ def fetch(url: str, timeout: float = 20.0, allow_private: bool = True, max_bytes
         raise ValueError("only http(s) URLs are fetched")
     headers = {"User-Agent": "crossvet-scan (+https://github.com/j-zulick/crossvet)"}
     hooks = {} if allow_private else {"request": [_refuse_private]}
+    deadline = time.monotonic() + 3 * timeout  # timeout applies per read; this bounds the whole fetch
     with httpx.Client(follow_redirects=True, timeout=timeout, headers=headers, event_hooks=hooks) as client:
-        if max_bytes is None:
-            resp = client.get(url)
-            resp.raise_for_status()
-            return resp.text
         with client.stream("GET", url) as resp:
             resp.raise_for_status()
             data = bytearray()
             for chunk in resp.iter_bytes():
                 data.extend(chunk)
-                if len(data) >= max_bytes:
+                if max_bytes is not None and len(data) >= max_bytes:
                     break
-            return bytes(data[:max_bytes]).decode(resp.encoding or "utf-8", errors="replace")
+                if time.monotonic() > deadline:
+                    raise TimeoutError(f"{url}: still downloading after {3 * timeout:.0f} s")
+            body = bytes(data if max_bytes is None else data[:max_bytes])
+            return body.decode(resp.encoding or "utf-8", errors="replace")
 
 
 def read_source(source: str, fetcher: Fetcher | None = None) -> str:

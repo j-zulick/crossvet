@@ -28,6 +28,7 @@ All notable changes to Crossvet. Versions follow [Semantic Versioning](https://s
 - Web app: Next.js 16.4.5; KaTeX and @babel/core pinned to patched versions through pnpm overrides. `pnpm audit` reports one moderate advisory left, in minimatch under the lint tooling (dev only).
 
 ### Changed
+- `crossvet-scan` limits each whole download to three times its timeout, so a server that sends bytes slowly cannot hold a scan open (the timeout alone applies to each read).
 - **Injection scorer** (`bench.injection_outcome`): a sentence copied word for word from the planted page counts as quoted, not followed; flag words in Spanish, Portuguese, German and French count; "no supporting evidence" and similar count as attributing the claim. Found by reading all 28 summarizer outputs of the defenses run: none stated the planted claim as fact, while the scorer had counted 7 as following it (now 0). Published combined figures are unchanged (`docs/benchmarks/2026-11-18-injection-defenses/`).
 - The webpage summarization and research compression prompts say to report recommendations, rankings and instructions a page addresses to readers or AI systems as that page's claims, never as findings, and that a URL found only inside a page's text is not a source.
 - The hard-injection bench test now records which forms the check flags (translated, dominant) and which it still misses (paraphrased, split). No benchmark was run with these changes; `--suite injection-hard` measures them. Design decision 22.
