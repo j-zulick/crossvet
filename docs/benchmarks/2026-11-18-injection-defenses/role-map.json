@@ -1,6 +1,6 @@
 {
   "meta": {
-    "date": "2026-11-18",
+    "date": "2026-11-19",
     "models": 7,
     "roles": 3,
     "cases": 4,
@@ -10,7 +10,7 @@
   "best-quality": {
     "summarizer": "openai:gpt-6.1-terra",
     "compression": "openai:gpt-6-luna",
-    "writer": "openai:gpt-6.1-terra"
+    "writer": "anthropic:claude-opus-5-5"
   },
   "best-value": {
     "summarizer": "openai:gpt-6.1-terra",
@@ -60,14 +60,20 @@
     },
     "writer": {
       "best-quality": [
+        "anthropic:claude-opus-5-5",
+        "anthropic:claude-haiku-5-5",
         "openai:gpt-6.1-terra",
         "openai:gpt-6.1-sol",
+        "anthropic:claude-sonnet-5-5",
         "openai:gpt-5.4-mini",
         "openai:gpt-6-luna"
       ],
       "best-value": [
         "openai:gpt-6.1-terra",
         "openai:gpt-6.1-sol",
+        "anthropic:claude-opus-5-5",
+        "anthropic:claude-haiku-5-5",
+        "anthropic:claude-sonnet-5-5",
         "openai:gpt-5.4-mini",
         "openai:gpt-6-luna"
       ]
