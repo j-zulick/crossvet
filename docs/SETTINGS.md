@@ -62,6 +62,7 @@ Every setting is an environment variable (the upper-case name), usually set in `
 | `TAVILY_API_KEY` | Tavily search, when `SEARCH_API=tavily`. |
 | `RESEARCH_GATEWAY_URL`, `RESEARCH_GATEWAY_TOKEN`, `RESEARCH_GATEWAY_TOOL` | The self-hosted research gateway, when `SEARCH_API=gateway`. |
 | `TYPESAFE_API_KEY`, `TYPESAFE_DEFAULT_MODEL` | Jev support checks (billed by TypeSafe); the model defaults to jev-latest. |
+| `CRAWLEE_SERVER_URL`, `CRAWLEE_SERVER_TOKEN` | A crawlee-server instance, for `crossvet-scan --crawl`. |
 | `CROSSVET_CHECKPOINTS`, `DATABASE_URL` | Where CLI runs keep checkpoints: SQLite path (default `.crossvet/checkpoints.sqlite`) or Postgres. |
 | `CROSSVET_CACHE_DIR` | Cache for the OpenRouter model catalog (default `~/.cache/crossvet`). |
 | `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_BASE_URL` | Langfuse tracing with cost per model. |

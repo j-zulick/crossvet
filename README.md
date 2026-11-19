@@ -78,7 +78,7 @@ Each design choice answers a documented failure mode of using LLMs to judge LLM 
 | Feature | What it does |
 |---|---|
 | [Prompt-injection check](docs/FEATURES.md#prompt-injection-check) | Every fetched page is checked in code before a model reads it; flagged sources are listed in the Review notes, claims resting only on them go to *Disputed*, and URLs found only inside a page's text are marked unverified (v1.7, v1.9). |
-| [`crossvet-scan`](docs/FEATURES.md#check-pages-for-prompt-injection-crossvet-scan) | The same check on any page, file, sitemap or URL list, as text, JSON, CSV or a client-ready HTML report, and as an MCP tool (v1.8, v1.9). |
+| [`crossvet-scan`](docs/FEATURES.md#check-pages-for-prompt-injection-crossvet-scan) | The same check on any page, file, sitemap, URL list or crawlee-server crawl, as text, JSON, CSV or a client-ready HTML report, and as an MCP tool (v1.8, v1.9). |
 | [`crossvet review`](docs/FEATURES.md#review-any-report-crossvet-review) | The cross-vendor review on a report from any tool or person, against the files or URLs it should rest on (v1.8). |
 | [Early stopping in deliberation](docs/FEATURES.md#early-stopping-in-deliberation) | Debate between reviewers stops by rule on consensus or a stable disagreement, with a guard against agreement the notes don't back (v1.1). |
 | [Context, follow-ups and the Python API](docs/FEATURES.md#context-follow-ups-and-the-python-api) | Domain packs (SEO/GEO, marketing, real estate), follow-up questions answered from a run's own notes (`crossvet ask`), and `run` / `ask` in Python (v1.5). |

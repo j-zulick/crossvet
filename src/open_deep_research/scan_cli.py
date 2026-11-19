@@ -440,11 +440,13 @@ def main(
     argv: list[str] | None = None,
     fetcher: Fetcher | None = None,
     sleep: Callable[[float], None] = time.sleep,
+    crawler: Callable[[str, int, str], tuple[list, list[str]]] | None = None,
 ) -> int:
     """Run the command line; return the exit code.
 
-    ``fetcher`` (url -> body text) replaces :func:`fetch` for pages and sitemaps, and ``sleep``
-    replaces :func:`time.sleep`, so tests run offline and without waiting.
+    ``fetcher`` (url -> body text) replaces :func:`fetch` for pages and sitemaps, ``crawler``
+    replaces the crawlee-server client for ``--crawl``, and ``sleep`` replaces :func:`time.sleep`,
+    so tests run offline and without waiting.
     """
     parser = argparse.ArgumentParser(prog="crossvet-scan", description="Check pages for text aimed at AI models (prompt injection).")
     parser.add_argument("sources", nargs="*", help="file paths, http(s) URLs, or - for stdin")
@@ -457,13 +459,30 @@ def main(
                         help="scan the URLs in FILE, one per line (# comments and blank lines skipped); repeatable")
     parser.add_argument("--max-pages", type=int, default=50, metavar="N", help="fetch at most N pages over http(s) (default: 50)")
     parser.add_argument("--delay", type=float, default=0.5, metavar="SECONDS", help="pause between page fetches (default: 0.5)")
+    parser.add_argument("--crawl", metavar="URL", action="append", default=[],
+                        help="crawl a site through crawlee-server (CRAWLEE_SERVER_URL, CRAWLEE_SERVER_TOKEN) and scan "
+                             "every captured page, up to --max-pages; repeatable")
+    parser.add_argument("--crawl-mode", choices=("crawl", "page", "sitemap", "map"), default="crawl",
+                        help="crawlee-server mode for --crawl: crawl (follow links, default), page, sitemap, map")
     args = parser.parse_args(argv)
-    if not (args.sources or args.sitemap or args.urls):
-        parser.error("give at least one source, --sitemap or --urls")
+    if not (args.sources or args.sitemap or args.urls or args.crawl):
+        parser.error("give at least one source, --sitemap, --urls or --crawl")
     if args.max_pages < 0 or args.delay < 0:
         parser.error("--max-pages and --delay must not be negative")
 
     results: list[PageResult] = []
+    for start in args.crawl:
+        try:
+            if crawler is None:
+                from open_deep_research.crawl_source import crawl
+                pages, notes = crawl(start, args.max_pages, args.crawl_mode)
+            else:
+                pages, notes = crawler(start, args.max_pages, args.crawl_mode)
+            results.extend(scan_text(page.url, page.body) for page in pages)
+            for note in notes:
+                sys.stderr.write(f"crossvet-scan: {start}: {note}\n")
+        except Exception as exc:  # report and keep going
+            results.append(PageResult(start, [], _err(exc)))
     sources: list[str] = list(args.sources)
     for sm in args.sitemap:
         try:
