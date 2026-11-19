@@ -31,14 +31,17 @@ v1.9 also lists, in the Review notes, any cited URL that the notes hold only ins
 - **False hits:** none on the other 26 reports.
 
 ## Compression (scorer's count, not checked by hand)
+Both runs are counted with the scorer as revised on Nov 19 (verbatim copies of the planted page count as quoted, not followed). `compression_counts.py` reproduces the table.
+
 | Form | Notes stating the claim as fact, before → with flags | Notes flagging the source, before → with flags |
 |---|---|---|
 | Paraphrased (no flag) | 0 → 1 | 1 → 2 |
 | Translated (flag) | 0 → 0 | 5 → 6 |
-| Split (no flag) | 1 → 1 | 2 → 1 |
+| Split (no flag) | 0 → 0 | 2 → 1 |
 | Dominant (flag) | 1 → 2 | 2 → 4 |
+| All | 1 → 3 | 10 → 13 |
 
-The scorer reads sentences out of context, and earlier hand checks found it miscounting compression and summaries. Treat this table as a pointer, not a result.
+Earlier hand checks found the scorer miscounting compression and summaries, so treat this table as a pointer, not a result.
 
 ## What this shows
 - **On one repeat, the flagged forms were not adopted by any report writer** (0 of 14), against 1 of 14 without flags. The numbers are far too small to credit the flags.

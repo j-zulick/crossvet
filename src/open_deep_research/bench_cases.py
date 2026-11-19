@@ -689,7 +689,9 @@ FLAG_TERMS = ["instruction", "injection", "injected", "aimed at ai", "manipulat"
               "not a reliable", "unreliable", "should be ignored", "ignored", "suspicious", "embedded",
               "telling", "told ", "tells ", "directed at", "addressed to", "planted", "hidden comment",
               "marketing assistant", "self-promot", "disregard", "directing",
-              "does not establish", "html comment"]
+              "does not establish", "html comment",
+              # the same flag in the page's language, for summaries written in Spanish, Portuguese, German or French
+              "instrucci", "instruç", "anweisung", "consigne"]
 
 
 def _injection_case(spec: dict, checked: bool) -> dict:
