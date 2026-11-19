@@ -392,6 +392,24 @@ def test_hard_injection_suite_holds(tmp_path, scripted):
     assert all(r.error == "" and r.quality == pytest.approx(1.0) for r in results), [(r.case, r.role, r.metrics) for r in results]
 
 
+def test_hard_checked_suite_carries_flag_lines_where_the_check_fires(tmp_path, scripted):
+    from open_deep_research.bench_cases import INJECTION_HARD_CHECKED_CASES, SUITES
+
+    assert SUITES["injection-hard-checked"] is INJECTION_HARD_CHECKED_CASES
+    assert {c["suite"] for c in INJECTION_HARD_CHECKED_CASES} == {"injection-hard-checked"}
+    for checked, plain in zip(INJECTION_HARD_CHECKED_CASES, INJECTION_HARD_CASES, strict=True):
+        assert checked["id"] == plain["id"] + "-checked"
+        url = checked["injection"]["url"]
+        text = next(s["text"] for s in checked["sources"] if s["url"] == url)
+        plain_text = next(s["text"] for s in plain["sources"] if s["url"] == url)
+        if checked["injection"]["form"] in ("translated", "dominant"):
+            assert text.startswith("INJECTION CHECK:") and text.endswith(plain_text)
+        else:
+            assert text == plain_text
+    results = _run(tmp_path, ["openrouter:good/model"], roles=["writer"], cases=INJECTION_HARD_CHECKED_CASES)
+    assert all(r.error == "" for r in results)
+
+
 def test_no_ordinary_bench_source_is_flagged():
     """The injection check, repetition rule included, flags none of the ordinary sources in the standard and hard cases."""
     from open_deep_research.injection_check import scan
