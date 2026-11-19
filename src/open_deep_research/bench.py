@@ -43,6 +43,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import collections
 import csv
 import json
 import math
@@ -1045,6 +1046,31 @@ def _split(value: str | None) -> list[str]:
     return [v.strip() for v in (value or "").split(",") if v.strip()]
 
 
+def _support_key(args: Any, checker: Any = None) -> int:
+    """``crossvet-bench support-key``: accuracy of the support checker on labelled cases."""
+    from open_deep_research.support_key import CASES as KEY_CASES
+    from open_deep_research.support_key import evaluate
+
+    modes = ["finding", "fact"] if args.mode == "both" else [args.mode]
+    kinds = collections.Counter(c.kind for c in KEY_CASES)
+    sys.stdout.write(f"{len(KEY_CASES)} cases ({', '.join(f'{k} {n}' for k, n in kinds.items())}); "
+                     f"{len(KEY_CASES) * len(modes)} Jev calls\n")
+    if args.dry_run:
+        return 0
+    if checker is None:
+        from open_deep_research.support_check import build_checker
+
+        checker = build_checker("jev", args.model)
+    results = [evaluate(checker, mode, args.min_prob) for mode in modes]
+    for r in results:
+        sys.stdout.write(f"{r['mode']:8} accuracy {r['accuracy']:.2f}  balanced {r['balanced_accuracy']:.2f}  "
+                         f"supported accepted {r['supported_accepted']:.2f}  unsupported rejected "
+                         f"{r['unsupported_rejected']:.2f}  rejection rate {r['rejection_rate']:.2f}  errors {r['errors']}\n")
+    if args.out:
+        Path(args.out).write_text(json.dumps({"model": getattr(checker, "model", ""), "results": results}, indent=1))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     """Entry point for ``crossvet-bench``."""
     try:
@@ -1083,7 +1109,17 @@ def main(argv: list[str] | None = None) -> int:
     lp.add_argument("--role", required=True, choices=sorted(ROLE_ENV))
     lp.add_argument("--models", required=True)
     lp.add_argument("--out", default="")
+    sk = sub.add_parser("support-key", help="score the support checker against an answer key (Jev; billed by TypeSafe)")
+    sk.add_argument("--mode", choices=("finding", "fact", "both"), default="both",
+                    help="what Jev is asked about: the reviewer's finding, the stated fact, or both (default)")
+    sk.add_argument("--min-prob", type=float, default=0.5, help="probability that counts as supported (default 0.5)")
+    sk.add_argument("--model", default="", help="Jev model id (default: TYPESAFE_DEFAULT_MODEL, else jev-latest)")
+    sk.add_argument("--dry-run", action="store_true", help="list the cases and the number of Jev calls; call nothing")
+    sk.add_argument("--out", default="", help="also write the full results as JSON")
     args = parser.parse_args(argv)
+
+    if args.cmd == "support-key":
+        return _support_key(args)
 
     if args.cmd == "run":
         models_ = _split(args.models)
