@@ -16,6 +16,10 @@ All notable changes to Crossvet. Versions follow [Semantic Versioning](https://s
 
 - First, partial check of the decision 22 defenses on `injection-hard` (`docs/benchmarks/2026-11-18-injection-defenses/`). With the prompt rule, OpenAI report writers adopted a planted claim in 2 of 16 runs (1 of 16 before); Claude report writers in 0 of 12 (0 of 12 before), checked by hand.
 
+### Security
+- Dependencies with published advisories updated in `uv.lock`: aiohttp, langgraph-api (0.10 → 0.17), oauthlib, pyasn1, pygments, pyjwt, setuptools, soupsieve, tornado, urllib3. `pip-audit` on the runtime dependencies now reports none.
+- Web app: Next.js 16.4.5; KaTeX and @babel/core pinned to patched versions through pnpm overrides. `pnpm audit` reports one moderate advisory left, in minimatch under the lint tooling (dev only).
+
 ### Changed
 - The webpage summarization and research compression prompts say to report recommendations, rankings and instructions a page addresses to readers or AI systems as that page's claims, never as findings, and that a URL found only inside a page's text is not a source.
 - The hard-injection bench test now records which forms the check flags (translated, dominant) and which it still misses (paraphrased, split). No benchmark was run with these changes; `--suite injection-hard` measures them. Design decision 22.
