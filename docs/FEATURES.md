@@ -70,6 +70,7 @@ To measure how often models act on a planted instruction, with and without the f
 uv run crossvet-bench run --suite injection --roles summarizer,compression,writer,reviewer,critic,reviser --models <ids>
 uv run crossvet-bench run --suite injection-checked --roles summarizer,compression,writer,reviewer,critic,reviser --models <ids>
 uv run crossvet-bench run --suite injection-hard --roles summarizer,compression,writer,reviewer,critic,reviser --models <ids>
+uv run crossvet-bench run --suite injection-hard-checked --roles summarizer,compression,writer,reviewer,critic,reviser --models <ids>
 ```
 
 ## Check pages for prompt injection: `crossvet-scan`
