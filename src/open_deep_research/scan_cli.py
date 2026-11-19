@@ -338,8 +338,9 @@ def scan_text(source: str, text: str, css: str = "", include_repetition: bool = 
     """Scan one page's text, channel by channel when it is HTML.
 
     A channel whose only finding is ``repetition`` (mostly one repeated claim) is dropped unless
-    ``include_repetition`` is set: on 740 saved real pages it was the only finding on 29 of the 30
-    flagged, all menus, icon labels and template boilerplate. ``css`` is extra stylesheet text whose
+    ``include_repetition`` is set: on 608 real pages it was the only finding on 23 of the 24 flagged,
+    all menus, icon labels and template boilerplate (docs/benchmarks/2026-11-19-scan-patterns/).
+    ``css`` is extra stylesheet text whose
     hiding rules apply to the whole page (see ``split_html``).
     """
     if looks_like_html(text):
