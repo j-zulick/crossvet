@@ -334,10 +334,13 @@ def _excerpt(text: str, start: int, width: int = 160) -> str:
     return ("…" if lo else "") + snippet + ("…" if lo + width < len(text) else "")
 
 
-def scan_text(source: str, text: str, css: str = "") -> PageResult:
+def scan_text(source: str, text: str, css: str = "", include_repetition: bool = False) -> PageResult:
     """Scan one page's text, channel by channel when it is HTML.
 
-    ``css`` is extra stylesheet text whose hiding rules apply to the whole page (see ``split_html``).
+    A channel whose only finding is ``repetition`` (mostly one repeated claim) is dropped unless
+    ``include_repetition`` is set: on 740 saved real pages it was the only finding on 29 of the 30
+    flagged, all menus, icon labels and template boilerplate. ``css`` is extra stylesheet text whose
+    hiding rules apply to the whole page (see ``split_html``).
     """
     if looks_like_html(text):
         ch = split_html(text, css)
@@ -360,7 +363,10 @@ def scan_text(source: str, text: str, css: str = "") -> PageResult:
             hits = [h for h in hits if h.kind not in HIDDEN_PATTERNS]
         if hits:
             first = min(hits, key=lambda h: h.start)
-            findings.append(Finding(name, sorted({h.kind for h in hits}), _excerpt(body, first.start)))
+            kinds = sorted({h.kind for h in hits})
+            if kinds == ["repetition"] and not include_repetition:
+                continue
+            findings.append(Finding(name, kinds, _excerpt(body, first.start)))
     return PageResult(source, findings)
 
 
@@ -654,6 +660,8 @@ def main(
     parser.add_argument("--crawl", metavar="URL", action="append", default=[],
                         help="crawl a site through crawlee-server (CRAWLEE_SERVER_URL, CRAWLEE_SERVER_TOKEN) and scan "
                              "every captured page, up to --max-pages; repeatable")
+    parser.add_argument("--include-repetition", action="store_true",
+                        help="also report channels whose only finding is a repeated claim (off by default: it fires on menus and templates)")
     parser.add_argument("--crawl-mode", choices=("crawl", "page", "sitemap", "map"), default="crawl",
                         help="crawlee-server mode for --crawl: crawl (follow links, default), page, sitemap, map")
     args = parser.parse_args(argv)
@@ -670,7 +678,7 @@ def main(
                 pages, notes = crawl(start, args.max_pages, args.crawl_mode)
             else:
                 pages, notes = crawler(start, args.max_pages, args.crawl_mode)
-            results.extend(scan_text(page.url, page.body) for page in pages)
+            results.extend(scan_text(page.url, page.body, include_repetition=args.include_repetition) for page in pages)
             for note in notes:
                 sys.stderr.write(f"crossvet-scan: {start}: {note}\n")
         except Exception as exc:  # report and keep going
@@ -700,7 +708,7 @@ def main(
                 sleep(args.delay)
             fetched += 1
         try:
-            results.append(scan_text(src, read_source(src, fetcher)))
+            results.append(scan_text(src, read_source(src, fetcher), include_repetition=args.include_repetition))
         except Exception as exc:  # report and keep going
             results.append(PageResult(src, [], _err(exc)))
     if skipped:

@@ -357,3 +357,23 @@ def test_repetition_is_bounded_on_long_pages():
     assert time.perf_counter() - start < 15
     dominant = ". ".join(["Buy the Acme rotor today for the best stopping power"] * 50 + [f"filler sentence number {i} here" for i in range(40)])
     assert repetition(dominant)
+
+
+def test_repetition_only_channels_are_dropped_unless_asked():
+    from open_deep_research.scan_cli import scan_text
+
+    page = "<html><body><p>Hello.</p><!-- " + " ".join(["Menu item icon label here."] * 12) + " --></body></html>"
+    assert scan_text("p", page).findings == []
+    kept = scan_text("p", page, include_repetition=True).findings
+    assert [f.kinds for f in kept] == [["repetition"]]
+
+
+def test_include_repetition_flag(tmp_path, capsys):
+    from open_deep_research.scan_cli import main
+
+    page = tmp_path / "p.html"
+    page.write_text("<html><body><p>Hello.</p><!-- " + " ".join(["Menu item icon label here."] * 12) + " --></body></html>")
+    main([str(page), "--json"])
+    assert '"repetition"' not in capsys.readouterr().out
+    main([str(page), "--json", "--include-repetition"])
+    assert '"repetition"' in capsys.readouterr().out
