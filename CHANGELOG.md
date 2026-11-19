@@ -4,6 +4,8 @@ All notable changes to Crossvet. Versions follow [Semantic Versioning](https://s
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-11-19
+
 ### Added
 - The injection check flags a page that is mostly one repeated sentence or one repeated name (kind `repetition`; thresholds in `injection_check.py`).
 - Spanish, French, German and Portuguese triggers for text addressed to an AI and for overriding instructions.

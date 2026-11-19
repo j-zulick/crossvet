@@ -168,6 +168,7 @@ The offline suite covers the review stage end to end, every check that decides a
 - [x] **v1.6.1** — newer models benchmarked (GPT-6 Luna becomes the default for the cheap roles), incomplete reports flagged in the Deep Agents edition, contributor docs
 - [x] **v1.7** — prompt-injection check in code (fetched pages flagged before any model reads them, flagged sources in the Review notes), injection and hard benchmark suites, Jev support checks live-tested
 - [x] **v1.8** — `crossvet-scan` (CLI and MCP tool) checks any page for prompt injection; `crossvet review` reviews any report against its sources; claims resting only on flagged sources go to *Disputed*
+- [x] **v1.9** — injection defenses (repetition and multilingual flags, a prompt rule, URLs found only inside a page's text marked unverified), the summarizer role in `crossvet-bench`, `crossvet-scan` reports (CSV, HTML) and many-page scans (`--sitemap`, `--urls`)
 
 ## My role and AI assistance
 
