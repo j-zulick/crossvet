@@ -1,6 +1,6 @@
 [project]
 name = "crossvet"
-version = "1.7.0"
+version = "1.8.0"
 description = "Deep research whose reports are checked by models from several AI vendors before you read them. Built on LangChain Open Deep Research."
 authors = [
     { name = "Joseph Zulick" },
@@ -62,6 +62,7 @@ crossvet-compare = "open_deep_research.compare:main"
 crossvet-bench = "open_deep_research.bench:main"
 crossvet-dataset = "open_deep_research.dataset:main"
 crossvet-doctor = "open_deep_research.doctor:main"
+crossvet-scan = "open_deep_research.scan_cli:main"
 
 [project.optional-dependencies]
 dev = ["mypy>=1.11.1", "ruff>=0.6.1"]

@@ -39,6 +39,7 @@ the run export and the comparison harness.
 from __future__ import annotations
 
 import asyncio
+import os
 from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable, Literal
 
@@ -72,6 +73,7 @@ class Assessment(BaseModel):
     )
     note: str = Field(default="", description="DISAGREE: the objection. BUILD_ON: what to add to the finding. AGREE: optional.")
     evidence_quote: str = Field(default="", description="An EXACT quote from the research notes that supports this verdict, if one exists.")
+    fact: str = Field(default="", description="One sentence stating what the quoted passage itself says that this relies on: a statement about the subject, not about the report or the critique.")
 
 
 class ChallengeSet(BaseModel):
@@ -98,6 +100,7 @@ class ChallengeResponse(BaseModel):
     )
     revised_text: str = Field(default="", description="For REVISE: the corrected finding.")
     evidence_quote: str = Field(default="", description="An EXACT quote from the research notes that supports your answer.")
+    fact: str = Field(default="", description="One sentence stating what the quoted passage itself says that this relies on: a statement about the subject, not about the report or the critique.")
     reason: str = Field(default="", description="One sentence explaining the answer.")
 
 
@@ -122,6 +125,7 @@ For each finding give one assessment:
 - AGREE: the research notes support the finding. Put the passage that supports it in evidence_quote when there is one.
 - DISAGREE: the finding is wrong, overstated or not supported by the notes. Explain why in note and, when a passage settles it, put an EXACT quote from the notes in evidence_quote.
 - BUILD_ON: the finding is right but incomplete. Put the addition in note and the EXACT passage from the notes that supports it in evidence_quote; an addition without a passage from the notes is ignored.
+With every quote, state in fact, in one sentence, what the passage itself says that your verdict relies on (about the subject, not about the report), e.g. "The plant employs 1,200 people."
 Do not disagree just to disagree, do not agree because a finding sounds plausible, and do not invent quotes."""
 
 RESPONSE_PROMPT = """Earlier you reviewed a research report. Another reviewer has challenged some of your findings. Answer each challenge.
@@ -136,7 +140,7 @@ For each challenged finding choose one stance:
 - MAINTAIN: the research notes still support your finding.
 - REVISE: the finding was partly wrong; give the corrected finding in revised_text.
 - WITHDRAW: the finding was wrong.
-Change your position only if the research notes show you were wrong, and put the EXACT passage from the notes that changed your mind in evidence_quote. Do not change position because the challenger sounds confident or to be agreeable: a change without a passage from the notes is ignored and flagged."""
+Change your position only if the research notes show you were wrong, and put the EXACT passage from the notes that changed your mind in evidence_quote, and in fact one sentence stating what that passage says (about the subject, not about the report). Do not change position because the challenger sounds confident or to be agreeable: a change without a passage from the notes is ignored and flagged."""
 
 
 @dataclass
@@ -308,6 +312,7 @@ def apply_responses(
             prob = (support or {}).get(pair) if pair else None
             if prob is not None:
                 entry["support"] = round(prob, 3)
+                entry["support_pair"] = {"claim": pair[0][:500], "passage": pair[1][:800]}
             if grounded and not passes(prob, min_support):
                 entry["outcome"] = "unsupported_changes"
                 entry["reason"] = "the passage does not support the change"
@@ -361,6 +366,7 @@ def apply_engagement(
         prob = (support or {}).get(pair) if pair else None
         if prob is not None:
             entry["support"] = round(prob, 3)
+            entry["support_pair"] = {"claim": pair[0][:500], "passage": pair[1][:800]}
             if not passes(prob, min_support):
                 entry["grounded"] = grounded = False
                 entry["reason"] = "the passage does not support the verdict"
@@ -382,11 +388,24 @@ def apply_engagement(
     return critique.model_copy(update=updated), log
 
 
+def _claim_from_fact() -> bool:
+    """REVIEW_SUPPORT_CLAIM=fact: put the reviewer's one-sentence fact to the support checker.
+
+    The default (``finding``) puts the finding itself, which is usually a statement about the
+    report ("the draft overstates X"), so a source passage can rarely state it directly. ``fact``
+    asks instead whether the passage says what the reviewer relies on; it is weaker evidence that
+    the verdict is right, so it is opt-in until measured (docs/EVALS.md).
+    """
+    return os.getenv("REVIEW_SUPPORT_CLAIM", "finding").strip().lower() == "fact"
+
+
 def change_pair(ch: Challenge, resp: ChallengeResponse, notes: str) -> tuple[str, str] | None:
     """(claim, passage) behind a position change, or None when no quote is in the notes."""
     passage = next((q for q in (resp.evidence_quote, ch.evidence_quote) if quote_in_notes(q, notes)), "")
     if not passage or resp.stance == "MAINTAIN":
         return None
+    if _claim_from_fact() and resp.fact.strip():
+        return resp.fact.strip(), passage
     claim = resp.revised_text.strip() if resp.stance == "REVISE" else f"This is wrong or unsupported: {ch.objection}"
     return (claim, passage) if claim else None
 
@@ -395,6 +414,8 @@ def engagement_pair(a: Assessment, finding: str, notes: str) -> tuple[str, str] 
     """(claim, passage) behind an AGREE or BUILD_ON verdict, or None when its quote is not in the notes."""
     if a.verdict == "DISAGREE" or not quote_in_notes(a.evidence_quote, notes):
         return None
+    if _claim_from_fact() and a.fact.strip():
+        return a.fact.strip(), a.evidence_quote
     claim = finding if a.verdict == "AGREE" else f"{finding} {a.note.strip()}".strip()
     return claim, a.evidence_quote
 

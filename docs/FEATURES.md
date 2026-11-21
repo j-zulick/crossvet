@@ -55,12 +55,14 @@ Code already refuses evidence that isn't a verbatim quote from the research note
 | A challenger's BUILD_ON | its quote | the addition is not applied |
 | A blind-pass point | its quote | the point is dropped |
 
+**What Jev is asked about.** By default (`REVIEW_SUPPORT_CLAIM=finding`) the claim is the reviewer's finding. Findings are usually statements about the draft, which a source passage rarely states directly, so Jev rejects most of them: 77–87% in the [Nov 18 runs](evals/2026-11-18-jev/). With `REVIEW_SUPPORT_CLAIM=fact`, reviewers state in one sentence what the quoted passage says, and Jev checks that instead (29% rejected). That is a weaker test of the verdict, so it is opt-in until it is measured against an answer key.
+
 Set `TYPESAFE_API_KEY` (from [console.typesafe.ai](https://console.typesafe.ai)) and `REVIEW_SUPPORT_CHECKER=jev`; `crossvet-setup` turns it on when the key is present. Pin a version with `REVIEW_SUPPORT_MODEL=jev-1.14.0` (default: `TYPESAFE_DEFAULT_MODEL`, else `jev-latest`). Check it with `uv run crossvet-doctor --jev`, which asks Jev two questions with known answers.
 
 If a Jev call fails, that claim is judged by the quote check alone and the Review notes say how many calls failed. Every score is kept in the run export; `crossvet-compare` and Langfuse record `support_checked` and `support_rejected`, and the compare plan adds a `deliberation-2-jev` setup when the key is set.
 
 ## Prompt-injection check
-Each fetched page is scanned in code before any model summarizes it, for text aimed at the model rather than the reader: instructions to ignore or override, text addressed to an AI, role changes, instructions to recommend, cite or leave something out, chat markup, and hidden text alongside any of those. A hit adds a line to that source in the research notes (naming the kinds of pattern, not the injected text), and the Review notes list flagged sources and any the report cites. The summarizer prompt treats page text as data. Works with `SEARCH_API=tavily` and the research gateway; vendor-hosted search returns no page text to scan. No setting: the check is always on. Threat model and limits: [docs/SECURITY-MODEL.md](SECURITY-MODEL.md); design decision 19.
+Each fetched page is scanned in code before any model summarizes it, for text aimed at the model rather than the reader: instructions to ignore or override, text addressed to an AI, role changes, instructions to recommend, cite or leave something out, chat markup, and hidden text alongside any of those. A hit adds a line to that source in the research notes (naming the kinds of pattern, not the injected text), and the Review notes list flagged sources and any the report cites; a sentence whose every cited source is flagged is listed under *Disputed*. Invisible Unicode tag text and base64 blobs are decoded and scanned. The summarizer prompt treats page text as data. Works with `SEARCH_API=tavily` and the research gateway; vendor-hosted search returns no page text to scan. No setting: the check is always on. Threat model and limits: [docs/SECURITY-MODEL.md](SECURITY-MODEL.md); design decision 19.
 
 To measure how often models act on a planted instruction, with and without the flag line:
 
@@ -68,6 +70,30 @@ To measure how often models act on a planted instruction, with and without the f
 uv run crossvet-bench run --suite injection --roles compression,writer,reviewer,critic,reviser --models <ids>
 uv run crossvet-bench run --suite injection-checked --roles compression,writer,reviewer,critic,reviser --models <ids>
 ```
+
+## Check pages for prompt injection: `crossvet-scan`
+The same check, as a standalone command and an MCP tool, for any page: your own site, a competitor's, user-generated content. It splits an HTML page into what a reader sees and what a reader doesn't (hidden elements, HTML comments, attributes such as alt text, meta tags) and reports, per channel, the kinds of pattern found with a short excerpt. Invisible Unicode tag text and base64 blobs are decoded and scanned too. No model or API key is used.
+
+```bash
+uv run crossvet-scan https://example.com/pricing saved-page.html notes.md
+uv run crossvet-scan --json https://example.com/ > scan.json   # exit code 1 if anything was found
+```
+
+From Claude Code, Codex or Cursor, the MCP server's `scan_for_injection` tool takes a public URL (non-public addresses are refused) or pasted text. Pattern matching only: a clean result is not proof a page is safe.
+
+## Review any report: `crossvet review`
+Run the cross-vendor review on a report from any tool or person, against the sources it should rest on (files or URLs):
+
+```bash
+uv run crossvet review report.md --sources audit.md https://example.com/study --brief "What changed in 2026?" --out reviewed.md
+```
+
+```python
+from open_deep_research.api import review
+result = review(open("report.md").read(), ["audit.md", "https://example.com/study"])
+```
+
+Each source becomes a block of research notes with its URL (a file that starts with a `URL:` line is cited by that address, otherwise by its path) and the injection check's flag, so the citation, quote, critic and *Disputed* rules work as in a research run. `--panel` overrides `REVIEW_MODELS`. Design decision 21.
 
 ## Blind first pass
 

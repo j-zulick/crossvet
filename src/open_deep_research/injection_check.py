@@ -49,7 +49,7 @@ INSTRUCTION_PATTERNS: dict[str, re.Pattern[str]] = {
         re.I,
     ),
     "chat_markup": re.compile(
-        r"<\|im_(?:start|end)\|>|\[/?INST\]|<\|(?:system|user|assistant)\|>|</?(?:system|webpage_content|untrusted)\b",
+        r"<\|im_(?:start|end)\|>|\[/?INST\]|<\|(?:system|user|assistant)\|>|</?(?:system|webpage_content\w*|untrusted)\b",
         re.I,
     ),
 }
@@ -64,6 +64,30 @@ HIDDEN_PATTERNS: dict[str, re.Pattern[str]] = {
     "long_html_comment": re.compile(r"<!--(?:(?!-->)[\s\S]){40,}?-->"),
     "zero_width": re.compile(r"[​‌‍⁠﻿]{3,}"),
 }
+
+
+# Unicode "tag" characters (U+E0000-U+E007F) render as nothing but map one-to-one onto ASCII,
+# so a page can carry a whole instruction no reader sees. Emoji flag sequences use a few of them
+# legitimately, so only a run long enough to spell words is decoded.
+_TAGS = re.compile(r"[\U000E0020-\U000E007E]{8,}")
+_BASE64 = re.compile(r"(?<![A-Za-z0-9+/=])[A-Za-z0-9+/]{40,}={0,2}(?![A-Za-z0-9+/=])")
+
+
+def _decoded_layers(text: str) -> list[tuple[str, str]]:
+    """Return (kind, decoded text) for invisible tag-character runs and base64 blobs in ``text``."""
+    import base64
+    import binascii
+
+    out = [("unicode_tags", "".join(chr(ord(c) - 0xE0000) for c in m.group())) for m in _TAGS.finditer(text)]
+    for m in _BASE64.finditer(text):
+        blob = m.group()
+        try:
+            decoded = base64.b64decode(blob + "=" * (-len(blob) % 4), validate=True).decode("utf-8")
+        except (binascii.Error, UnicodeDecodeError, ValueError):
+            continue
+        if decoded.isprintable() or all(ch.isprintable() or ch.isspace() for ch in decoded):
+            out.append(("base64", decoded))
+    return out
 
 
 @dataclass(frozen=True)
@@ -83,6 +107,11 @@ def scan(text: str) -> list[Hit]:
     if not text:
         return []
     hits = [Hit(kind, m.start()) for kind, rx in INSTRUCTION_PATTERNS.items() if (m := rx.search(text))]
+    for kind, decoded in _decoded_layers(text):
+        inner = [h for h in scan(decoded) if h.kind in INSTRUCTION_PATTERNS]
+        if inner:
+            hits += [Hit(f"{kind}:{h.kind}", 0) for h in inner]
+            hits.append(Hit(kind, 0))
     if hits:
         hits += [Hit(kind, m.start()) for kind, rx in HIDDEN_PATTERNS.items() if (m := rx.search(text))]
     return hits
@@ -115,6 +144,46 @@ def cited(report: str, urls: list[str]) -> list[str]:
     return [u for u in urls if u.rstrip("/") in {f.rstrip("/") for f in found}]
 
 
+_REF_LINE = re.compile(r"^\s*\[(\d+)\][^\n]*?(https?://\S+)\s*$", re.M)
+_MARKER = re.compile(r"\[(\d+(?:\s*[,\u2013-]\s*\d+)*)\]")
+_SOURCES_HEADING = re.compile(r"^#{1,6}\s*(?:sources|references)\b.*$", re.I | re.M)
+
+
+def _numbers(marker: str) -> list[int]:
+    out: list[int] = []
+    for part in re.split(r"\s*,\s*", marker):
+        span = re.fullmatch(r"(\d+)\s*[\u2013-]\s*(\d+)", part.strip())
+        if span and 0 <= int(span[2]) - int(span[1]) < 50:
+            out += list(range(int(span[1]), int(span[2]) + 1))
+        elif part.strip().isdigit():
+            out.append(int(part))
+    return out
+
+
+def claims_on_flagged(report: str, flagged: list[str]) -> list[str]:
+    """Return the report's sentences whose every cited source is one the injection check flagged.
+
+    Citations are read from numbered markers (``[3]``, ``[2][5]``, ``[2, 5]``, ``[2-4]``) resolved
+    against the report's numbered source list, and from URLs written into the sentence. A
+    sentence that also cites an unflagged source is left alone: another source may support it.
+    """
+    if not report or not flagged:
+        return []
+    bad = {u.rstrip("/").rstrip(").,;") for u in flagged}
+    refs = {int(n): u.rstrip("/").rstrip(").,;") for n, u in _REF_LINE.findall(report)}
+    heading = _SOURCES_HEADING.search(report)
+    body = report[: heading.start()] if heading else report
+    out: list[str] = []
+    for sentence in re.split(r"(?<=[.!?])\s+|\n+", body):
+        urls = {refs[n] for m in _MARKER.findall(sentence) for n in _numbers(m) if n in refs}
+        urls |= {u.rstrip("/").rstrip(").,;") for u in re.findall(r"https?://[^\s)\]>\"']+", sentence)}
+        if urls and urls <= bad:
+            text = sentence.strip()
+            out.append(text if len(text) <= 300 else text[:297] + "...")
+    return out
+
+
 def neutralize(text: str) -> str:
     """Remove markup that could close the data wrapper or pose as chat roles."""
-    return INSTRUCTION_PATTERNS["chat_markup"].sub("[markup removed]", text or "")
+    text = _TAGS.sub("", text or "")
+    return INSTRUCTION_PATTERNS["chat_markup"].sub("[markup removed]", text)

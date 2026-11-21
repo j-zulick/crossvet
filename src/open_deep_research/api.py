@@ -1,6 +1,6 @@
 """Python API: run Crossvet from your own code.
 
-    from open_deep_research.api import run, ask
+    from open_deep_research.api import run, ask, review
 
     result = run("How did JWST's mirror design solve the launch problem?",
                  config={"context_pack": "seo", "review_deliberation_rounds": 2})
@@ -10,7 +10,8 @@
 
 ``run`` / ``arun`` take any setting from ``Configuration`` in ``config`` (environment
 variables still apply underneath). ``edition="deep_agent"`` runs the Deep Agents edition.
-Human approval is skipped: API runs are unattended.
+Human approval is skipped: API runs are unattended. ``review`` / ``areview`` run the
+cross-vendor review on an existing report against files or URLs you give it.
 """
 
 from __future__ import annotations
@@ -62,3 +63,15 @@ async def aask(question: str, result: dict[str, Any], model: str | None = None) 
 def ask(question: str, result: dict[str, Any], model: str | None = None) -> dict[str, Any]:
     """Blocking version of :func:`aask`."""
     return asyncio.run(aask(question, result, model))
+
+
+async def areview(report: str, sources: list[str], brief: str = "", config: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Review an existing ``report`` against ``sources`` (file paths or http(s) URLs)."""
+    from open_deep_research.review_doc import areview as _areview
+
+    return await _areview(report, sources, brief, config)
+
+
+def review(report: str, sources: list[str], brief: str = "", config: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Blocking version of :func:`areview`."""
+    return asyncio.run(areview(report, sources, brief, config))

@@ -469,3 +469,6 @@ def test_review_notes_list_sources_flagged_by_the_injection_check(monkeypatch, e
     notes = out["final_report"].split("## Review notes", 1)[1]
     assert "Injection check: 1 source(s)" in notes
     assert "The report cites https://example.com/a" in notes
+    disputed = out["final_report"].split("### Disputed", 1)[1]
+    assert "REVISED REPORT with https://example.com/a" in disputed and "flagged by the injection check" in disputed
+    assert any(d["id"] == "injection" for d in out["review"]["critic"]["disputed"])

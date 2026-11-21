@@ -1,6 +1,6 @@
 # Model fit leaderboard (2026-11-18)
 
-7 models x 5 roles x 4 synthetic cases x 1 repeat(s). Total spend: $1.62. Scores come from code (answer keys, kept facts, checklists), not from a judge model.
+7 models x 5 roles x 4 synthetic cases x 1 repeat(s). Total spend: $2.00. Scores come from code (answer keys, kept facts, checklists), not from a judge model.
 
 ## Recommended role map
 
@@ -43,9 +43,9 @@
 | 1 | `openai:gpt-6.1-sol` * | 0.80 ± 0.02 | 1.00 | $0.0152 (est.) | 23.93 | 0% |
 | 2 | `openai:gpt-6-luna` * | 0.79 ± 0.04 | 0.95 | $0.0012 (est.) | 18.66 | 0% |
 | 3 | `openai:gpt-6.1-terra` | 0.77 ± 0.02 | 1.00 | $0.0079 (est.) | 17.49 | 0% |
-| 4 | `anthropic:claude-opus-5-5` | 0.75 ± 0.02 | 1.00 | $0.0548 (est.) | 20.52 | 25% |
+| 4 | `anthropic:claude-opus-5-5` | 0.73 ± 0.02 | 1.00 | $0.0606 (est.) | 23.42 | 0% |
 | 5 | `openai:gpt-5.4-mini` | 0.68 ± 0.05 | 0.85 | $0.0072 (est.) | 8.39 | 0% |
-| 6 | `anthropic:claude-haiku-5-5` | 0.59 | 1.00 | $0.0026 (est.) | 22.48 | 75% |
+| 6 | `anthropic:claude-haiku-5-5` | 0.59 ± 0.03 | 1.00 | $0.0024 (est.) | 21.13 | 0% |
 | 7 | `anthropic:claude-sonnet-5-5` | 0.59 | 1.00 | $0.0348 (est.) | 21.95 | 0% |
 
 ## critic
@@ -55,22 +55,22 @@
 | 1 | `openai:gpt-6.1-terra` * | 0.97 ± 0.03 | 0.97 | $0.0041 (est.) | 6.67 | 0% |
 | 2 | `openai:gpt-6.1-sol` | 0.97 ± 0.03 | 0.97 | $0.0086 (est.) | 7.99 | 0% |
 | 3 | `openai:gpt-6-luna` * | 0.95 ± 0.03 | 0.95 | $0.0006 (est.) | 8.63 | 0% |
-| 4 | `openai:gpt-5.4-mini` | 0.93 ± 0.05 | 0.93 | $0.0032 (est.) | 2.98 | 0% |
-| 5 | `anthropic:claude-sonnet-5-5` | - | - | - | - | 100% |
-| 6 | `anthropic:claude-opus-5-5` | - | - | - | - | 100% |
-| 7 | `anthropic:claude-haiku-5-5` | - | - | - | - | 100% |
+| 4 | `anthropic:claude-sonnet-5-5` | 0.95 ± 0.03 | 0.95 | $0.0113 (est.) | 4.65 | 0% |
+| 5 | `anthropic:claude-opus-5-5` | 0.95 ± 0.03 | 0.95 | $0.0270 (est.) | 7.97 | 0% |
+| 6 | `anthropic:claude-haiku-5-5` | 0.93 ± 0.05 | 0.93 | $0.0012 (est.) | 7.4 | 0% |
+| 7 | `openai:gpt-5.4-mini` | 0.93 ± 0.05 | 0.93 | $0.0032 (est.) | 2.98 | 0% |
 
 ## reviser
 
 | # | Model | Quality | errors fixed | Cost / case | p50 s | Failures |
 |---|---|---|---|---|---|---|
 | 1 | `openai:gpt-6-luna` * | 1.00 | 1.00 | $0.0005 (est.) | 8.54 | 0% |
-| 2 | `openai:gpt-6.1-terra` | 1.00 | 1.00 | $0.0033 (est.) | 5.96 | 0% |
-| 3 | `openai:gpt-6.1-sol` | 1.00 | 1.00 | $0.0075 (est.) | 8.45 | 0% |
-| 4 | `openai:gpt-5.4-mini` | 0.95 ± 0.05 | 0.95 | $0.0024 (est.) | 2.09 | 0% |
-| 5 | `anthropic:claude-sonnet-5-5` | - | - | - | - | 100% |
-| 6 | `anthropic:claude-opus-5-5` | - | - | - | - | 100% |
-| 7 | `anthropic:claude-haiku-5-5` | - | - | - | - | 100% |
+| 2 | `anthropic:claude-haiku-5-5` | 1.00 | 1.00 | $0.0010 (est.) | 7.55 | 0% |
+| 3 | `openai:gpt-6.1-terra` | 1.00 | 1.00 | $0.0033 (est.) | 5.96 | 0% |
+| 4 | `openai:gpt-6.1-sol` | 1.00 | 1.00 | $0.0075 (est.) | 8.45 | 0% |
+| 5 | `anthropic:claude-sonnet-5-5` | 1.00 | 1.00 | $0.0092 (est.) | 4.9 | 0% |
+| 6 | `anthropic:claude-opus-5-5` | 1.00 | 1.00 | $0.0238 (est.) | 8.21 | 0% |
+| 7 | `openai:gpt-5.4-mini` | 0.95 ± 0.05 | 0.95 | $0.0024 (est.) | 2.09 | 0% |
 
 \* on the cost-quality frontier: no other model is both better and cheaper.
 Scoring formulas: see `docs/MODEL-SELECTION.md` or `uv run python -m open_deep_research.bench --help`.

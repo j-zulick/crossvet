@@ -1,0 +1,32 @@
+[
+ {
+  "support": 0.12,
+  "outcome": "unsupported_changes",
+  "claim": "The notes say Article 2(1)(a) states the temperature goal and that the UNFCCC explainer describes it as the Agreement\u2019s central aim to strengthen the global response to climate change.",
+  "passage": "adding that it is intended to strengthen the global response, increase countries\u2019 ability to deal with impacts, and align finance flows with low-emissions, climate-resilient pathways."
+ },
+ {
+  "support": 0.21,
+  "outcome": "unsupported_changes",
+  "claim": "Article 4(3) says a Party's highest possible ambition reflects its common but differentiated responsibilities and respective capabilities in the light of different national circumstances.",
+  "passage": "reflecting its common but differentiated responsibilities and respective capabilities, in the light of different national circumstances."
+ },
+ {
+  "support": 0.98,
+  "outcome": "changed_with_evidence",
+  "claim": "The Paris Agreement says the outcome of the global stocktake informs Parties when they update and enhance their actions and support.",
+  "passage": "\u201cThe outcome of the global stocktake shall inform Parties in updating and enhancing, in a nationally determined manner, their actions and support...\u201d"
+ },
+ {
+  "support": 0.59,
+  "outcome": "changed_with_evidence",
+  "claim": "Article 4(11) permits a Party to adjust its existing NDC at any time with a view to enhancing its level of ambition, and the quoted text ends in an ellipsis.",
+  "passage": "\u201cA Party may at any time adjust its existing nationally determined contribution with a view to enhancing its level of ambition...\u201d"
+ },
+ {
+  "support": 0.2,
+  "outcome": "unsupported_changes",
+  "claim": "Article 4(3) states that a Party's highest possible ambition reflects its common but differentiated responsibilities and respective capabilities, in the light of different national circumstances.",
+  "passage": "reflecting its common but differentiated responsibilities and respective capabilities, in the light of different national circumstances."
+ }
+]

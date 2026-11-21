@@ -1,0 +1,14 @@
+[
+ {
+  "support": 0.99,
+  "outcome": "changed_with_evidence",
+  "claim": "The mandate was first codified in Section 202 of the Federal Reserve Reform Act of 1977, enacted as Public Law 95-188 on November 16, 1977.",
+  "passage": "The Federal Reserve\u2019s employment-and-price-stability mandate was first codified in **Section 202 of the Federal Reserve Reform Act of 1977**, enacted as **Public Law 95-188 on November 16, 1977**."
+ },
+ {
+  "support": 0.43,
+  "outcome": "unsupported_changes",
+  "claim": "The first sentence of Section 2A is complete in the memo and continues past \"commensurate with\" to the stated goals of maximum employment, stable prices, and moderate long-term interest rates.",
+  "passage": "commensurate with the economy's long run potential to increase production, so as to promote effectively the goals of maximum employment, stable prices, and moderate long-term interest rates."
+ }
+]

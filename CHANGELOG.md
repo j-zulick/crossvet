@@ -2,6 +2,24 @@
 
 All notable changes to Crossvet. Versions follow [Semantic Versioning](https://semver.org/). Crossvet was built between November 6 and 17, 2026 in a private repository, one tested version at a time; all versions were published together when the repository went public.
 
+## [1.8.0] - 2026-11-18
+
+### Added
+- **`crossvet-scan`**: check any page, file or pasted text for prompt injection, by channel (visible text, hidden elements, HTML comments, attributes and meta tags), with JSON output and an exit code for CI. Also an MCP tool, `scan_for_injection`, that refuses non-public addresses.
+- **`crossvet review`** and `api.review`: run the cross-vendor review on an existing report against files or URLs.
+- **Claims resting only on flagged sources go to *Disputed*** (design decision 20).
+- The injection check decodes invisible Unicode tag text and base64 blobs and scans what they say.
+
+- `REVIEW_SUPPORT_CLAIM=fact`: Jev is asked whether a passage supports the reviewer's one-sentence statement of what it says, instead of the finding itself. Opt-in.
+- First Jev on/off measurement (`docs/evals/2026-11-18-jev/`), and the full injection-checked suite (the Claude jobs that failed for lack of credit were re-run).
+
+- **`--suite injection-hard`**: paraphrased, translated, split and dominant injections the pattern check does not catch, with first results.
+
+### Changed
+- The summarizer's data wrapper carries a random per-call marker, so a page cannot close it by guessing the tag.
+- Deliberation logs keep the (claim, passage) pair each Jev score was given, so the scores can be audited.
+- The injection scorer adds an *attributed* class and skips source-list lines.
+
 ## [1.7.0] - 2026-11-18
 
 ### Added
