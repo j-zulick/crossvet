@@ -426,6 +426,46 @@ class Configuration(BaseModel):
             }
         }
     )
+    effort: str = Field(
+        default="",
+        json_schema_extra={
+            "x_oap_ui_config": {
+                "type": "text",
+                "default": "",
+                "description": "How much work a run does: quick, standard or deep (empty = standard). A tier fills in research depth, panel size, deliberation and the blind pass where you have not set them yourself; your own settings always win. `--effort auto` on the command line picks the tier from the question, in code."
+            }
+        }
+    )
+    review_panel_limit: int = Field(
+        default=0,
+        json_schema_extra={
+            "x_oap_ui_config": {
+                "type": "number",
+                "default": 0,
+                "description": "Use at most this many reviewers from REVIEW_MODELS (0 = all), one per vendor first. EFFORT=quick sets 2."
+            }
+        }
+    )
+    escalation_model: str = Field(
+        default="",
+        json_schema_extra={
+            "x_oap_ui_config": {
+                "type": "text",
+                "default": "",
+                "description": "A stronger model used only when a stage's own model fails in a way code can see: the call errors or its structured output does not parse after the retries (clarification, research brief, page summaries, compression, report), or the report is cut off. Empty = off. Review roles, the supervisor and the researchers are never escalated. Each escalation is listed in the Review notes."
+            }
+        }
+    )
+    max_run_usd: float = Field(
+        default=0.0,
+        json_schema_extra={
+            "x_oap_ui_config": {
+                "type": "number",
+                "default": 0.0,
+                "description": "Stop a CLI run (`crossvet research`, `crossvet try`) before its next model call once this much has been spent (0 = no cap). Counts the cost a provider reports, else tokens times the OpenRouter catalog price; calls with no known price cannot be capped. Resume with `crossvet resume` after raising it."
+            }
+        }
+    )
     review_deliberation_rounds: int = Field(
         default=0,
         json_schema_extra={
@@ -543,6 +583,8 @@ class Configuration(BaseModel):
             field_name: os.environ.get(field_name.upper()) or configurable.get(field_name)
             for field_name in field_names
         }
-        return cls(**{k: v for k, v in values.items() if v not in (None, "")})
+        from open_deep_research.effort import apply
+
+        return cls(**apply({k: v for k, v in values.items() if v not in (None, "")}))
 
     model_config = ConfigDict(arbitrary_types_allowed=True)

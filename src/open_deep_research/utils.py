@@ -84,14 +84,7 @@ async def tavily_search(
     max_char_to_include = configurable.max_content_length
     
     # Initialize summarization model with retry logic
-    summarization_model = stage_chat_model(
-        configurable.summarization_model,
-        configurable.summarization_model_max_tokens,
-        config,
-        tags=["langsmith:nostream"],
-    ).with_structured_output(Summary, **structured_output_kwargs(configurable.summarization_model)).with_retry(
-        stop_after_attempt=configurable.max_structured_output_retries
-    )
+    summarization_model = summarizer_model(configurable, config)
     
     # Step 4: Create summarization tasks (skip empty content)
     async def noop():
@@ -736,6 +729,23 @@ def flatten_native_search(message: AIMessage) -> AIMessage:
         usage_metadata=message.usage_metadata,
         additional_kwargs={"native_search_flattened": True},
     )
+
+
+def summarizer_model(configurable: Configuration, config: RunnableConfig):
+    """Return the page summarizer: the summarization model, with the escalation model behind it when one is set."""
+    from open_deep_research.guard import escalation_target, with_escalation
+
+    def build(name: str):
+        return stage_chat_model(
+            name, configurable.summarization_model_max_tokens, config, tags=["langsmith:nostream"],
+        ).with_structured_output(Summary, **structured_output_kwargs(name)).with_retry(
+            stop_after_attempt=configurable.max_structured_output_retries)
+
+    primary = build(configurable.summarization_model)
+    target = escalation_target(configurable.summarization_model, configurable.escalation_model)
+    if not target:
+        return primary
+    return with_escalation(primary, build(target), "summarization", configurable.summarization_model, target)
 
 
 def stage_chat_model(model: str, max_tokens: int, config: RunnableConfig, tags: list[str] | None = None):

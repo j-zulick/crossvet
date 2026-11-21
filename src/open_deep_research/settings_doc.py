@@ -31,6 +31,11 @@ ENV_ONLY = {
 }
 
 
+# What most setups need; `crossvet setup` writes these. Everything else is listed as advanced.
+ESSENTIAL = ("search_api", "cross_vendor_review_enabled", "review_models", "review_reviser_model", "research_model")
+ESSENTIAL_ENV = ("OPENAI_API_KEY, ANTHROPIC_API_KEY, GOOGLE_API_KEY", "OPENROUTER_API_KEY", "TAVILY_API_KEY")
+
+
 def _default(value: object) -> str:
     if isinstance(value, Enum):
         value = value.value
@@ -56,15 +61,22 @@ def render() -> str:
         "`src/open_deep_research/configuration.py` by `python -m open_deep_research.settings_doc`; "
         "do not edit by hand.",
         "",
-        "## Run settings",
+        "## Essential settings",
+        "",
+        "These are all most setups need, and `crossvet setup` writes them for you. Set at least one provider key.",
         "",
         "| Setting | Default | What it does |",
         "|---|---|---|",
     ]
-    for name, field in Configuration.model_fields.items():
-        lines.append(f"| `{name.upper()}` | {_default(field.default)} | {_description(field)} |")
-    lines += ["", "## Read from the environment directly", "", "| Variables | What they do |", "|---|---|"]
-    lines += [f"| `{k.replace(', ', '`, `')}` | {v} |" for k, v in ENV_ONLY.items()]
+    lines += [f"| `{k.replace(', ', '`, `')}` | (empty) | {ENV_ONLY[k]} |" for k in ESSENTIAL_ENV]
+    fields = Configuration.model_fields
+    lines += [f"| `{n.upper()}` | {_default(fields[n].default)} | {_description(fields[n])} |" for n in ESSENTIAL]
+    lines += ["", "## Advanced run settings", "", "| Setting | Default | What it does |", "|---|---|---|"]
+    for name, field in fields.items():
+        if name not in ESSENTIAL:
+            lines.append(f"| `{name.upper()}` | {_default(field.default)} | {_description(field)} |")
+    lines += ["", "## Advanced: read from the environment directly", "", "| Variables | What they do |", "|---|---|"]
+    lines += [f"| `{k.replace(', ', '`, `')}` | {v} |" for k, v in ENV_ONLY.items() if k not in ESSENTIAL_ENV]
     return "\n".join(lines) + "\n"
 
 

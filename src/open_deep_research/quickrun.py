@@ -35,7 +35,8 @@ DEFAULT_QUESTION = (
 SHOWN_SETTINGS = (
     "SEARCH_API", "RESEARCH_MODEL", "SUMMARIZATION_MODEL", "COMPRESSION_MODEL", "FINAL_REPORT_MODEL",
     "CROSS_VENDOR_REVIEW_ENABLED", "REVIEW_MODELS", "REVIEW_REVISER_MODEL", "REVIEW_CRITIC_ENABLED",
-    "REVIEW_DELIBERATION_ROUNDS",
+    "REVIEW_DELIBERATION_ROUNDS", "EFFORT", "MAX_RESEARCHER_ITERATIONS", "MAX_REACT_TOOL_CALLS", "REVIEW_PANEL_LIMIT",
+    "ESCALATION_MODEL", "MAX_RUN_USD",
 )
 
 
@@ -85,13 +86,13 @@ def _tracing() -> Any:
     return tracing
 
 
-async def _invoke(question: str) -> dict[str, Any]:
+async def _invoke(question: str, budget: list[Any] | None = None) -> dict[str, Any]:
     from langchain_core.messages import HumanMessage
 
     from open_deep_research.deep_researcher import deep_researcher
 
     tracing = _tracing()
-    callbacks = tracing.get_callbacks() if tracing else []
+    callbacks = [*(tracing.get_callbacks() if tracing else []), *(budget or [])]
     config = {"recursion_limit": 200, "callbacks": callbacks, "metadata": {"langfuse_tags": ["crossvet-try"]} if callbacks else {}}
     try:
         return await deep_researcher.ainvoke({"messages": [HumanMessage(content=question)]}, config)
@@ -107,10 +108,15 @@ def main(argv: list[str] | None = None, invoke: Any = None) -> int:
     p = argparse.ArgumentParser(prog="crossvet-try", description="Run one question and save the report, review and a shareable summary.")
     p.add_argument("question", nargs="?", default=DEFAULT_QUESTION)
     p.add_argument("--out", default="first-run", help="output folder (default first-run)")
+    p.add_argument("--effort", choices=("quick", "standard", "deep", "auto"), help="how much work the run does (default: EFFORT, else standard); auto picks from the question, in code")
+    p.add_argument("--max-usd", type=float, help="stop before the next model call once this much is spent (default: MAX_RUN_USD; 0 = no cap)")
     args = p.parse_args(argv)
     load_dotenv()
     os.environ["REQUIRE_APPROVAL"] = "false"
     os.environ["ALLOW_CLARIFICATION"] = "false"
+    from open_deep_research.cli import set_run_limits
+
+    budget = set_run_limits(args.effort, args.max_usd, args.question)
 
     started = datetime.now().astimezone()
     folder = Path(args.out) / started.strftime("%Y%m%dT%H%M%S")
@@ -120,7 +126,7 @@ def main(argv: list[str] | None = None, invoke: Any = None) -> int:
     out: dict[str, Any] = {}
     error = ""
     try:
-        out = asyncio.run((invoke or _invoke)(args.question))
+        out = asyncio.run(invoke(args.question) if invoke else _invoke(args.question, budget))
     except Exception as exc:
         error = f"{type(exc).__name__}: {str(exc)[:500]}"
         (folder / "traceback.txt").write_text(traceback.format_exc(), encoding="utf-8")

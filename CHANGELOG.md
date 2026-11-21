@@ -4,6 +4,21 @@ All notable changes to Crossvet. Versions follow [Semantic Versioning](https://s
 
 ## [Unreleased]
 
+## [1.11.0] - 2026-11-20
+
+### Added
+- `crossvet` subcommands for every tool: `scan`, `try`, `setup`, `doctor`, `bench`, `compare`, `dataset`, `mcp`; `research` as an alias for `run`. The `crossvet-*` commands are unchanged.
+- **Effort tiers:** `EFFORT` and `--effort quick|standard|deep|auto` (`effort.py`); `REVIEW_PANEL_LIMIT`. The Review notes name the tier when one is set.
+- **Escalation:** `ESCALATION_MODEL`, used only after a stage's own model fails a check in code; listed in the Review notes (`guard.py`).
+- **Spend cap:** `MAX_RUN_USD` and `--max-usd`; exit code 3 when a run stops at the cap.
+- A sample scan report and its demo page (`docs/samples/`), kept current by a test.
+- Design decision 26.
+
+### Changed
+- README: a Start here section first; the former Quickstart is "Full setup".
+- `.env.example` and `docs/SETTINGS.md`: essential settings first, the rest under Advanced.
+- The release workflow also runs when the version changes on `main`: it creates the GitHub release and uploads to PyPI.
+
 ## [1.10.0] - 2026-11-19
 
 ### Added

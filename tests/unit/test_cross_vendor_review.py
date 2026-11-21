@@ -494,3 +494,32 @@ def test_review_notes_skip_the_text_only_check_without_url_lines(monkeypatch, en
     out = asyncio.run(rc.cross_vendor_review(_state(), {"configurable": {}}))  # notes: "Found at https://example.com/a"
     assert out["review"]["text_only_urls"] == []
     assert "only inside another page's text" not in out["final_report"]
+
+
+def test_quick_effort_trims_the_panel_and_is_named_in_the_notes(monkeypatch, enabled_env):
+    from open_deep_research import guard
+
+    monkeypatch.setenv("EFFORT", "quick")
+    monkeypatch.setenv("ESCALATION_MODEL", "openai:big")
+    asked = []
+
+    def fake_build(model, max_tokens, config):
+        asked.append(model)
+        return FakeModel(model, critique=_c(7, model))
+
+    monkeypatch.setattr(rc, "build_reviewer", fake_build)
+    config = {"configurable": {"thread_id": "notes-run"}}
+    guard.record_escalation("notes-run", "summarization", "openai:small", "openai:big", "ValueError")
+    out = asyncio.run(rc.cross_vendor_review(_state(), config))
+    assert set(out["review"]["reviewers"]) == {"openai:a", "anthropic:b"}  # one per vendor, first two
+    assert "google_genai:c" not in asked and "openai:broken" not in asked
+    notes = out["final_report"].split("## Review notes", 1)[1]
+    assert "- Effort: quick (2 parallel researchers" in notes
+    assert "- Escalated to openai:big after a failed check: summarization: openai:small → openai:big (ValueError)" in notes
+
+
+def test_notes_do_not_mention_effort_when_none_is_set(monkeypatch, enabled_env):
+    monkeypatch.delenv("EFFORT", raising=False)
+    monkeypatch.setattr(rc, "build_reviewer", lambda m, t, c: FakeModel(m, critique=_c(7, m)))
+    out = asyncio.run(rc.cross_vendor_review(_state(), {"configurable": {}}))
+    assert "Effort:" not in out["final_report"] and "Escalated" not in out["final_report"]

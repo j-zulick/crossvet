@@ -4,6 +4,24 @@
 
 **Deep research whose reports are checked by models from several AI vendors before you read them, plus a benchmark that measures which model to use for each job in the pipeline.**
 
+## Start here
+
+```bash
+pip install crossvet        # or, from a clone of this repository: uv sync, then put "uv run" before each command
+```
+
+| You want to | Run | Needs |
+|---|---|---|
+| Check a page for hidden instructions aimed at AI | `crossvet scan https://example.com/pricing` | Nothing: no model, no key, no cost |
+| Have models from several vendors review a report you already have | `crossvet review report.md --sources notes.md https://example.com/study` | API keys |
+| Research a question and get a reviewed report | `crossvet research "What changed in X in 2026?"` | API keys and a search source |
+
+- **One-time setup for the last two:** `crossvet setup` asks for the keys you have (input hidden), finds the models they can call and writes `.env`. One OpenRouter key covers most vendors. `crossvet doctor` then checks the result without spending anything.
+- **What a scan report looks like:** [docs/samples/scan-report.html](docs/samples/scan-report.html), made from the [demo page](docs/samples/demo-page.html) next to it.
+- **What a reviewed report looks like:** [docs/examples/jwst-mirror.md](docs/examples/jwst-mirror.md), from a real run.
+- **Spend less per run:** `--effort quick|standard|deep` on `crossvet research` and `crossvet try` ([how](docs/FEATURES.md#effort-and-the-model-guard)).
+- **Everything else** (`crossvet --help` lists it): the role benchmark, comparisons, the MCP server, Docker and the web UI. Five settings matter to most setups; the rest are in [docs/SETTINGS.md](docs/SETTINGS.md) under Advanced.
+
 ## TL;DR
 - **What:** a deep-research agent (a fork of LangChain's Open Deep Research) that has every report reviewed by models from **different AI vendors** before you read it. Outcomes are decided by code, not by a model's say-so: a cited URL the research never read is flagged; evidence that overrules a finding must be a quote found verbatim in the notes; debate stops by rule, with a guard against agreement the notes don't back.
 - **Why:** one model checking its own report shares its blind spots, and LLM judges favor their own output and confident wording. A mixed-vendor panel with evidence checks in code catches what one model misses (see [Design principles](#design-principles)).
@@ -78,6 +96,7 @@ Each design choice answers a documented failure mode of using LLMs to judge LLM 
 | Feature | What it does |
 |---|---|
 | [Prompt-injection check](docs/FEATURES.md#prompt-injection-check) | Every fetched page is checked in code before a model reads it; flagged sources are listed in the Review notes, claims resting only on them go to *Disputed*, and URLs found only inside a page's text are marked unverified (v1.7, v1.9). |
+| [Effort and the model guard](docs/FEATURES.md#effort-and-the-model-guard) | `EFFORT` / `--effort` sets how much research and review a run does; `ESCALATION_MODEL` is used only after a stage's model fails a check in code; `MAX_RUN_USD` / `--max-usd` stops a run at a spend cap. No model makes these decisions (v1.11). |
 | [`crossvet-scan`](docs/FEATURES.md#check-pages-for-prompt-injection-crossvet-scan) | The same check on any page, file, sitemap, URL list or crawlee-server crawl, as text, JSON, CSV or a client-ready HTML report, and as an MCP tool; hidden-text channels include stylesheet-hidden text, JSON-LD and noscript (v1.8–v1.10). |
 | [`crossvet review`](docs/FEATURES.md#review-any-report-crossvet-review) | The cross-vendor review on a report from any tool or person, against the files or URLs it should rest on (v1.8). |
 | [Early stopping in deliberation](docs/FEATURES.md#early-stopping-in-deliberation) | Debate between reviewers stops by rule on consensus or a stable disagreement, with a guard against agreement the notes don't back (v1.1). |
@@ -97,7 +116,7 @@ Each design choice answers a documented failure mode of using LLMs to judge LLM 
 ## Stack
 Python 3.13 · uv · **LangGraph 1.2** (interrupts, SQLite / Postgres checkpointers) · LangChain 1.x (`init_chat_model`, any provider) · **OpenRouter** (`langchain-openrouter`: one key, most vendors, real per-call cost) · **Pydantic v2** typed outputs · **self-hosted models** via Ollama or any OpenAI-compatible server · **Deep Agents** (`deepagents`) edition · **Langfuse** tracing · **MCP** server · pytest · ruff · GitHub Actions (CodeQL, gitleaks, SBOM) · Docker Compose · **Agent Chat UI** (Next.js 16, React 19, Tailwind 4) in `web/`.
 
-## Quickstart
+## Full setup
 Requires Python 3.11–3.13 (the repo pins 3.13 in `.python-version`; `uv` downloads it if needed). Newer Python versions may lack prebuilt packages for some dependencies.
 
 ```bash
@@ -173,6 +192,7 @@ The offline suite covers the review stage end to end, every check that decides a
 - [x] **v1.6.1** — newer models benchmarked (GPT-6 Luna becomes the default for the cheap roles), incomplete reports flagged in the Deep Agents edition, contributor docs
 - [x] **v1.7** — prompt-injection check in code (fetched pages flagged before any model reads them, flagged sources in the Review notes), injection and hard benchmark suites, Jev support checks live-tested
 - [x] **v1.8** — `crossvet-scan` (CLI and MCP tool) checks any page for prompt injection; `crossvet review` reviews any report against its sources; claims resting only on flagged sources go to *Disputed*
+- [x] **v1.11** — one `crossvet` command for every tool and a Start here section; essential and advanced settings; effort tiers, escalation after a failed check and a spend cap, all decided in code; releases publish themselves when a version lands on main
 - [x] **v1.10** — broader injection patterns (Italian, Dutch, reply commands, disguises and split fragments) and hidden-text channels, with a false-alarm check on 608 real pages; PyPI packaging and release workflow
 - [x] **v1.9** — injection defenses (repetition and multilingual flags, a prompt rule, URLs found only inside a page's text marked unverified), the summarizer role in `crossvet-bench`, `crossvet-scan` reports (CSV, HTML) and many-page scans (`--sitemap`, `--urls`)
 
