@@ -128,7 +128,7 @@ importers:
         version: 3.7.0
       tailwindcss-animate:
         specifier: ^1.0.7
-        version: 1.0.7(tailwindcss@4.3.3)
+        version: 1.0.7(tailwindcss@4.3.5)
       use-stick-to-bottom:
         specifier: ^1.1.6
         version: 1.1.6(react@19.3.1)
@@ -204,10 +204,10 @@ importers:
         version: 0.8.1(prettier@3.9.10)
       tailwind-scrollbar:
         specifier: ^4.0.2
-        version: 4.0.2(react@19.3.1)(tailwindcss@4.3.3)
+        version: 4.0.2(react@19.3.1)(tailwindcss@4.3.5)
       tailwindcss:
-        specifier: ^4.3.3
-        version: 4.3.3
+        specifier: ^4.3.5
+        version: 4.3.5
       typescript:
         specifier: ~7.0.2
         version: 7.0.2
@@ -3585,9 +3585,6 @@ packages:
     resolution: {integrity: sha512-bl6mpH3T7I3UFxuvDEXLxy/VuFxBk5bbzplh7tXI68mwMokNYd1t9qPBHlnyTwfa4JGC4zP516I1hYYtQ/vspA==}
     peerDependencies:
       tailwindcss: '>=3.0.0 || insiders'
-
-  tailwindcss@4.3.3:
-    resolution: {integrity: sha512-gOhV3P7ufE62QDGg1zVaTgCR+EtPv92k2nIhVcVKcLmxT1sUBsQGhnZj175j+MqRt4zLF7ic+sCYjfhxMxj7YQ==}
 
   tailwindcss@4.3.5:
     resolution: {integrity: sha512-FcQk9BuffmEHJP2G0XmB2SplU1aLTI7j07Kunk+U74Ny+XiWOtzXz9aujFZ/avntw1e2cOv/3PkgzflQ7gX2vQ==}
@@ -7416,18 +7413,16 @@ snapshots:
 
   tailwind-merge@3.7.0: {}
 
-  tailwind-scrollbar@4.0.2(react@19.3.1)(tailwindcss@4.3.3):
+  tailwind-scrollbar@4.0.2(react@19.3.1)(tailwindcss@4.3.5):
     dependencies:
       prism-react-renderer: 2.4.1(react@19.3.1)
-      tailwindcss: 4.3.3
+      tailwindcss: 4.3.5
     transitivePeerDependencies:
       - react
 
-  tailwindcss-animate@1.0.7(tailwindcss@4.3.3):
+  tailwindcss-animate@1.0.7(tailwindcss@4.3.5):
     dependencies:
-      tailwindcss: 4.3.3
-
-  tailwindcss@4.3.3: {}
+      tailwindcss: 4.3.5
 
   tailwindcss@4.3.5: {}
 
