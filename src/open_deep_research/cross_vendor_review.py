@@ -33,6 +33,9 @@ from pydantic import BaseModel, Field
 
 from open_deep_research import injection_check
 from open_deep_research.configuration import Configuration
+from open_deep_research.effort import describe as describe_effort
+from open_deep_research.effort import limit_panel
+from open_deep_research.guard import escalations
 from open_deep_research.models import (  # noqa: F401 (openrouter_preferences is re-exported)
     build_chat_model,
     message_text,
@@ -378,7 +381,7 @@ Return only the revised report in Markdown."""
 async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> dict[str, Any]:
     """LangGraph node: critique → critic check → anonymized vote → citation check → revision."""
     configurable = Configuration.from_runnable_config(config)
-    models = parse_review_models(configurable.review_models)
+    models = limit_panel(parse_review_models(configurable.review_models), configurable.review_panel_limit)
     report = state.get("final_report", "") or ""
     if not configurable.cross_vendor_review_enabled or len(models) < 2 or not report or report.startswith("Error generating final report"):
         return {}
@@ -594,6 +597,11 @@ async def cross_vendor_review(state: dict[str, Any], config: RunnableConfig) -> 
         notes_items.append("Reviewers that failed: " + ", ".join(failed))
     if substitutions:
         notes_items.append("Replaced by fallback models: " + ", ".join(f"{b} → {g}" for b, g in substitutions.items()))
+    if configurable.effort:
+        notes_items.append(describe_effort(configurable))
+    escalated = escalations(config)
+    if escalated:
+        notes_items.append(f"Escalated to {configurable.escalation_model} after a failed check: " + "; ".join(escalated))
     if checker_error:
         notes_items.append(f"Support check off: {checker_error}")
     elif checker is not None and checker.errors:

@@ -73,6 +73,29 @@ uv run crossvet-bench run --suite injection-hard --roles summarizer,compression,
 uv run crossvet-bench run --suite injection-hard-checked --roles summarizer,compression,writer,reviewer,critic,reviser --models <ids>
 ```
 
+## Effort and the model guard
+Three settings decide in code, with no model asked, how much a run does and when a stronger model or a stop is warranted. All are off by default, so a run without them behaves as before.
+
+**Effort.** `EFFORT=quick|standard|deep`, or `--effort` on `crossvet research` and `crossvet try`:
+
+| Tier | Parallel researchers | Research rounds | Tool calls per researcher | Review panel | Deliberation rounds | Blind pass |
+|---|---:|---:|---:|---|---:|---|
+| `quick` | 2 | 2 | 4 | first 2, one per vendor | 0 | off |
+| `standard` | your settings (defaults 5) | (6) | (10) | all | (0) | (off) |
+| `deep` | your setting | 8 | 15 | all | 2 | on |
+
+- A setting you set yourself always wins over the tier. `REVIEW_PANEL_LIMIT` is also a setting of its own.
+- `--effort auto` picks the tier from the question's text: one short lookup question is `quick`; a long question, three or more sub-questions, or wording such as "compare" or "analysis" is `deep`; everything else, and anything unclear, is `standard`. The command prints the tier and the reason.
+- When a tier is set, the Review notes carry an `Effort:` line with the values in effect.
+- The research columns apply to the LangGraph edition; the review columns apply to both editions.
+- The tier values are starting points. What each tier saves, and what it costs in report quality, has not been measured yet.
+
+**Escalation.** `ESCALATION_MODEL=provider:model`. A stage runs on its own model first. The same call goes to the escalation model only when code sees a failure: the call errors, or its structured output does not parse, after the stage's retries; or the report is cut off by an output limit or a content filter. Covered stages: clarification, the research brief, page summaries, compression and the report (LangGraph edition). The supervisor, the researchers and every review role are never escalated. Each escalation is logged and listed in the Review notes as `stage: model → escalation model (reason)`.
+
+**Spend cap.** `MAX_RUN_USD`, or `--max-usd` on `crossvet research`, `crossvet resume` and `crossvet try`. Once the counted spend reaches the cap, the next model call is refused, the command says so and exits with code 3. Cost is what the provider reports with each call (OpenRouter does), otherwise tokens times the list price in the OpenRouter catalog that `crossvet setup` caches. A call whose price is unknown is counted as unpriced and cannot be capped; the summary line says how many there were. A stage that handles its own errors can still finish with what it has, so a capped run may end with a partial report.
+
+Design decision 26.
+
 ## Check pages for prompt injection: `crossvet-scan`
 The same check, as a standalone command and an MCP tool, for any page: your own site, a competitor's, user-generated content. It splits an HTML page into what a reader sees and what a reader doesn't and reports, per channel, the kinds of pattern found with a short excerpt. Hidden channels: hidden elements (inline styles, `hidden`, `aria-hidden`, off-screen, clipped, scaled to nothing, transparent or near-zero size, `<template>`, SVG titles and descriptions), text hidden only by the page's own `<style>` rules, HTML comments, attributes and meta tags (including hidden form inputs), JSON-LD and noscript (v1.10). Text split across inline elements is read as one run. Invisible Unicode tag text and base64 blobs are decoded and scanned too. A channel whose only finding is a repeated claim is left out unless you pass `--include-repetition`: on 608 real pages it was the only finding on 23 of the 24 flagged, all boilerplate ([details](benchmarks/2026-11-19-scan-patterns/)). No model or API key is used.
 

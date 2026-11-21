@@ -30,6 +30,7 @@ from langchain_core.messages import HumanMessage
 from langgraph.types import Command
 
 from open_deep_research import tracing
+from open_deep_research.guard import BudgetExceeded
 
 DEFAULT_SQLITE = ".crossvet/checkpoints.sqlite"
 
@@ -180,8 +181,23 @@ async def _run(args: argparse.Namespace) -> int:
         first = None if args.command == "resume" else {"messages": [HumanMessage(content=args.question)]}
         print(f"thread: {thread}  (resume with: crossvet resume --thread {thread})", file=sys.stderr)
         callbacks = tracing.get_callbacks()
+        budget = set_run_limits(getattr(args, "effort", None), getattr(args, "max_usd", None), getattr(args, "question", ""))
+        callbacks = [*callbacks, *budget]
+        result: dict[str, Any] = {}
         try:
-            result = await drive(graph, first, thread, approver, callbacks)
+            try:
+                result = await drive(graph, first, thread, approver, callbacks)
+            except BudgetExceeded as exc:
+                print(f"crossvet: {exc}", file=sys.stderr)
+            finally:
+                for guard in budget:
+                    print(guard.summary(), file=sys.stderr)
+            if any(guard.tripped for guard in budget):
+                print(f"The run stopped at the spend cap; anything written below may be partial. To go further: "
+                      f"crossvet resume --thread {thread} --max-usd <higher>", file=sys.stderr)
+                if result.get("final_report"):
+                    _write_report(result, args.out)
+                return 3
             if tracing.score_run(result, callbacks):
                 print("Langfuse: review scores attached to this run's trace.", file=sys.stderr)
         finally:
@@ -192,14 +208,17 @@ async def _run(args: argparse.Namespace) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     """CLI argument parser."""
-    p = argparse.ArgumentParser(prog="crossvet", description="Deep research with cross-vendor review and durable checkpoints.")
+    p = argparse.ArgumentParser(prog="crossvet", description="Deep research with cross-vendor review and durable checkpoints.",
+                                epilog=START_HERE, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="command", required=True)
-    run = sub.add_parser("run", help="start a new research run")
+    run = sub.add_parser("run", aliases=["research"], help="start a new research run")
     run.add_argument("question")
     run.add_argument("--thread", help="thread id (default: random)")
     resume = sub.add_parser("resume", help="continue a run from its last checkpoint")
     resume.add_argument("--thread", required=True)
     for sp in (run, resume):
+        sp.add_argument("--effort", choices=effort_choices(), help=EFFORT_HELP)
+        sp.add_argument("--max-usd", type=float, help="stop before the next model call once this much is spent (default: MAX_RUN_USD; 0 = no cap)")
         sp.add_argument("--auto-approve", action="store_true", help="approve any pause without asking")
         sp.add_argument("--out", help="write the final report to this file")
     status = sub.add_parser("status", help="show where a run stopped")
@@ -243,8 +262,78 @@ async def _review(args: argparse.Namespace) -> int:
     return 0
 
 
+EFFORT_HELP = ("how much work the run does: quick, standard or deep (default: EFFORT, else standard); "
+               "auto picks from the question, in code. Your own settings always win over the tier")
+
+
+def effort_choices() -> tuple[str, ...]:
+    """Tier names accepted by ``--effort``."""
+    from open_deep_research.effort import CHOICES
+
+    return CHOICES
+
+
+def set_run_limits(effort: str | None, max_usd: float | None, question: str = "") -> list[Any]:
+    """Apply ``--effort`` and ``--max-usd`` to this process; return the spend-cap callbacks for the run."""
+    from open_deep_research.configuration import Configuration
+    from open_deep_research.effort import classify
+    from open_deep_research.guard import budget_callbacks
+
+    tier = effort or os.environ.get("EFFORT", "")
+    if tier == "auto":
+        tier, reason = classify(question) if question else ("standard", "there is no question to read when resuming")
+        print(f"effort: {tier} (chosen because {reason})", file=sys.stderr)
+    if tier:
+        os.environ["EFFORT"] = tier
+    if max_usd is not None:
+        os.environ["MAX_RUN_USD"] = str(max_usd)
+    return budget_callbacks(Configuration.from_runnable_config({"configurable": {}}).max_run_usd)
+
+
+# Tools that have their own command (``crossvet-scan`` and so on) are also subcommands of ``crossvet``.
+# name: (module, one-line help, the equivalent standalone command)
+TOOLS: dict[str, tuple[str, str, str]] = {
+    "scan": ("scan_cli", "check pages for prompt injection (no model, no key)", "crossvet-scan"),
+    "try": ("quickrun", "one research run that saves the report, the review and a shareable summary", "crossvet-try"),
+    "setup": ("setup_wizard", "write .env: find the models your keys can call and pick a review panel", "crossvet-setup"),
+    "doctor": ("doctor", "check the configuration without spending tokens", "crossvet-doctor"),
+    "bench": ("bench", "measure which model to use for each role", "crossvet-bench"),
+    "compare": ("compare", "run the same questions under several setups and compare", "crossvet-compare"),
+    "dataset": ("dataset", "build an evaluation dataset from finished runs", "crossvet-dataset"),
+    "mcp": ("mcp_server", "start the MCP server for Claude Code, Codex or Cursor", "crossvet-mcp"),
+}
+START_HERE = """start here:
+  crossvet scan URL_OR_FILE                      check a page for hidden instructions aimed at AI (free, no keys)
+  crossvet setup                                 one-time: write .env from the API keys you have
+  crossvet review REPORT --sources FILE_OR_URL   have several vendors' models review a report you already have
+  crossvet research "QUESTION"                   research a question, write the report and review it
+
+more tools (each takes --help):
+""" + "\n".join(f"  crossvet {name:8} {help_}" for name, (_, help_, _) in TOOLS.items())
+
+
+def _tool(name: str, rest: list[str]) -> int:
+    """Run one of the standalone tools with ``rest`` as its arguments."""
+    import importlib
+    import inspect
+
+    module, _, prog = TOOLS[name]
+    tool_main = importlib.import_module(f"open_deep_research.{module}").main
+    if inspect.signature(tool_main).parameters:
+        return int(tool_main(rest) or 0)
+    saved = sys.argv
+    sys.argv = [prog, *rest]  # these tools read sys.argv themselves
+    try:
+        return int(tool_main() or 0)
+    finally:
+        sys.argv = saved
+
+
 def main(argv: list[str] | None = None) -> int:
     """Entry point."""
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if argv and argv[0] in TOOLS:
+        return _tool(argv[0], argv[1:])
     load_dotenv()
     args = build_parser().parse_args(argv)
     if args.command == "review":

@@ -16,6 +16,7 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command
 
+from open_deep_research.guard import escalation_target, record_escalation, with_escalation
 from open_deep_research.models import build_chat_model, is_routed, message_text, stop_problem
 from open_deep_research.configuration import (
     Configuration,
@@ -64,17 +65,39 @@ configurable_model = init_chat_model(
 )
 
 
-def stage_model(model_config: dict, shape=lambda model: model):
+def stage_model(model_config: dict, shape=lambda model: model, role: str = "", escalation: dict | None = None):
     """Build the model for one stage call, shaped by ``shape`` (tools, structured output, retries).
 
     ``openrouter:`` and ``local:`` models get their own client (see ``models``); every other
-    provider goes through LangChain's configurable model, configured last as before.
+    provider goes through LangChain's configurable model, configured last as before. ``shape``
+    takes the model, or the model and its name when the shaping depends on which model it is.
+    With ``escalation`` (a second model config, see ``escalation_for``) the stage's own model is
+    called first and the stronger one only if that call raises (see ``guard``).
     """
-    name = model_config["model"]
-    if is_routed(name):
-        return shape(build_chat_model(name, model_config.get("max_tokens"), {"configurable": {}},
-                                      tags=model_config.get("tags")))
-    return shape(configurable_model).with_config(model_config)
+    import inspect
+
+    takes_name = len(inspect.signature(shape).parameters) >= 2
+
+    def build(cfg: dict):
+        name = cfg["model"]
+        shaped = (lambda m: shape(m, name)) if takes_name else shape
+        if is_routed(name):
+            return shaped(build_chat_model(name, cfg.get("max_tokens"), {"configurable": {}}, tags=cfg.get("tags")))
+        return shaped(configurable_model).with_config(cfg)
+
+    primary = build(model_config)
+    if escalation and escalation["model"] != model_config["model"]:
+        return with_escalation(primary, build(escalation), role, model_config["model"], escalation["model"])
+    return primary
+
+
+def escalation_for(model_config: dict, configurable: Configuration, config: RunnableConfig) -> dict | None:
+    """Model config for the escalation model, or ``None`` when escalation is off or would change nothing."""
+    target = escalation_target(model_config["model"], configurable.escalation_model)
+    if not target:
+        return None
+    return {**model_config, "model": target, "api_key": get_api_key_for_model(target, config)}
+
 
 async def clarify_with_user(state: AgentState, config: RunnableConfig) -> Command[Literal["write_research_brief", "__end__"]]:
     """Analyze user messages and ask clarifying questions if the research scope is unclear.
@@ -107,7 +130,8 @@ async def clarify_with_user(state: AgentState, config: RunnableConfig) -> Comman
     # Configure model with structured output and retry logic
     clarification_model = stage_model(
         model_config,
-        lambda m: m.with_structured_output(ClarifyWithUser, **structured_output_kwargs(configurable.research_model)).with_retry(stop_after_attempt=configurable.max_structured_output_retries),
+        lambda m, name: m.with_structured_output(ClarifyWithUser, **structured_output_kwargs(name)).with_retry(stop_after_attempt=configurable.max_structured_output_retries),
+        role="clarification", escalation=escalation_for(model_config, configurable, config),
     )
     
     # Step 3: Analyze whether clarification is needed
@@ -158,7 +182,8 @@ async def write_research_brief(state: AgentState, config: RunnableConfig) -> Com
     # Configure model for structured research question generation
     research_model = stage_model(
         research_model_config,
-        lambda m: m.with_structured_output(ResearchQuestion, **structured_output_kwargs(configurable.research_model)).with_retry(stop_after_attempt=configurable.max_structured_output_retries),
+        lambda m, name: m.with_structured_output(ResearchQuestion, **structured_output_kwargs(name)).with_retry(stop_after_attempt=configurable.max_structured_output_retries),
+        role="research_brief", escalation=escalation_for(research_model_config, configurable, config),
     )
     
     # Step 2: Generate structured research brief from user messages
@@ -550,12 +575,14 @@ async def compress_research(state: ResearcherState, config: RunnableConfig):
     """
     # Step 1: Configure the compression model
     configurable = Configuration.from_runnable_config(config)
-    synthesizer_model = stage_model({
+    compression_config = {
         "model": configurable.compression_model,
         "max_tokens": configurable.compression_model_max_tokens,
         "api_key": get_api_key_for_model(configurable.compression_model, config),
         "tags": ["langsmith:nostream"]
-    })
+    }
+    synthesizer_model = stage_model(compression_config, role="compression",
+                                    escalation=escalation_for(compression_config, configurable, config))
     
     # Step 2: Prepare messages for compression
     researcher_messages = state.get("researcher_messages", [])
@@ -680,9 +707,10 @@ async def final_report_generation(state: AgentState, config: RunnableConfig):
             )
             
             # Generate the final report
-            final_report = await stage_model(writer_model_config).ainvoke([
+            stronger_writer = escalation_for(writer_model_config, configurable, config)
+            final_report = await stage_model(writer_model_config, role="final_report", escalation=stronger_writer).ainvoke([
                 HumanMessage(content=final_report_prompt)
-            ])
+            ], config)
             report_text = strip_tracking(message_text(final_report))
 
             # A reply cut off by the output limit or a provider's content filter stops mid-sentence.
@@ -691,7 +719,10 @@ async def final_report_generation(state: AgentState, config: RunnableConfig):
             problem = stop_problem(final_report)
             if problem:
                 retry_prompt = final_report_prompt + REPORT_RETRY_NOTE
-                second = await stage_model(writer_model_config).ainvoke([HumanMessage(content=retry_prompt)])
+                if stronger_writer:  # a report that stopped early is retried on the escalation model
+                    thread = str((config.get("configurable") or {}).get("thread_id") or "")
+                    record_escalation(thread, "final_report", writer_model_config["model"], stronger_writer["model"], problem)
+                second = await stage_model(stronger_writer or writer_model_config).ainvoke([HumanMessage(content=retry_prompt)])
                 second_text = strip_tracking(message_text(second))
                 if not stop_problem(second):
                     final_report, report_text = second, second_text

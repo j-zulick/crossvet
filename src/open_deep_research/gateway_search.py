@@ -171,12 +171,7 @@ async def gateway_search(queries: List[str], config: RunnableConfig = None) -> s
     """Search via the research gateway and return summarized, source-labelled results."""
     # Local imports avoid a circular import with utils.
     from open_deep_research.configuration import Configuration
-    from open_deep_research.state import Summary
-    from open_deep_research.utils import (
-        stage_chat_model,
-        structured_output_kwargs,
-        summarize_webpage,
-    )
+    from open_deep_research.utils import summarize_webpage, summarizer_model
 
     batches = await gateway_search_raw(queries)
     unique: dict[str, tuple[str, GatewaySource]] = {}
@@ -194,12 +189,7 @@ async def gateway_search(queries: List[str], config: RunnableConfig = None) -> s
         )
 
     configurable = Configuration.from_runnable_config(config)
-    model = stage_chat_model(
-        configurable.summarization_model,
-        configurable.summarization_model_max_tokens,
-        config,
-        tags=["langsmith:nostream"],
-    ).with_structured_output(Summary, **structured_output_kwargs(configurable.summarization_model)).with_retry(stop_after_attempt=configurable.max_structured_output_retries)
+    model = summarizer_model(configurable, config)
 
     async def summarize(s: GatewaySource) -> str | None:
         if not s.content:

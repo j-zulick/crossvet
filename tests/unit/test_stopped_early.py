@@ -46,7 +46,7 @@ class Writer:
 
 def run_writer(monkeypatch, replies):
     writer = Writer(replies)
-    monkeypatch.setattr(dr, "stage_model", lambda cfg, shape=None: writer)
+    monkeypatch.setattr(dr, "stage_model", lambda cfg, shape=None, **kw: writer)
     out = asyncio.run(dr.final_report_generation(
         {"notes": ["Note: the mandate is set by statute. https://a.example/law"], "messages": [], "research_brief": "b"},
         {"configurable": {}},

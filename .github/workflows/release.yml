@@ -1,27 +1,66 @@
 name: release
 
-# Publishes to PyPI when a GitHub release is published, using PyPI trusted publishing (no token stored here).
-# One-time setup on PyPI: add a trusted publisher for this repository, workflow "release.yml", environment "pypi".
+# Releases a new version without anyone running a script:
+#   - a push to main that changes the version in pyproject.toml creates the GitHub release (tag v<version>,
+#     notes from docs/releases/v<version>.md) if it does not exist yet, then builds and uploads to PyPI;
+#   - publishing a GitHub release by hand does the same build and upload.
+# PyPI trusted publishing is used (no token stored here). One-time setup on PyPI: a trusted publisher for this
+# repository, workflow "release.yml", environment "pypi".
 
 on:
   release:
     types: [published]
+  push:
+    branches: [main]
+    paths: [pyproject.toml]
 
 permissions:
   contents: read
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
+  prepare:
+    if: github.event.repository.private == false
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      publish: ${{ steps.decide.outputs.publish }}
+      version: ${{ steps.decide.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - id: decide
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          version=$(uv version --short)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if [ "$EVENT" = "release" ]; then
+            test "${TAG#v}" = "$version" || { echo "tag $TAG does not match version $version"; exit 1; }
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          elif gh release view "v$version" >/dev/null 2>&1; then
+            echo "v$version is already released; nothing to do"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            notes="docs/releases/v$version.md"
+            test -f "$notes" || { echo "missing $notes"; exit 1; }
+            gh release create "v$version" --target "$GITHUB_SHA" --title "Crossvet v$version" --notes-file "$notes" --latest
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
   build:
+    needs: prepare
+    if: needs.prepare.outputs.publish == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
-      - name: Check the tag matches the package version
-        env:
-          TAG: ${{ github.event.release.tag_name }}
-        run: |
-          version=$(uv version --short)
-          test "${TAG#v}" = "$version" || { echo "tag $TAG does not match version $version"; exit 1; }
       - run: uv sync --locked
       - run: uv run pytest tests/unit -q
       - run: uv build
@@ -43,3 +82,5 @@ jobs:
           name: dist
           path: dist/
       - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip-existing: true
