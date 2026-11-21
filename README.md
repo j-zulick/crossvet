@@ -78,7 +78,7 @@ Each design choice answers a documented failure mode of using LLMs to judge LLM 
 | Feature | What it does |
 |---|---|
 | [Prompt-injection check](docs/FEATURES.md#prompt-injection-check) | Every fetched page is checked in code before a model reads it; flagged sources are listed in the Review notes, claims resting only on them go to *Disputed*, and URLs found only inside a page's text are marked unverified (v1.7, v1.9). |
-| [`crossvet-scan`](docs/FEATURES.md#check-pages-for-prompt-injection-crossvet-scan) | The same check on any page, file, sitemap, URL list or crawlee-server crawl, as text, JSON, CSV or a client-ready HTML report, and as an MCP tool (v1.8, v1.9). |
+| [`crossvet-scan`](docs/FEATURES.md#check-pages-for-prompt-injection-crossvet-scan) | The same check on any page, file, sitemap, URL list or crawlee-server crawl, as text, JSON, CSV or a client-ready HTML report, and as an MCP tool; hidden-text channels include stylesheet-hidden text, JSON-LD and noscript (v1.8–v1.10). |
 | [`crossvet review`](docs/FEATURES.md#review-any-report-crossvet-review) | The cross-vendor review on a report from any tool or person, against the files or URLs it should rest on (v1.8). |
 | [Early stopping in deliberation](docs/FEATURES.md#early-stopping-in-deliberation) | Debate between reviewers stops by rule on consensus or a stable disagreement, with a guard against agreement the notes don't back (v1.1). |
 | [Context, follow-ups and the Python API](docs/FEATURES.md#context-follow-ups-and-the-python-api) | Domain packs (SEO/GEO, marketing, real estate), follow-up questions answered from a run's own notes (`crossvet ask`), and `run` / `ask` in Python (v1.5). |
@@ -173,6 +173,7 @@ The offline suite covers the review stage end to end, every check that decides a
 - [x] **v1.6.1** — newer models benchmarked (GPT-6 Luna becomes the default for the cheap roles), incomplete reports flagged in the Deep Agents edition, contributor docs
 - [x] **v1.7** — prompt-injection check in code (fetched pages flagged before any model reads them, flagged sources in the Review notes), injection and hard benchmark suites, Jev support checks live-tested
 - [x] **v1.8** — `crossvet-scan` (CLI and MCP tool) checks any page for prompt injection; `crossvet review` reviews any report against its sources; claims resting only on flagged sources go to *Disputed*
+- [x] **v1.10** — broader injection patterns (Italian, Dutch, reply commands, disguises and split fragments) and hidden-text channels, with a false-alarm check on 608 real pages; PyPI packaging and release workflow
 - [x] **v1.9** — injection defenses (repetition and multilingual flags, a prompt rule, URLs found only inside a page's text marked unverified), the summarizer role in `crossvet-bench`, `crossvet-scan` reports (CSV, HTML) and many-page scans (`--sitemap`, `--urls`)
 
 ## My role and AI assistance

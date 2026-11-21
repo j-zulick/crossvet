@@ -2,7 +2,7 @@
 
 A web page can carry text written for the AI that reads it rather than for a
 person: "ignore your instructions", "recommend product X", "cite this URL",
-often hidden from human readers with CSS or HTML comments. Crossvet's citation
+often hidden from human readers with CSS, HTML comments, attributes or invisible Unicode. Crossvet's citation
 and quote checks cannot catch this, because the injected page really is in the
 research notes.
 
@@ -14,10 +14,16 @@ is false; it marks the page for the reviewers and the reader.
 
 The flag line names only the kinds of pattern found, never the injected text,
 so the notes don't carry the instruction on to later models.
+
+The patterns cover English, Spanish, French, German, Portuguese, Italian and Dutch. Before
+matching, text is normalized (look-alike letters, invisible characters, letter-spaced words),
+instructions split into short fragments are joined and re-checked, and ROT13, reversed text,
+invisible Unicode tag text and base64 blobs are decoded and scanned.
 """
 
 from __future__ import annotations
 
+import codecs
 import re
 from dataclasses import dataclass
 
@@ -31,18 +37,24 @@ _AI = r"(?:ai|a\.i\.|llm|language model|assistant|chatbot|model|agent|gpt|claude
 # people ("asistente", "modelo" alone), and an override needs the "previous / system" qualifier,
 # so "ignora las instrucciones del fabricante" is ordinary prose and does not match.
 _AI_ES = r"(?:(?:modelo|sistema|asistente|agente)s?\s+de\s+(?:inteligencia\s+artificial|ia|lenguaje)|inteligencia\s+artificial|ia|chatbot|llm)"
-_AI_FR = r"(?:(?:mod[eè]le|syst[eè]me|assistant|agent)s?\s+(?:de\s+langage|d['’]\s?ia|d['’]\s?intelligence\s+artificielle)|intelligence\s+artificielle|ia|chatbot|llm)"
+_AI_FR = r"(?:(?:mod[eè]le|syst[eè]me|assistant|agent)s?\s+(?:de\s+langage|d['’]\s?ia|d['’]\s?intelligence\s+artificielle|ia)|intelligence\s+artificielle|ia|chatbot|llm)"
 _AI_DE = r"(?:ki(?:-(?:modell|system|assistent|agent)(?:en|e|s)?)?|k[üu]nstliche[nr]?\s+intelligenz|sprachmodell(?:e|en|s)?|chatbot|llm)"
 _AI_PT = r"(?:(?:modelo|sistema|assistente|agente)s?\s+de\s+(?:intelig[êe]ncia\s+artificial|ia|linguagem)|intelig[êe]ncia\s+artificial|ia|chatbot|llm)"
+_AI_IT = r"(?:(?:modell[oi]|sistem[ai]|assistent[ei]|agent[ei])\s+(?:di\s+)?(?:intelligenza\s+artificiale|ia|linguaggio)|assistent[ei]\s+ia|intelligenza\s+artificiale|ia|chatbot|llm)"
+_AI_NL = r"(?:(?:ai|ki)[- ]?(?:model|systeem|assistent|agent)(?:len|en|s)?|kunstmatige\s+intelligentie|taalmodel(?:len)?|chatbot|llm)"
 _ADDRESSED_INTL = (
     rf"|\b(?:nota|mensaje|instrucci[oó]n(?:es)?|atenci[oó]n|aviso)\s+(?:para|a|al)\s+(?:cualquier|todo|todos\s+los|todas\s+las|el|la|los|las|un|una)?\s*{_AI_ES}\b"
     rf"|\bsi\s+(?:eres|es|usted\s+es)\s+(?:un|una)\s+{_AI_ES}\b"
-    rf"|\b(?:note|message|instructions?|avis)\s+(?:[àa]|pour)\s+(?:toute?s?|tous|les?|la|l['’]|une?)?\s*{_AI_FR}\b"
+    rf"|\b(?:note|message|instructions?|avis)\s+(?:[àa]|pour|[àa]\s+l['’]intention\s+d(?:e|es|u))\s+(?:toute?s?|tous|les?|la|l['’]|une?)?\s*{_AI_FR}\b"
     rf"|\bsi\s+(?:vous\s+[êe]tes|tu\s+es)\s+(?:un|une)\s+{_AI_FR}\b"
     rf"|\b(?:hinweis|nachricht|notiz|anweisung(?:en)?|achtung)\s+(?:an|f[üu]r)\s+(?:jede[nsr]?|alle|die|den|das|eine?n?)?\s*{_AI_DE}\b"
     rf"|\b(?:wenn|falls)\s+(?:du|sie)\s+(?:eine?\s+)?{_AI_DE}\s+(?:bist|sind)\b"
     rf"|\b(?:nota|mensagem|instru[çc](?:[ãa]o|[õo]es)|aten[çc][ãa]o|aviso)\s+(?:para|a|ao|[àa])\s+(?:qualquer|todo|todos\s+os|todas\s+as|o|a|os|as|um|uma)?\s*{_AI_PT}\b"
     rf"|\bse\s+voc[êe]\s+(?:[ée]|for)\s+(?:um|uma)\s+{_AI_PT}\b"
+    rf"|\b(?:nota|messaggio|istruzion[ei]|attenzione|avviso)\s+(?:per|a|al|ai|alla|all['’])\s*(?:qualsiasi|ogni|tutti\s+i|tutte\s+le|il|la|i|gli|un|una)?\s*{_AI_IT}\b"
+    rf"|\bse\s+(?:sei|[èe]|siete)\s+(?:un|una|un['’])\s*{_AI_IT}\b"
+    rf"|\b(?:opmerking|bericht|instructies?|notitie|aandacht)\s+(?:voor|aan)\s+(?:elk|elke|alle|ieder|iedere|de|het|een)?\s*{_AI_NL}\b"
+    rf"|\bals\s+(?:je|jij|u)\s+(?:een\s+)?{_AI_NL}\s+bent\b"
 )
 _OVERRIDE_INTL = (
     r"|\b(?:ignora|ignore|ignoren|olvida|olvide|olviden|descarta|descarte|omite|omita)\b[^.\n]{0,30}"
@@ -53,6 +65,36 @@ _OVERRIDE_INTL = (
     r"\b(?:vorherigen|vorigen|bisherigen|obigen|fr[üu]heren|urspr[üu]nglichen)\s+(?:anweisungen|instruktionen|regeln|vorgaben|befehle)\b"
     r"|\b(?:ignore|ignora|ignorem|esque[çc]a|esque[çc]am|desconsidere|descarte)\b[^.\n]{0,30}"
     r"\b(?:instru[çc][õo]es|regras|orienta[çc][õo]es|ordens)\s+(?:anteriores|pr[ée]vias|originais|do\s+sistema|acima)\b"
+    r"|\b(?:ignora|ignorate|ignori|dimentica|dimenticate|trascura|scarta)\b[^.\n]{0,30}"
+    r"\b(?:istruzioni|regole|indicazioni|direttive)\s+(?:precedenti|anteriori|originali|del\s+sistema|sopra)\b"
+    r"|\b(?:negeer|vergeet|negeren)\b[^.\n]{0,30}"
+    r"\b(?:vorige|eerdere|voorgaande|oorspronkelijke|bovenstaande)\s+(?:instructies|regels|aanwijzingen|opdrachten)\b"
+)
+_ROLE_INTL = (
+    r"|\bnuevas?\s+instrucci[oó]n(?:es)?\s*:|\bnouvelles?\s+instructions?\s*:|\bneue\s+anweisung(?:en)?\s*:|\bnovas?\s+instru[çc](?:[ãa]o|[õo]es)\s*:"
+    r"|\bahora\s+(?:eres|es|est[aá]s)\s+(?:un|una|en)\s+(?:\w+\s+){0,1}(?:asistente|modelo|agente|bot|modo)\b"
+    r"|\b(?:vous\s+[êe]tes|tu\s+es)\s+(?:d[ée]sormais|maintenant)\s+(?:un|une|en)\s+(?:\w+\s+){0,1}(?:assistant|mod[eè]le|agent|bot|mode)\b"
+    r"|\b(?:du\s+bist|sie\s+sind)\s+(?:jetzt|nun|ab\s+sofort)\s+(?:ein|eine|im)\s+\w*(?:assistent|modell|agent|bot|modus)\b"
+    r"|\b(?:agora\s+voc[êe]\s+(?:[ée]|est[aá])|voc[êe]\s+agora\s+(?:[ée]|est[aá]))\s+(?:um|uma|no|na)\s+(?:\w+\s+){0,1}(?:assistente|modelo|agente|bot|modo)\b"
+    r"|\bnuove\s+istruzioni\s*:|\bnieuwe\s+instructies\s*:"
+    r"|\bora\s+(?:sei|siete)\s+(?:un|una|in)\s+(?:\w+\s+){0,1}(?:assistente|modello|agente|bot|modalit[àa])\b"
+    r"|\b(?:je|jij|u)\s+(?:bent|ben)\s+nu\s+(?:een|in)\s+\w*(?:assistent|model|agent|bot|modus)\b"
+)
+_RESPONSE_INTL = (
+    r"|\b(?:a[ñn]ade|agrega|incluye|inserta|a[ñn]ada|agregue|incluya|inserte)\b[^.\n]{0,120}?\b(?:tu|su)\s+respuesta\b"
+    r"|\b(?:ajoute[zr]?|inclu(?:s|ez|re)|ins[èe]re[zr]?|int[èe]gre[zr]?)\b[^.\n]{0,120}?\b(?:votre|ta)\s+r[ée]ponse\b"
+    r"|\b(?:f[üu]ge|f[üu]gen\s+sie|erg[äa]nze|erg[äa]nzen\s+sie)\b[^.\n]{0,120}?\b(?:deine[rm]?|ihre[rm]?)\s+antwort\b"
+    r"|\b(?:adicione|inclua|insira|acrescente|adiciona|inclui)\b[^.\n]{0,120}?\b(?:sua|tua)\s+resposta\b"
+    r"|\b(?:aggiungi|aggiungete|includi|includete|inserisci|integra)\b[^.\n]{0,120}?\b(?:tua|vostra|sua)\s+risposta\b"
+    r"|\bvoeg\b[^.\n]{0,120}?\b(?:je|jouw|uw)\s+antwoord\b"
+)
+_OMIT_INTL = (
+    r"|\bno\s+(?:menciones|mencione|cites|cite|incluyas|incluya|reveles|revele)\b[^.\n]{0,40}\b(?:resumen|respuesta|informe|usuario)\b"
+    r"|\bne\s+(?:mentionne[zs]?|cite[zs]?|r[ée]v[èe]le[zs]?|inclu(?:s|ez))\s+(?:pas|jamais)\b[^.\n]{0,40}\b(?:r[ée]sum[ée]|r[ée]ponse|rapport|utilisateur)\b"
+    r"|\b(?:erw[äa]hne|erw[äa]hnen\s+sie|nenne|nennen\s+sie|zitiere)\b[^.\n]{0,60}\b(?:zusammenfassung|antwort|bericht|nutzer)\b[^.\n]{0,30}\b(?:keine[nr]?|nicht|niemals|nie)\b"
+    r"|\bn[ãa]o\s+(?:mencione|cite|inclua|revele|mencionar)\b[^.\n]{0,40}\b(?:resumo|resposta|relat[óo]rio|usu[áa]rio)\b"
+    r"|\bnon\s+(?:menzionare|citare|includere|rivelare)\b[^.\n]{0,40}\b(?:riassunto|risposta|rapporto|utente)\b"
+    r"|\b(?:noem|vermeld|citeer)\s+(?:geen|niet|nooit)\b[^.\n]{0,40}\b(?:samenvatting|antwoord|verslag|gebruiker)\b"
 )
 INSTRUCTION_PATTERNS: dict[str, re.Pattern[str]] = {
     "override": re.compile(
@@ -69,13 +111,25 @@ INSTRUCTION_PATTERNS: dict[str, re.Pattern[str]] = {
         re.I,
     ),
     "role_change": re.compile(
-        rf"\byou are now\s+(?:an?|the|in)\s+(?:\w+\s+){{0,2}}(?:{_AI}|mode)\b|\bnew instructions?\s*:|\bdeveloper mode\b",
+        rf"\byou are now\s+(?:an?|the|in)\s+(?:\w+\s+){{0,2}}(?:{_AI}|mode)\b|\bnew instructions?\s*:|\bdeveloper mode\b"
+        + _ROLE_INTL,
         re.I,
     ),
     "output_steering": re.compile(
         r"\b(?:you must|you should|be sure to|make sure to|please)\s+(?:always\s+)?(?:recommend|cite|mention|link to|rank|say|state)\b"
         r"|\b(?:do not|don't|never)\s+(?:mention|cite|include|report|reveal|disclose)\b[^.\n]{0,40}"
-        r"\b(?:summary|report|answer|response|user)\b",
+        r"\b(?:summary|report|answer|response|user)\b"
+        + _OMIT_INTL,
+        re.I,
+    ),
+    # A command about the reader-model's own output ("add ... to your reply", "encode your response
+    # in Base64"). Developed on the train split of BIPIA's text attacks.
+    "response_directive": re.compile(
+        r"\b(?:add|include|integrate|insert|append|incorporate|embed|inject|conclude|encode|encrypt|write|render"
+        r"|provide|deliver|translate|convert|reverse|replace|substitute|modify|rewrite)\b"
+        r"(?:[^.\n]|\.(?=\S)){0,120}?\byour\s+(?:response|reply|answer|output)\b"
+        r"|\byour\s+(?:response|reply|answer|output)\s+(?:should|must|needs? to|has to)\b"
+        + _RESPONSE_INTL,
         re.I,
     ),
     "chat_markup": re.compile(
@@ -101,6 +155,78 @@ HIDDEN_PATTERNS: dict[str, re.Pattern[str]] = {
 # legitimately, so only a run long enough to spell words is decoded.
 _TAGS = re.compile(r"[\U000E0020-\U000E007E]{8,}")
 _BASE64 = re.compile(r"(?<![A-Za-z0-9+/=])[A-Za-z0-9+/]{40,}={0,2}(?![A-Za-z0-9+/=])")
+
+
+# Characters that render as nothing and can be slipped inside words to break pattern matching.
+_INVISIBLE = re.compile(r"[\u00ad\u180e\u200b-\u200f\u202a-\u202e\u2060-\u2064\ufeff]")
+# Cyrillic and Greek letters that look like Latin ones (a common subset of Unicode confusables).
+_CONFUSABLES = str.maketrans({
+    "\u0430": "a", "\u0435": "e", "\u043e": "o", "\u0456": "i", "\u0441": "c", "\u0440": "p", "\u0445": "x", "\u0443": "y",
+    "\u0455": "s", "\u0458": "j", "\u04bb": "h", "\u0501": "d", "\u0410": "A", "\u0415": "E", "\u041e": "O", "\u0406": "I",
+    "\u0421": "C", "\u0420": "P", "\u0425": "X", "\u0405": "S", "\u0408": "J", "\u041d": "H", "\u041a": "K", "\u041c": "M",
+    "\u0422": "T", "\u0412": "B", "\u03bf": "o", "\u03b1": "a", "\u03b5": "e", "\u03b9": "i", "\u03c1": "p", "\u039f": "O",
+    "\u0391": "A", "\u0395": "E", "\u0399": "I", "\u039a": "K", "\u039c": "M", "\u039d": "N", "\u03a1": "P", "\u03a4": "T",
+})
+# Four or more single letters separated by single spaces ("i g n o r e"), joined back into a word.
+_SPACED = re.compile(r"\b(?:[^\W\d_] ){3,}[^\W\d_]\b")
+
+
+# Every word letter-spaced, words two or more spaces apart: "A d d  a  s e n t e n c e".
+_SPACED_WORDS = re.compile(r"(?:[^\W\d_] )*[^\W\d_](?: {2,}(?:[^\W\d_] )*[^\W\d_])+")
+
+
+def _unspace_words(m: re.Match[str]) -> str:
+    run = m.group()
+    words = re.split(r" {2,}", run)
+    letters = sum(len(w.replace(" ", "")) for w in words)
+    if letters < 12 or 2 * sum(" " in w for w in words) < len(words):
+        return run  # too short, or mostly ordinary words with double spaces between them
+    return " ".join(w.replace(" ", "") for w in words)
+
+
+def normalize(text: str) -> str:
+    """Undo common disguises: invisible characters, look-alike letters and letter spacing."""
+    text = _INVISIBLE.sub("", text).translate(_CONFUSABLES)
+    text = _SPACED_WORDS.sub(_unspace_words, text)
+    return _SPACED.sub(lambda m: m.group().replace(" ", ""), text)
+
+
+def _relax(pattern: str) -> str:
+    """Return a pattern's source with word boundaries dropped and every space optional."""
+    return pattern.replace(r"\b", "").replace(r"\s+", r"\s*").replace(" ", r"\s*")
+
+
+# For letter-spaced text ("i g n o r e  p r e v i o u s"), joining the letters back also joins
+# neighbouring spaced words ("previousinstructions"), so the plain patterns miss. These relaxed
+# copies are only tried on joined text when a page has enough letter-spaced runs (SPACED_MIN letters).
+RELAXED_PATTERNS: dict[str, re.Pattern[str]] = {k: re.compile(_relax(rx.pattern), rx.flags) for k, rx in INSTRUCTION_PATTERNS.items()}
+SPACED_MIN = 12
+
+
+def spaced_letters(text: str) -> int:
+    """How many letters in ``text`` sit in letter-spaced runs (four or more single letters)."""
+    return sum((len(m.group()) + 1) // 2 for m in _SPACED.finditer(text))
+
+
+_SENTENCE_END = re.compile(r"(?<=[^\s.!?])[.!?:;]+\s+(?=\S)")
+
+
+def join_fragments(text: str, max_words: int = 4) -> str:
+    """Join a sentence to the next when it is a fragment.
+
+    A fragment has four words or fewer, or the next sentence starts in lower case. This undoes an
+    instruction split over several short "sentences"; full sentences stay apart.
+    """
+    out, start = [], 0
+    for m in _SENTENCE_END.finditer(text):
+        piece = text[start:m.start()]
+        words = len(re.findall(r"\S+", piece.rsplit("\n", 1)[-1]))
+        nxt = text[m.end():m.end() + 1]
+        joined = "\n" not in m.group() and (words <= max_words or nxt.islower())
+        out.append(piece + (" " if joined else m.group()))
+        start = m.end()
+    out.append(text[start:])
+    return "".join(out)
 
 
 def _decoded_layers(text: str) -> list[tuple[str, str]]:
@@ -139,6 +265,9 @@ REPEAT_MIN_COUNT = 3
 REPEAT_MIN_SHARE = 0.30
 NAME_MIN_COUNT = 5
 NAME_MIN_SHARE = 0.10
+# Longer pages are judged on their first 20,000 words. A claim that fills 30% of a page shows
+# there too, and the cap bounds the search on very long or hostile pages.
+REPEAT_MAX_WORDS = 20_000
 _WORD = re.compile(r"[^\W_]+(?:['’-][^\W_]+)*")
 _TAG = re.compile(r"<[^>]{0,500}>")
 _SENTENCE_BREAK = re.compile(r"[.!?:;|•·\n]+")
@@ -154,6 +283,10 @@ def repetition(text: str) -> bool:
     """Return True when ``text`` is mostly one repeated sentence or one repeated name (thresholds above)."""
     visible = _TAG.sub("\n", text or "")
     words = _WORD.findall(visible)
+    if len(words) > REPEAT_MAX_WORDS:
+        cut = next(m for i, m in enumerate(_WORD.finditer(visible)) if i == REPEAT_MAX_WORDS)
+        visible = visible[: cut.start()]
+        words = words[:REPEAT_MAX_WORDS]
     if len(words) < REPEAT_MIN_SENTENCE_WORDS * REPEAT_MIN_COUNT:
         return False
     sentences = [_WORD.findall(part) for part in _SENTENCE_BREAK.split(visible)]
@@ -181,7 +314,10 @@ def repetition(text: str) -> bool:
     for sw in sentences:
         sw = [w.lower() for w in sw]
         key = " ".join(sw)
-        if len(sw) < k or key in seen or openings.get(tuple(sw[:k]), 0) < REPEAT_MIN_COUNT:
+        # A sentence occurs at most as often as its opening words, so the opening count bounds
+        # both the count and the share; this skips the full search for almost every sentence.
+        bound = openings.get(tuple(sw[:k]), 0)
+        if len(sw) < k or key in seen or bound < REPEAT_MIN_COUNT or bound * len(sw) / len(words) < REPEAT_MIN_SHARE:
             continue
         seen.add(key)
         n = len(re.findall(rf"(?<= ){re.escape(key)}(?= )", joined))
@@ -215,6 +351,30 @@ def scan(text: str) -> list[Hit]:
         if inner:
             hits += [Hit(f"{kind}:{h.kind}", 0) for h in inner]
             hits.append(Hit(kind, 0))
+    # Disguised text: matched only after undoing a disguise. The disguise itself is a sign of intent.
+    plain = {h.kind for h in hits}
+    for kind, variant in (("obfuscated", normalize(text)), ("rot13", codecs.encode(text, "rot13")), ("reversed", text[::-1])):
+        if variant == text:
+            continue
+        found = [Hit(f"{kind}:{k}", m.start()) for k, rx in INSTRUCTION_PATTERNS.items() if k not in plain and (m := rx.search(variant))]
+        if found:
+            hits += found
+            hits.append(Hit(kind, found[0].start))
+    # Split text: matched only after joining sentence fragments. Not treated as a disguise when
+    # rating (ordinary prose can match across sentences), so the kind is "split:", not "obfuscated:".
+    plain = {h.kind.split(":")[-1] for h in hits}
+    joined_text = join_fragments(text)
+    if joined_text != text:
+        hits += [Hit(f"split:{k}", m.start()) for k, rx in INSTRUCTION_PATTERNS.items() if k not in plain and (m := rx.search(joined_text))]
+    if spaced_letters(text) >= SPACED_MIN:
+        plain = {h.kind for h in hits}
+        joined = normalize(text)
+        found = [Hit(f"obfuscated:{k}", m.start()) for k, rx in RELAXED_PATTERNS.items()
+                 if k not in plain and f"obfuscated:{k}" not in plain and (m := rx.search(joined))]
+        if found:
+            hits += found
+            if "obfuscated" not in plain:
+                hits.append(Hit("obfuscated", found[0].start))
     if hits:
         hits += [Hit(kind, m.start()) for kind, rx in HIDDEN_PATTERNS.items() if (m := rx.search(text))]
     return hits

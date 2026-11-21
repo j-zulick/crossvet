@@ -4,6 +4,23 @@ All notable changes to Crossvet. Versions follow [Semantic Versioning](https://s
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-11-19
+
+### Added
+- Injection patterns: Italian and Dutch; role changes, reply commands and omissions in all six non-English languages; commands about the reader's reply (`response_directive`).
+- Disguises undone before matching: look-alike letters, invisible characters, letter-spaced words, ROT13 (`rot13:`), reversed text (`reversed:`); short fragments joined and matched as `split:<kind>`.
+- `crossvet-scan` channels: hidden by stylesheet rules, JSON-LD, noscript; `<template>`, SVG titles and descriptions and hidden-input values; more inline hiding methods; text split across inline elements read as one run.
+- `crossvet-scan --include-repetition`.
+- False-alarm check on 608 real pages (`docs/benchmarks/2026-11-19-scan-patterns/`). Design decision 25.
+- PyPI packaging: project URLs and classifiers, trusted-publishing release workflow (`.github/workflows/release.yml`).
+
+### Changed
+- `crossvet-scan` and the `scan_for_injection` MCP tool drop channels whose only finding is `repetition` (24 → 1 flagged page out of 608). The research-notes flag is unchanged.
+- The wheel no longer ships a top-level `tests` package; pytest and ipykernel moved from runtime dependencies to the dev group.
+
+### Fixed
+- The repetition check no longer stalls on very long pages (judged on the first 20,000 words, with a bound that skips sentences that can't reach the share).
+
 ## [1.9.0] - 2026-11-19
 
 ### Added

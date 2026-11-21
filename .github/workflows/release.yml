@@ -1,0 +1,45 @@
+name: release
+
+# Publishes to PyPI when a GitHub release is published, using PyPI trusted publishing (no token stored here).
+# One-time setup on PyPI: add a trusted publisher for this repository, workflow "release.yml", environment "pypi".
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Check the tag matches the package version
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          version=$(uv version --short)
+          test "${TAG#v}" = "$version" || { echo "tag $TAG does not match version $version"; exit 1; }
+      - run: uv sync --locked
+      - run: uv run pytest tests/unit -q
+      - run: uv build
+      - run: uvx twine check --strict dist/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
