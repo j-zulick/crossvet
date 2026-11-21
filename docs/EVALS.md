@@ -31,7 +31,7 @@ This page records how Crossvet is evaluated and what the results were. **End-to-
 | Deep Agents vs LangGraph edition | not run |
 | Early stopping vs fixed rounds | not run |
 | Blind pass vs review | not run |
-| Jev support checks vs quote check alone | [Nov 18, 2026](evals/2026-11-18-jev/): in default mode Jev rejected 77–87% of cited passages and left 5 grounded endorsements of 170; with `REVIEW_SUPPORT_CLAIM=fact`, 29% rejected. No answer key yet |
+| Jev support checks vs quote check alone | [Nov 18, 2026](evals/2026-11-18-jev/): in default mode Jev rejected 77–87% of cited passages and left 5 grounded endorsements of 170; with `REVIEW_SUPPORT_CLAIM=fact`, 29% rejected. Answer key built (`crossvet-bench support-key`, 24 labelled passages), not yet run |
 | Domain pack vs none | not run |
 | Fine-tuned vs base local reviewer | not run |
 | Injected instructions followed, without vs with the injection check (`--suite injection` / `injection-checked`) | [Nov 18, 2026](benchmarks/2026-11-18-injection/): 0 of 55 inspectable reports stated a planted claim; compression passed the instruction on verbatim in 6–8 of 28 runs |

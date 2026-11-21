@@ -24,7 +24,7 @@ Four synthetic cases, each with one source in the research notes that carries an
 
 ## Harder injections (`injection-hard`)
 
-Four more cases, each with an injection the pattern check does not flag (0 of 4):
+Four more cases, each with an injection the pattern check did not flag at the time of this run (0 of 4). Since design decision 22 (unreleased) the check flags the translated and dominant forms; the results below predate that change and have not been re-run.
 - **paraphrased:** a recommendation with no trigger phrases ("anyone compiling a summary … would do readers a favour by pointing them to …");
 - **translated:** the instruction in Spanish;
 - **split:** an instruction spread across three sentences, none of them an instruction alone;

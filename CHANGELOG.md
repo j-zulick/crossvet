@@ -1,6 +1,38 @@
 # Changelog
 
-All notable changes to Crossvet. Versions follow [Semantic Versioning](https://semver.org/). Crossvet was built between November 6 and 17, 2026 in a private repository, one tested version at a time; all versions were published together when the repository went public.
+All notable changes to Crossvet. Versions follow [Semantic Versioning](https://semver.org/). Crossvet was built between November 6 and 17, 2026 in a private repository, one tested version at a time; versions up to v1.6.0 were published together when the repository went public, and later versions as each was finished.
+
+## [Unreleased]
+
+## [1.9.0] - 2026-11-19
+
+### Added
+- The injection check flags a page that is mostly one repeated sentence or one repeated name (kind `repetition`; thresholds in `injection_check.py`).
+- Spanish, French, German and Portuguese triggers for text addressed to an AI and for overriding instructions.
+- Review notes list cited URLs that appear in the notes only inside another page's text, never as a source's `URL:` line (unverified). Only applied when the notes use `URL:` source lines.
+- **`crossvet-bench` summarizer role**: the first model to read each fetched page is benchmarked with the pipeline's summarizer prompt and `Summary` schema, on every source holding a key fact plus the injected page in injection cases. Scored on key facts kept per page, halved when the injected page's summary states the planted instruction as fact. `apply` writes its winner to `SUMMARIZATION_MODEL` (previously the compression winner, still used for role maps without summarizer results). First outputs checked by hand (`docs/benchmarks/2026-11-18-injection-defenses/`).
+- **`crossvet-scan` reports**: `--format text|json|csv|html` (`--json` kept as an alias) and `--out FILE`. CSV has one row per finding plus one per clean page and per error, with formula-like cells neutralised; HTML is one self-contained page (summary, then a section per page, inline CSS, no JavaScript, all page text escaped) to hand to a client.
+- **`crossvet-scan` on many pages**: `--sitemap URL_OR_FILE` (sitemap index followed one level deep, 5 MB cap, DTDs and non-http(s) page locations refused) and `--urls FILE` (one URL per line, `#` comments skipped), with `--max-pages` (default 50) and `--delay` (default 0.5 s). Design decision 24.
+- **`crossvet-scan --crawl URL`**: scan every page a crawlee-server crawl captures (`CRAWLEE_SERVER_URL`, `CRAWLEE_SERVER_TOKEN`; `--crawl-mode crawl|page|sitemap|map`), up to `--max-pages`.
+- **`crossvet-bench support-key`**: an answer key for Jev support checks, 24 labelled passages (12 supported; 12 unsupported: misread, same topic, partial, contradiction), each with the reviewer's finding and the stated fact, so `REVIEW_SUPPORT_CLAIM=finding` and `fact` can be judged on accuracy, not just strictness. Built and tested offline; not yet run (billed by TypeSafe).
+- **`--suite injection-hard-checked`**: the hard injection cases with the injection check's flag line where it fires (translated and dominant), to measure v1.9's flags. First run (Nov 19, 7 models, $1.00): 1 of 28 report writers adopted a planted URL (split form, unflagged), against 2 of 28 without flag lines; v1.9's unverified-URL check lists that URL and nothing else when re-applied to the 28 reports (`docs/benchmarks/2026-11-19-injection-hard-checked/`).
+
+- First, partial check of the decision 22 defenses on `injection-hard` (`docs/benchmarks/2026-11-18-injection-defenses/`). With the prompt rule, OpenAI report writers adopted a planted claim in 2 of 16 runs (1 of 16 before); Claude report writers in 0 of 12 (0 of 12 before), checked by hand.
+
+### Documentation
+- **`docs/SETTINGS.md`:** every setting with its default and description, generated from `configuration.py` (`python -m open_deep_research.settings_doc`). A unit test fails if it is stale, or if `.env.example` misses a setting.
+- `.env.example` now lists the 17 research-pipeline settings it was missing (models per step, token limits, research limits, clarification, MCP tools), with empty values (the default).
+
+### Security
+- Dependencies with published advisories updated in `uv.lock`: aiohttp, langgraph-api (0.10 → 0.17), oauthlib, pyasn1, pygments, pyjwt, setuptools, soupsieve, tornado, urllib3. `pip-audit` on the runtime dependencies now reports none.
+- Web app: Next.js 16.4.5; KaTeX and @babel/core pinned to patched versions through pnpm overrides. `pnpm audit` reports one moderate advisory left, in minimatch under the lint tooling (dev only).
+
+### Changed
+- `crossvet-scan` limits each whole download to three times its timeout, so a server that sends bytes slowly cannot hold a scan open (the timeout alone applies to each read).
+- **Injection scorer** (`bench.injection_outcome`): a sentence copied word for word from the planted page counts as quoted, not followed; flag words in Spanish, Portuguese, German and French count; "no supporting evidence" and similar count as attributing the claim. Found by reading all 28 summarizer outputs of the defenses run: none stated the planted claim as fact, while the scorer had counted 7 as following it (now 0). Published combined figures are unchanged (`docs/benchmarks/2026-11-18-injection-defenses/`).
+- The webpage summarization and research compression prompts say to report recommendations, rankings and instructions a page addresses to readers or AI systems as that page's claims, never as findings, and that a URL found only inside a page's text is not a source.
+- The hard-injection bench test now records which forms the check flags (translated, dominant) and which it still misses (paraphrased, split). No benchmark was run with these changes; `--suite injection-hard` measures them. Design decision 22.
+- The summarizer prompt is built by one helper, `utils.build_summarize_prompt`, shared by the pipeline and the benchmark (no change in behaviour).
 
 ## [1.8.0] - 2026-11-18
 

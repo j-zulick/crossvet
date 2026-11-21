@@ -177,6 +177,20 @@ async def tavily_search_async(
     search_results = await asyncio.gather(*search_tasks)
     return search_results
 
+def build_summarize_prompt(webpage_content: str) -> str:
+    """Build the summarizer prompt for one page, as the pipeline sends it (also used by crossvet-bench).
+
+    The page is neutralized, and the data wrapper carries a per-call marker, so a page cannot
+    close it by guessing the tag.
+    """
+    prompt_content = summarize_webpage_prompt.format(
+        webpage_content=neutralize(webpage_content),
+        date=get_today_str()
+    )
+    tag = f"webpage_content_{secrets.token_hex(4)}"
+    return prompt_content.replace("<webpage_content>", f"<{tag}>").replace("</webpage_content>", f"</{tag}>")
+
+
 async def summarize_webpage(model: BaseChatModel, webpage_content: str) -> str:
     """Summarize webpage content using AI model with timeout protection.
     
@@ -188,15 +202,8 @@ async def summarize_webpage(model: BaseChatModel, webpage_content: str) -> str:
         Formatted summary with key excerpts, or original content if summarization fails
     """
     try:
-        # Create prompt with current date context
-        prompt_content = summarize_webpage_prompt.format(
-            webpage_content=neutralize(webpage_content), 
-            date=get_today_str()
-        )
-        # A per-call marker on the wrapper, so a page cannot close it by guessing the tag.
-        tag = f"webpage_content_{secrets.token_hex(4)}"
-        prompt_content = prompt_content.replace("<webpage_content>", f"<{tag}>").replace("</webpage_content>", f"</{tag}>")
-        
+        prompt_content = build_summarize_prompt(webpage_content)
+
         # Execute summarization with timeout to prevent hanging
         summary = await asyncio.wait_for(
             model.ainvoke([HumanMessage(content=prompt_content)]),

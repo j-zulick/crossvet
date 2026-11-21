@@ -55,20 +55,22 @@ Code already refuses evidence that isn't a verbatim quote from the research note
 | A challenger's BUILD_ON | its quote | the addition is not applied |
 | A blind-pass point | its quote | the point is dropped |
 
-**What Jev is asked about.** By default (`REVIEW_SUPPORT_CLAIM=finding`) the claim is the reviewer's finding. Findings are usually statements about the draft, which a source passage rarely states directly, so Jev rejects most of them: 77–87% in the [Nov 18 runs](evals/2026-11-18-jev/). With `REVIEW_SUPPORT_CLAIM=fact`, reviewers state in one sentence what the quoted passage says, and Jev checks that instead (29% rejected). That is a weaker test of the verdict, so it is opt-in until it is measured against an answer key.
+**What Jev is asked about.** By default (`REVIEW_SUPPORT_CLAIM=finding`) the claim is the reviewer's finding. Findings are usually statements about the draft, which a source passage rarely states directly, so Jev rejects most of them: 77–87% in the [Nov 18 runs](evals/2026-11-18-jev/). With `REVIEW_SUPPORT_CLAIM=fact`, reviewers state in one sentence what the quoted passage says, and Jev checks that instead (29% rejected). That is a weaker test of the verdict, so it is opt-in until it is measured against an answer key. The answer key is built: `uv run crossvet-bench support-key` scores both modes on 24 labelled passages (12 that support the reviewer's point; 12 that don't: a misread number, the same topic without the point, partial support, a contradiction) and reports accuracy, balanced accuracy and how many supported points each mode rejects (`--dry-run` lists the 48 Jev calls; a run is billed by TypeSafe). Cases: `src/open_deep_research/support_key.py`.
 
 Set `TYPESAFE_API_KEY` (from [console.typesafe.ai](https://console.typesafe.ai)) and `REVIEW_SUPPORT_CHECKER=jev`; `crossvet-setup` turns it on when the key is present. Pin a version with `REVIEW_SUPPORT_MODEL=jev-1.14.0` (default: `TYPESAFE_DEFAULT_MODEL`, else `jev-latest`). Check it with `uv run crossvet-doctor --jev`, which asks Jev two questions with known answers.
 
 If a Jev call fails, that claim is judged by the quote check alone and the Review notes say how many calls failed. Every score is kept in the run export; `crossvet-compare` and Langfuse record `support_checked` and `support_rejected`, and the compare plan adds a `deliberation-2-jev` setup when the key is set.
 
 ## Prompt-injection check
-Each fetched page is scanned in code before any model summarizes it, for text aimed at the model rather than the reader: instructions to ignore or override, text addressed to an AI, role changes, instructions to recommend, cite or leave something out, chat markup, and hidden text alongside any of those. A hit adds a line to that source in the research notes (naming the kinds of pattern, not the injected text), and the Review notes list flagged sources and any the report cites; a sentence whose every cited source is flagged is listed under *Disputed*. Invisible Unicode tag text and base64 blobs are decoded and scanned. The summarizer prompt treats page text as data. Works with `SEARCH_API=tavily` and the research gateway; vendor-hosted search returns no page text to scan. No setting: the check is always on. Threat model and limits: [docs/SECURITY-MODEL.md](SECURITY-MODEL.md); design decision 19.
+Each fetched page is scanned in code before any model summarizes it, for text aimed at the model rather than the reader: instructions to ignore or override, text addressed to an AI, role changes, instructions to recommend, cite or leave something out, chat markup, and hidden text alongside any of those. A hit adds a line to that source in the research notes (naming the kinds of pattern, not the injected text), and the Review notes list flagged sources and any the report cites; a sentence whose every cited source is flagged is listed under *Disputed*. Invisible Unicode tag text and base64 blobs are decoded and scanned. Spanish, French, German and Portuguese forms of "note to any AI" and "ignore the previous instructions" are matched, and a page that is mostly one repeated sentence or name is flagged (`repetition`). The summarizer prompt treats page text as data, and the summarizer and compression prompts say to report a page's recommendations and instructions as that page's claims, never as findings. A URL the report cites that appears in the notes only inside a page's text, never as a source the research read, is listed in the Review notes as unverified (only when the notes use `URL:` source lines). Paraphrased and split instructions are still missed. Design decision 22. Works with `SEARCH_API=tavily` and the research gateway; vendor-hosted search returns no page text to scan. No setting: the check is always on. Threat model and limits: [docs/SECURITY-MODEL.md](SECURITY-MODEL.md); design decision 19.
 
 To measure how often models act on a planted instruction, with and without the flag line:
 
 ```bash
-uv run crossvet-bench run --suite injection --roles compression,writer,reviewer,critic,reviser --models <ids>
-uv run crossvet-bench run --suite injection-checked --roles compression,writer,reviewer,critic,reviser --models <ids>
+uv run crossvet-bench run --suite injection --roles summarizer,compression,writer,reviewer,critic,reviser --models <ids>
+uv run crossvet-bench run --suite injection-checked --roles summarizer,compression,writer,reviewer,critic,reviser --models <ids>
+uv run crossvet-bench run --suite injection-hard --roles summarizer,compression,writer,reviewer,critic,reviser --models <ids>
+uv run crossvet-bench run --suite injection-hard-checked --roles summarizer,compression,writer,reviewer,critic,reviser --models <ids>
 ```
 
 ## Check pages for prompt injection: `crossvet-scan`
@@ -77,7 +79,16 @@ The same check, as a standalone command and an MCP tool, for any page: your own 
 ```bash
 uv run crossvet-scan https://example.com/pricing saved-page.html notes.md
 uv run crossvet-scan --json https://example.com/ > scan.json   # exit code 1 if anything was found
+uv run crossvet-scan --sitemap https://example.com/sitemap.xml --format html --out report.html
+uv run crossvet-scan --urls pages.txt --format csv --out scan.csv --max-pages 200 --delay 1
+uv run crossvet-scan --crawl https://example.com/ --max-pages 50 --format html --out site.html   # through crawlee-server
 ```
+
+Reports: `--format text` (default), `json` (`--json` still works), `csv` or `html`; `--out FILE` writes to a file instead of the terminal. The CSV has one row per finding (`source`, `status`, `channel`, `kinds` joined by `;`, `excerpt`, `error`) plus a row for each clean page and each page that could not be read; cells a spreadsheet would run as a formula are prefixed with `'`. The HTML report is a single file to hand to a client: a summary (pages scanned, pages with findings, errors), then a section per page, with inline CSS, no JavaScript and no external assets, and all page text escaped.
+
+Many pages: `--sitemap URL_OR_FILE` scans the `<loc>` URLs of a sitemap.xml and follows a sitemap index one level deep (up to 50 child sitemaps; files over 5 MB, DTDs and non-http(s) page locations are refused). `--urls FILE` reads one URL per line, skipping blank lines and `#` comments. Both can be repeated and combined with paths and URLs on the command line; duplicates are scanned once. `--max-pages N` (default 50) caps the pages fetched over http(s) and `--delay SECONDS` (default 0.5) pauses between those fetches; URLs past the cap are counted on stderr. Exit codes: 0 when nothing was found, 1 when any page has a finding, 2 on a usage error, or when a page or sitemap could not be read and nothing was found.
+
+Whole sites: `--crawl URL` asks a crawlee-server instance (`CRAWLEE_SERVER_URL`, `CRAWLEE_SERVER_TOKEN`) to crawl with page capture on, then scans every stored page, up to `--max-pages`; `--crawl-mode` picks crawlee-server's mode (`crawl` follows links, `page`, `sitemap`, `map`). It reaches pages that block plain HTTP fetches when crawlee-server renders them.
 
 From Claude Code, Codex or Cursor, the MCP server's `scan_for_injection` tool takes a public URL (non-public addresses are refused) or pasted text. Pattern matching only: a clean result is not proof a page is safe.
 
@@ -116,7 +127,7 @@ uv run crossvet-bench run --models <ids> --suite hard              # harder case
 uv run crossvet-bench apply --preset best-value                   # write the winning role map to .env
 ```
 
-- **Real work, scored by code.** Each role runs with Crossvet's own prompts and schemas on six synthetic cases (invented organizations on `.example` URLs, so models can't answer from memory). Scores come from answer keys, not a judge model: did the reviewer catch the four planted errors (wrong number, unread citation, unsupported claim, omission) without flagging a clean draft; did the critic agree with true findings and reject false ones; did compression keep the facts and URLs; did the supervisor delegate every part of the question.
+- **Real work, scored by code.** Each role runs with Crossvet's own prompts and schemas on six synthetic cases (invented organizations on `.example` URLs, so models can't answer from memory). Scores come from answer keys, not a judge model: did the reviewer catch the four planted errors (wrong number, unread citation, unsupported claim, omission) without flagging a clean draft; did the critic agree with true findings and reject false ones; did the summarizer keep each page's key facts without passing on a planted instruction as fact; did compression keep the facts and URLs; did the supervisor delegate every part of the question.
 - **Cost-aware.** Real per-call cost from OpenRouter (or token estimates), a hard `--max-usd` cap, a `--dry-run` estimate, resumable runs.
 - **Decisions, not just a table.** A leaderboard per role, a quality-vs-cost chart with the frontier, and a role map with a **best-quality** and a **best-value** pick per role (the cheapest model within 10% of the top score). `apply` turns it into configuration: a one-model-per-vendor panel and a reviser from outside it.
 - **Checked end to end.** `crossvet-bench live-plan --role supervisor --models a,b` writes a `crossvet-compare` file that swaps just that role, to confirm on real questions.
