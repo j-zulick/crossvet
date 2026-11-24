@@ -9,12 +9,12 @@ One model checking its own work shares its blind spots, and LLM judges favor the
 ## Quick start
 
 ```bash
-uv tool install "git+https://github.com/j-zulick/crossvet@v0.1.0"   # puts `crossvet` on your PATH (Python 3.11–3.13)
+uv tool install "git+https://github.com/j-zulick/crossvet@v0.1.1"   # puts `crossvet` on your PATH (Python 3.11–3.13)
 mkdir my-research && cd my-research                                   # .env and run files live in this folder
 crossvet demo                                                         # a one-minute tour, free
 ```
 
-No uv? `pip install "git+https://github.com/j-zulick/crossvet@v0.1.0"` in a virtual environment works too. Each [release](https://github.com/j-zulick/crossvet/releases) also carries the wheel. Working from a clone: [docs/SETUP.md](docs/SETUP.md).
+No uv? `pip install "git+https://github.com/j-zulick/crossvet@v0.1.1"` in a virtual environment works too. Each [release](https://github.com/j-zulick/crossvet/releases) also carries the wheel. Working from a clone: [docs/SETUP.md](docs/SETUP.md).
 
 | You want to | Run | Needs |
 |---|---|---|
