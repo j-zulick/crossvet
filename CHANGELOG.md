@@ -6,6 +6,9 @@ All notable changes to Crossvet. Versions follow [Semantic Versioning](https://s
 
 ## [0.1.1] - 2026-11-24
 
+### Fixed
+- Fresh installs from GitHub picked up `mcp` 2.x, which broke `crossvet mcp`, `crossvet chat mcp` and research runs; `mcp` is capped below 2.
+
 ### Changed
 - Dependency updates (GitHub Actions, Python, web UI); Dependabot opens one grouped pull request per kind a month. Details: [docs/releases/v0.1.1.md](docs/releases/v0.1.1.md).
 
