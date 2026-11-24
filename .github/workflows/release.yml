@@ -35,7 +35,7 @@ jobs:
       version: ${{ steps.decide.outputs.version }}
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
       - id: decide
         env:
           GH_TOKEN: ${{ github.token }}
@@ -65,7 +65,7 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
       - run: uv sync --locked
       - run: uv run pytest tests/unit -q
       - run: uv build
