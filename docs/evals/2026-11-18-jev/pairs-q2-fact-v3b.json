@@ -1,0 +1,44 @@
+[
+ {
+  "support": 0.34,
+  "outcome": "unsupported_changes",
+  "claim": "The passage says the current codified section still contains the same opening sentence about the three goals, which does not verify a word-for-word match with the 1977 quotation.",
+  "passage": "The current codified text of **12 U.S.C. \u00a7 225a** still contains the same opening sentence about maximum employment, stable prices, and moderate long-term interest rates, but the later reporting machinery has been pared back by subsequent amendments."
+ },
+ {
+  "support": 0.06,
+  "outcome": "unsupported_changes",
+  "claim": "The memo in the notes states that the 2 percent PCE inflation goal is a Fed policy judgment, and it also covers the 1978 change, the Feb 20/July 20 reports, and the Fed's explanation of why the mandate is called dual.",
+  "passage": "The Fed\u2019s current 2025 Statement on Longer-Run Goals says the Committee \u201creaffirms its judgment\u201d that inflation at **2 percent**, measured by the annual change in the **price index for personal consumption expenditures**, is most consistent over the longer run"
+ },
+ {
+  "support": 0.7,
+  "outcome": "changed_with_evidence",
+  "claim": "The memo states the enactment date (November 16, 1977), the public law number, and the Section 202 citation.",
+  "passage": "The Federal Reserve\u2019s employment-and-price-stability mandate was first codified in **Section 202 of the Federal Reserve Reform Act of 1977**, enacted as **Public Law 95-188 on November 16, 1977**."
+ },
+ {
+  "support": 0.96,
+  "outcome": "changed_with_evidence",
+  "claim": "The memo says the 1978 Act changed the reporting framework of Section 2A and did not first create the objectives.",
+  "passage": "The **Full Employment and Balanced Growth Act of 1978** (**Public Law 95-523**, October 27, 1978) did **not** first create the objectives. Instead, it **amended Section 2A\u2019s reporting framework**."
+ },
+ {
+  "support": 0.67,
+  "outcome": "changed_with_evidence",
+  "claim": "The memo says the 2000 amendment removed the remaining report-to-Congress language from Section 2A.",
+  "passage": "The Code\u2019s later amendment note shows that, as of 2000, Congress struck the remaining report-to-Congress language from the section."
+ },
+ {
+  "support": 0.51,
+  "outcome": "changed_with_evidence",
+  "claim": "The notes say the current codified 12 U.S.C. \u00a7 225a still contains the same opening sentence about maximum employment, stable prices, and moderate long-term interest rates.",
+  "passage": "still contains the same opening sentence about maximum employment, stable prices, and moderate long-term interest rates"
+ },
+ {
+  "support": 0.33,
+  "outcome": "unsupported_changes",
+  "claim": "The notes contain the Fed's own explanation that its mandate is commonly known as the dual mandate, which is one of the topics I said the draft never covered.",
+  "passage": "the Fed\u2019s mandate for monetary policy is commonly known as the dual mandate"
+ }
+]

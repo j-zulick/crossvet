@@ -1,0 +1,142 @@
+[project]
+name = "crossvet"
+version = "0.1.0"
+description = "Deep research whose reports are checked by models from several AI vendors before you read them. Built on LangChain Open Deep Research."
+authors = [
+    { name = "Joseph Zulick" },
+    { name = "Lance Martin (Open Deep Research)" }
+]
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.11"
+keywords = ["deep-research", "llm", "multi-model", "fact-checking", "citations", "langgraph", "prompt-injection"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "langgraph>=0.5.4",
+    "langchain-community>=0.3.9",
+    "langchain-openai>=0.3.28",
+    "langchain-anthropic>=0.3.15",
+    "langchain-mcp-adapters>=0.1.6",
+    "langchain-deepseek>=0.1.2",
+    "langchain-tavily",
+    "langchain-groq>=0.2.4",
+    "openai>=1.99.2",
+    "tavily-python>=0.5.0",
+    "arxiv>=2.1.3",
+    "pymupdf>=1.25.3",
+    "xmltodict>=0.14.2",
+    "linkup-sdk>=0.2.3",
+    "duckduckgo-search>=3.0.0",
+    "exa-py>=1.8.8",
+    "requests>=2.32.3",
+    "beautifulsoup4==4.14.3",
+    "python-dotenv>=1.0.1",
+    "httpx>=0.24.0",
+    "markdownify>=0.11.6",
+    "azure-identity>=1.21.0",
+    "azure-search>=1.0.0b2",
+    "azure-search-documents>=11.5.2",
+    "rich>=13.0.0",
+    "langgraph-cli[inmem]>=0.3.1",
+    "langsmith>=0.3.37",
+    "langchain-google-vertexai>=2.0.25",
+    "langchain-google-genai>=2.1.5",
+    "supabase>=2.15.3",
+    "mcp>=1.9.4",
+    "langchain-aws>=0.2.28",
+    "pandas>=2.3.1",
+    "langchain-ollama>=1.0",
+    "langgraph-checkpoint-sqlite>=3",
+    "langfuse>=3",
+    "deepagents>=0.7.34,<0.8",
+    "typesafe-sdk>=0.7.5,<0.8",
+    "langchain-openrouter>=0.2.9,<0.3",
+]
+
+[project.urls]
+Homepage = "https://github.com/j-zulick/crossvet"
+Source = "https://github.com/j-zulick/crossvet"
+Issues = "https://github.com/j-zulick/crossvet/issues"
+Changelog = "https://github.com/j-zulick/crossvet/blob/main/CHANGELOG.md"
+
+[project.scripts]
+crossvet-setup = "open_deep_research.setup_wizard:main"
+crossvet-try = "open_deep_research.quickrun:main"
+crossvet = "open_deep_research.cli:main"
+crossvet-mcp = "open_deep_research.mcp_server:main"
+crossvet-compare = "open_deep_research.compare:main"
+crossvet-bench = "open_deep_research.bench:main"
+crossvet-dataset = "open_deep_research.dataset:main"
+crossvet-doctor = "open_deep_research.doctor:main"
+crossvet-scan = "open_deep_research.scan_cli:main"
+crossvet-chat = "open_deep_research.chat.cli:main"
+crossvet-demo = "open_deep_research.demo:main"
+
+[project.optional-dependencies]
+dev = ["mypy>=1.11.1", "ruff>=0.6.1"]
+postgres = [
+    "langgraph-checkpoint-postgres>=3",
+    "psycopg[binary,pool]>=3.2",
+]
+
+[dependency-groups]
+dev = ["pytest", "ipykernel>=6.29.5"]
+
+[build-system]
+requires = ["setuptools>=73.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["open_deep_research", "open_deep_research.chat"]
+license-files = ["LICENSE"]
+
+[tool.setuptools.package-dir]
+"open_deep_research" = "src/open_deep_research"
+"open_deep_research.chat" = "src/open_deep_research/chat"
+
+[tool.setuptools.package-data]
+"*" = ["py.typed"]
+
+[tool.ruff]
+lint.select = [
+    "E",    # pycodestyle
+    "F",    # pyflakes
+    "I",    # isort
+    "D",    # pydocstyle
+    "D401", # First line should be in imperative mood
+    "T201",
+    "UP",
+]
+lint.ignore = [
+    "UP006",
+    "UP007",
+    "UP035",
+    "D417",
+    "E501",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["D", "UP"]
+"src/open_deep_research/cli.py" = ["T201"]  # a CLI prints by design
+"src/open_deep_research/compare.py" = ["T201"]  # a CLI prints by design
+"src/open_deep_research/dataset.py" = ["T201"]  # a CLI prints by design
+"src/open_deep_research/chat/cli.py" = ["T201"]  # a CLI prints by design
+"src/open_deep_research/chat/server.py" = ["T201"]  # prints the address it listens on
+"src/open_deep_research/chat/mcp_server.py" = ["T201"]  # prints why it refuses to start
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

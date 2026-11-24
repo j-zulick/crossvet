@@ -1,0 +1,4 @@
+# One question per line. Pick questions whose answers you can check.
+What changed in the EU AI Act's obligations for general-purpose AI models in 2025?
+How do heat pumps perform in cold climates compared with gas furnaces, according to recent field studies?
+What are the main trade-offs between retrieval-augmented generation and fine-tuning for domain question answering?

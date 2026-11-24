@@ -1,0 +1,18 @@
+# Evaluation question 1 (docs/EVALS.md): does cross-vendor review reduce unsupported
+# claims and unread citations compared with no review? Everything except review comes
+# from your .env, so both setups research with the same models.
+#
+#   uv run crossvet-compare --setups examples/compare/review-vs-none.toml \
+#     --questions examples/compare/questions-15.txt --repeats 3
+#
+# Then grade a blind sample of claims per setup as described in docs/EVALS.md.
+
+[[setup]]
+name = "no-review"
+[setup.config]
+cross_vendor_review_enabled = false
+
+[[setup]]
+name = "review"
+[setup.config]
+cross_vendor_review_enabled = true

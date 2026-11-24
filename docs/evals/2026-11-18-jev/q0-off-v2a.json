@@ -1,0 +1,70 @@
+{
+ "question": 0,
+ "jev": "off",
+ "seconds": 119.8,
+ "usage": {
+  "gpt-5.4-mini-2026-03-17": {
+   "input": 32697,
+   "output": 4863
+  },
+  "claude-sonnet-5-5": {
+   "input": 62945,
+   "output": 8242
+  },
+  "gpt-6.1-sol": {
+   "input": 7494,
+   "output": 2307
+  }
+ },
+ "review": {
+  "status": "ok",
+  "scores": {
+   "openai:gpt-5.4-mini": 8,
+   "anthropic:claude-sonnet-5-5": 5
+  },
+  "flagged_urls": [],
+  "critic": {
+   "status": "ok",
+   "dropped": 1,
+   "disputed": [
+    {
+     "id": "C2-F5",
+     "finding": "The draft says the stocktake 'happens on the same broad timetable as NDC submission'. In practice, the five-year cycles are staggered, with NDCs due in 2025 and every five years after, and the first stocktake concluding in 2023. The timing connection is not explained, and it is now 2026, so the draft should report that the first GST concluded at COP28 and the 2025 NDC round has occurred. The notes do not support this, but the draft is dated and silent on it.",
+     "objection": "The reviewer\u2019s timing critique depends on later-world developments and on context not present in the notes, so while the draft is dated, the notes do not settle this point."
+    }
+   ]
+  },
+  "deliberation": {
+   "rounds_requested": 2,
+   "rounds_run": 2,
+   "rounds_saved": 0,
+   "stop_reason": "max_rounds",
+   "guard_rounds": 0,
+   "agreement_rate": 1.0,
+   "model_calls": 6,
+   "challenges": 3,
+   "held": 0,
+   "changed_with_evidence": 3,
+   "unsupported_changes": 0,
+   "no_response": 0,
+   "agree": 34,
+   "agree_grounded": 10,
+   "disagree": 0,
+   "build_on_applied": 0,
+   "build_on_ignored": 0,
+   "support_checked": 0,
+   "support_rejected": 0
+  },
+  "blind_pass": {
+   "reviewers": 2,
+   "failed": [],
+   "points": 12,
+   "covered": 12,
+   "omitted": 0,
+   "ungrounded": 0,
+   "unsupported": 0,
+   "omissions": []
+  },
+  "support_check": null
+ }
+}

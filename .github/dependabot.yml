@@ -1,0 +1,24 @@
+version: 2
+updates:
+  - package-ecosystem: "uv"
+    directory: "/"
+    open-pull-requests-limit: 3
+    schedule:
+      interval: "monthly"
+    ignore:
+      # build-system requirement in pyproject.toml; Dependabot's uv updater can't change it
+      - dependency-name: "setuptools"
+    groups:
+      # LangChain packages pin each other's versions; updated one at a time they can't be resolved
+      langchain:
+        patterns: ["langchain*", "langgraph*", "deepagents"]
+  - package-ecosystem: "npm"
+    directory: "/web"
+    open-pull-requests-limit: 3
+    schedule:
+      interval: "monthly"
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    open-pull-requests-limit: 3
+    schedule:
+      interval: "monthly"

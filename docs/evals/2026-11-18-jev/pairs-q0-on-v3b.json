@@ -1,0 +1,44 @@
+[
+ {
+  "support": 0.56,
+  "outcome": "changed_with_evidence",
+  "claim": "Article 2(1)(a) states a collective global temperature goal: holding the increase to well below 2\u00b0C and pursuing efforts to limit it to 1.5\u00b0C. It is not a Party-level requirement or cap, and the notes do not support saying it 'sets an outer boundary' or that Parties are 'explicitly required to aim for' it.",
+  "passage": "This is the Agreement\u2019s **collective global objective**, not a separate binding country-level temperature cap."
+ },
+ {
+  "support": 0.14,
+  "outcome": "unsupported_changes",
+  "claim": "Article 4(3) says each successive NDC will represent a progression beyond the Party's then current NDC and reflect its highest possible ambition, in light of common but differentiated responsibilities and national circumstances. The 'ratchet' label and the 'should be stronger than the one before it' paraphrase are removed, along with the gloss about scope, coverage and implementation.",
+  "passage": "Each Party\u2019s successive nationally determined contribution will represent a progression beyond the Party\u2019s then current nationally determined contribution and reflect its highest possible ambition"
+ },
+ {
+  "support": 0.88,
+  "outcome": "changed_with_evidence",
+  "claim": "Article 4(11) allows a Party to adjust its existing NDC at any time 'with a view to enhancing its level of ambition'. The claim that the direction is 'one-way' or 'not weakening' is dropped, because the notes show only the first part of the paragraph.",
+  "passage": "A Party may at any time adjust its existing nationally determined contribution with a view to enhancing its level of ambition..."
+ },
+ {
+  "support": 0.21,
+  "outcome": "unsupported_changes",
+  "claim": "This is wrong or unsupported: The notes do not contain the claimed link to \u201csustainable development and efforts to eradicate poverty\u201d in the quoted Article 2 material; that language is not shown in the notes and is therefore unsupported by them.",
+  "passage": "\u201cHolding the increase in the global average temperature to well below 2\u00b0C above pre-industrial levels and pursuing efforts to limit the temperature increase to 1.5\u00b0C above pre-industrial levels...\u201d"
+ },
+ {
+  "support": 0.17,
+  "outcome": "unsupported_changes",
+  "claim": "NDCs are communicated every five years under Article 4(9), and the first global stocktake is in 2023 and every five years thereafter under Article 14(2). Article 4(9) says NDCs are to be informed by the stocktake outcomes, and Article 14(3) says the stocktake outcome shall inform Parties in updating and enhancing their actions and support. The notes do not describe the cycles as 'deliberately aligned', so that wording is dropped.",
+  "passage": "Each Party shall communicate a nationally determined contribution every five years ... and be informed by the outcomes of the global stocktake referred to in Article 14."
+ },
+ {
+  "support": 0.5,
+  "outcome": "changed_with_evidence",
+  "claim": "The collective focus of the stocktake rests on Article 14(1), which says it assesses 'collective progress towards achieving the purpose of this Agreement and its long-term goals'. The notes do not quote the UNFCCC stocktake or NDC pages directly, so claims about what those pages emphasise are softened to what the notes' summaries say, and the Article text is the primary support.",
+  "passage": "The Conference of the Parties serving as the meeting of the Parties to this Agreement shall periodically take stock of the implementation of this Agreement to assess the collective progress towards achieving the purpose of this Agreement and its long-term goals..."
+ },
+ {
+  "support": 0.27,
+  "outcome": "unsupported_changes",
+  "claim": "The notes support only that the stocktake is collective and facilitative and is meant to inform Parties in updating and enhancing their actions and support. The claims about 'ensuring transparency' and being 'less about punishing non-achievement' are dropped, since the notes do not discuss the transparency framework or Article 15.",
+  "passage": "It shall do so in a comprehensive and facilitative manner, considering mitigation, adaptation and the means of implementation and support, and in the light of equity and the best available science."
+ }
+]

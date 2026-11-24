@@ -1,0 +1,82 @@
+{
+ "question": 0,
+ "jev": "on",
+ "seconds": 117.5,
+ "usage": {
+  "gpt-5.4-mini-2026-03-17": {
+   "input": 32466,
+   "output": 5374
+  },
+  "claude-sonnet-5-5": {
+   "input": 63693,
+   "output": 11107
+  },
+  "gpt-6.1-sol": {
+   "input": 7259,
+   "output": 2467
+  }
+ },
+ "review": {
+  "status": "ok",
+  "scores": {
+   "openai:gpt-5.4-mini": 8,
+   "anthropic:claude-sonnet-5-5": 6
+  },
+  "flagged_urls": [],
+  "critic": {
+   "status": "ok",
+   "dropped": 0,
+   "disputed": [
+    {
+     "id": "C2-U2",
+     "finding": "'The direction is one-way: adjustments are contemplated for enhancing, not weakening' is the draft's inference. The notes quote Art. 4(11) only partially, truncated after 'enhancing its level of ambition...'.",
+     "objection": "The notes do show the quote is truncated at Article 4(11), but they do not establish that the one-way interpretation is wrong; they only indicate the draft\u2019s wording goes beyond the quoted text."
+    },
+    {
+     "id": "C2-F5",
+     "finding": "The first stocktake concluded at COP28 (Dec 2023) and the next is due in 2028, yet the draft uses only forward-looking language ('first global stocktake in 2023'). The notes do not cover outcomes, but as of Nov 2026 the report reads as if the process had not yet occurred, and the 2025 NDC round (NDCs 3.0) is not mentioned.",
+     "objection": "This finding raises timing and current-date concerns that are not settled by the research notes, which do not address COP28 outcomes or the 2025 NDC round."
+    }
+   ]
+  },
+  "deliberation": {
+   "rounds_requested": 2,
+   "rounds_run": 2,
+   "rounds_saved": 0,
+   "stop_reason": "max_rounds",
+   "guard_rounds": 0,
+   "agreement_rate": 0.812,
+   "model_calls": 6,
+   "challenges": 9,
+   "held": 0,
+   "changed_with_evidence": 2,
+   "unsupported_changes": 7,
+   "no_response": 0,
+   "agree": 26,
+   "agree_grounded": 0,
+   "disagree": 1,
+   "build_on_applied": 0,
+   "build_on_ignored": 5,
+   "support_checked": 21,
+   "support_rejected": 19
+  },
+  "blind_pass": {
+   "reviewers": 2,
+   "failed": [],
+   "points": 12,
+   "covered": 9,
+   "omitted": 0,
+   "ungrounded": 0,
+   "unsupported": 3,
+   "omissions": []
+  },
+  "support_check": {
+   "checker": "JevChecker",
+   "model": "jev-latest",
+   "served_by": [
+    "jev-1.14.0"
+   ],
+   "errors": 0
+  }
+ }
+}

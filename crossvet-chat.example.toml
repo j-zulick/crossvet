@@ -1,0 +1,78 @@
+# Crossvet chat settings. Copy to crossvet-chat.toml (this folder) or ~/.config/crossvet/chat.toml.
+# Example configuration. `crossvet chat init` writes a real one from the keys you have (`--openrouter` fills it from OpenRouter's current model list).
+# API keys are NOT stored here: they are read from the environment (.env.example).
+# Model ids below are examples dated 2026-11. Model names go stale: check them with your vendor.
+
+[slots]
+# quick: short lookups, summaries, extraction: the cheapest capable model
+quick = ["openai:gpt-6-luna", "anthropic:claude-haiku-5-5"]
+# balanced: everyday writing and general questions
+balanced = ["openai:gpt-6.1-terra", "anthropic:claude-sonnet-5-5"]
+# strong: code, analysis and anything hard
+strong = ["anthropic:claude-opus-5-5", "openai:gpt-6.1-sol"]
+# fresh: questions about what is happening now: a model with live search or real-time data
+fresh = []
+# long: very long inputs: the largest context window
+long = []
+# reviewer: second opinions: a model from a different vendor than your main one
+reviewer = ["openai:gpt-6.1-sol"]
+
+[routes]
+# Which slot each kind of task starts in. Uncomment to change a default.
+# quick = "quick"
+# summarize = "quick"
+# extract = "quick"
+# translate = "quick"
+# writing = "balanced"
+# general = "balanced"
+# code = "strong"
+# reasoning = "strong"
+# review = "reviewer"
+# fresh = "fresh"
+
+[limits]
+max_usd_per_day = 5.0     # 0 = no cap
+max_usd_per_call = 0.50   # worst-case estimate before a call; needs prices below
+max_output_tokens = 4000
+
+[router]
+# Who picks the model: rules (free), jev (Jev names the kind and difficulty; your slots pick the model),
+# openrouter-auto, openrouter-auto-code or jev-router (hosted routers on OpenRouter; your slot is the fallback).
+use = "rules"
+# jev_model = "~typesafe/jev-latest"
+# jev_min_confidence = 0.5    # below this, the rules decide
+# Ask Jev whether each answer addresses the request; below the threshold, try the next model ("" = off)
+check = ""
+# check_threshold = 0.2
+
+[tuning]
+# Share of routed requests where the second choice answers first, so rarely-used models get rated (0 = off, max 0.5)
+explore = 0.0
+# `crossvet chat tune` marks a proposal resting on fewer ratings per model than this as weak
+min_ratings = 3
+
+[record]
+# Every turn and rating is kept in the local store. Copies go to:
+#   auto      Langfuse when LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY are set, and the jsonl file when a path is given
+#   langfuse  Langfuse only (refuses to start without the keys)
+#   jsonl     the jsonl file only
+#   off       nowhere
+sink = "auto"
+# full: copies include the request and answer text. metadata: they do not (the local store still keeps the text).
+content = "full"
+# jsonl = "~/.local/share/crossvet/chat-turns.jsonl"
+
+[memory]
+chars = 6000              # how much shared memory a model is shown
+history_turns = 12
+
+# context = context window in tokens (0 = unknown); input/output = USD per million tokens (examples to verify).
+[models."openai:gpt-6-luna"]
+context = 0
+input = 0.10
+output = 0.50
+
+[models."anthropic:claude-haiku-5-5"]
+context = 0
+input = 0.10
+output = 0.50

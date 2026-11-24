@@ -1,0 +1,27 @@
+# Example setups for crossvet-compare. Each [setup.config] uses Crossvet's
+# configuration names (lowercase environment variable names). Anything not set
+# here falls back to your .env.
+# Model names are examples and change over time: `uv run crossvet-setup --compare-plan my-setups.toml`
+# writes a file like this from the models your keys and local servers actually offer.
+
+[[setup]]
+name = "hosted-panel"
+[setup.config]
+cross_vendor_review_enabled = true
+review_models = "openai:gpt-5.4-mini,anthropic:claude-sonnet-5-5"
+review_reviser_model = "google_genai:gemini-3.8-flash"
+
+[[setup]]
+name = "openrouter-panel"
+[setup.config]
+cross_vendor_review_enabled = true
+review_models = "openrouter:deepseek/deepseek-v4-pro,openrouter:mistralai/mistral-large"
+review_reviser_model = "openrouter:qwen/qwen3-235b-a22b-instruct"
+
+[[setup]]
+name = "local-writer"
+[setup.config]
+# Any model served by Ollama on this machine writes the report; reviewers stay hosted.
+final_report_model = "ollama:llama3.1:8b"
+cross_vendor_review_enabled = true
+review_models = "openai:gpt-5.4-mini,anthropic:claude-sonnet-5-5"
