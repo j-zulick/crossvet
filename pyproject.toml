@@ -61,7 +61,7 @@ dependencies = [
     "langfuse>=3",
     "deepagents>=0.7.34,<0.8",
     "typesafe-sdk>=0.7.5,<0.8",
-    "langchain-openrouter>=0.2.9,<0.3",
+    "langchain-openrouter>=0.2.9,<0.4",
 ]
 
 [project.urls]
