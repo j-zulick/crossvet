@@ -34,6 +34,8 @@ reviewer = ["openai:gpt-6.1-sol"]
 max_usd_per_day = 5.0     # 0 = no cap
 max_usd_per_call = 0.50   # worst-case estimate before a call; needs prices below
 max_output_tokens = 4000
+timeout_seconds = 120        # one model call, start to finish
+max_request_bytes = 2000000  # the largest request `crossvet chat serve` accepts
 
 [router]
 # Who picks the model: rules (free), jev (Jev names the kind and difficulty; your slots pick the model),

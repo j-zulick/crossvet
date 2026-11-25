@@ -4,6 +4,11 @@ All notable changes to Crossvet. Versions follow [Semantic Versioning](https://s
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-24
+
+### Added
+- `crossvet chat backup`, `restore` and `prune --older-than`; `[limits] timeout_seconds` and `max_request_bytes` (design decision 39).
+
 ## [0.5.0] - 2026-11-24
 
 ### Added

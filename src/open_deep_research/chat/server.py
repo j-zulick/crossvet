@@ -236,8 +236,15 @@ def create_app(hub: Hub | None = None, token: str | None = None):
     async def chat(request: Request):
         if not allowed(request):
             return denied()
+        limit = hub.config.max_request_bytes
+        declared = request.headers.get("content-length", "")
+        if declared.isdigit() and int(declared) > limit:
+            return error(413, f"the request is larger than [limits] max_request_bytes ({limit})", "request_too_large")
+        raw_body = await request.body()
+        if len(raw_body) > limit:
+            return error(413, f"the request is larger than [limits] max_request_bytes ({limit})", "request_too_large")
         try:
-            body = await request.json()
+            body = json.loads(raw_body)
             raw_messages = list(body["messages"])
             users = [m for m in raw_messages if m.get("role") == "user"]
             prompt = user_text(users[-1])

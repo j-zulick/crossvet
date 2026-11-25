@@ -144,6 +144,7 @@ class Hub:
                  relayer: Relayer | None = None, recorder: Recorder | None = None, jev: Jev | None = None,
                  streamer: Streamer | None = None) -> None:
         self.config = config if config is not None else load()
+        providers.set_timeout(self.config.timeout_seconds)
         self.memory = memory if memory is not None else Memory(self.config.db_path or default_db_path())
         self._call: Caller = caller or (lambda model, messages, max_tokens: providers.call(model, messages, max_tokens))
         self._relay: Relayer = relayer or (lambda model, body: providers.passthrough(model, body))

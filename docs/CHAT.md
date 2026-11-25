@@ -129,6 +129,17 @@ Thirteen tools: `ask`, `ask_model`, `compare_models`, `challenge`, `explain_rout
 
 One SQLite file (`~/.local/share/crossvet/chat.db`, or `CROSSVET_CHAT_DB`) holds every turn and every note, from every app. The database refuses updates and deletes. Notes are shown to models inside a marked block, as reference data, never as instructions.
 
+**Backup, restore and retention.**
+
+```bash
+crossvet chat backup                       # a consistent copy (safe while the server runs): crossvet-chat-backup-<time>.db
+crossvet chat backup ~/Backups/chat.db
+crossvet chat restore ~/Backups/chat.db --yes          # the current store is saved next to it first
+crossvet chat prune --older-than 180 --yes             # keep the last 180 days of turns; a backup is saved first
+```
+
+Every copy is checked (SQLite's integrity check, and that it is a Crossvet chat store) before it is used. The store refuses deletes, so `prune` builds a new file with the turns of the last N days and their ratings, keeps every note, the routing table, its evidence and handoffs, keeps the store's id (so Langfuse trace ids still match), and puts it in place of the old one. Stop `crossvet chat serve`, `start` and any MCP server before `restore` or `prune`: a process that keeps the old file open would go on writing to it. Without `--yes`, both say what they would do and stop.
+
 ## Recording and ratings
 
 Every turn and every rating is written to the local store first. Copies go to Langfuse, a JSON-lines file, or both (`[record]` in the settings). A copy that fails never breaks a turn.
@@ -323,6 +334,7 @@ crossvet chat handoff show assistant-handoff-001
 | `crossvet chat sync [--days N] [--score NAME]` | Save ratings people added in Langfuse as ratings here |
 | `crossvet chat report [--days 7] [--out FILE] [--langfuse]` | Cost per model, ratings per kind of task and proposals |
 | `crossvet chat start [--no-serve]` | Config, key check, Hermes and Cursor settings, then the server |
+| `crossvet chat backup [PATH]` / `restore PATH --yes` / `prune --older-than DAYS --yes` | Copy, restore or trim the store |
 | `crossvet chat replay [--router R] [--table V] [--run]` | How other routers or table versions would have routed your history |
 | `crossvet chat export --dataset NAME \| --jsonl FILE` | Answers and ratings as a Langfuse dataset or JSON lines |
 | `crossvet chat handoff pilot\|new\|send\|import\|show\|list\|kit\|reconcile\|resolve\|cancel` | Versioned packets between models, apps and agents |
@@ -340,6 +352,8 @@ crossvet chat handoff show assistant-handoff-001
 | `CROSSVET_CHAT_TOKEN` | Bearer token the server requires |
 | `CROSSVET_CHAT_ROUTER` | Override the router for every request |
 | `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_BASE_URL` | Langfuse, shared with the research pipeline |
+
+`[limits]` in the settings file: `max_usd_per_day` and `max_usd_per_call` (spend caps; 0 = none), `max_output_tokens` (4000), `timeout_seconds` (120: one model call, start to finish) and `max_request_bytes` (2,000,000: larger requests to the server get HTTP 413).
 
 ## Limits
 

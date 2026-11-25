@@ -43,6 +43,12 @@ ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
 TIMEOUT = httpx.Timeout(120.0, connect=10.0)
 
 
+def set_timeout(seconds: float) -> None:
+    """Set how long one model call may take (``[limits] timeout_seconds``); connecting may take 10 s of it."""
+    global TIMEOUT  # noqa: PLW0603 - one setting for every call in this process
+    TIMEOUT = httpx.Timeout(float(seconds), connect=min(10.0, float(seconds)))
+
+
 class ProviderError(RuntimeError):
     """A model call failed: no key, an HTTP error, or a reply that could not be read."""
 

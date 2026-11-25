@@ -60,6 +60,8 @@ class Config:
     max_usd_per_day: float = 0.0   # 0 = no cap
     max_usd_per_call: float = 0.0  # 0 = no cap; estimated before the call from the input size
     max_output_tokens: int = 4000
+    timeout_seconds: float = 120.0      # one model call, start to finish
+    max_request_bytes: int = 2_000_000  # the largest request the server accepts
     memory_chars: int = 6000       # how much shared memory is put in front of a model
     history_turns: int = 12        # how many earlier turns of the thread a model sees
     db_path: str = ""
@@ -146,6 +148,8 @@ def parse(data: dict, source: str = "") -> Config:
         max_usd_per_day=float(limits.get("max_usd_per_day", 0) or 0),
         max_usd_per_call=float(limits.get("max_usd_per_call", 0) or 0),
         max_output_tokens=int(limits.get("max_output_tokens", 4000) or 4000),
+        timeout_seconds=_positive(limits.get("timeout_seconds", 120), "timeout_seconds", source),
+        max_request_bytes=int(_positive(limits.get("max_request_bytes", 2_000_000), "max_request_bytes", source)),
         memory_chars=int(memory.get("chars", 6000) or 0),
         history_turns=int(memory.get("history_turns", 12) or 0),
         db_path=str(memory.get("db", "") or ""),
@@ -161,6 +165,13 @@ def parse(data: dict, source: str = "") -> Config:
         min_ratings=int((data.get("tuning") or {}).get("min_ratings", 3)),
         source=source,
     )
+
+
+def _positive(value: object, name: str, source: str) -> float:
+    number = float(value)  # type: ignore[arg-type]
+    if number <= 0:
+        raise ValueError(f"[limits] {name} in {source or 'config'} must be more than 0")
+    return number
 
 
 def _share(value: object, source: str) -> float:

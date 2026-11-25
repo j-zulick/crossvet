@@ -1,6 +1,7 @@
 """``crossvet chat``: one chat that routes each request to a suitable model.
 
     crossvet chat start                    one step for Hermes or Cursor: check keys, print settings, serve
+    crossvet chat backup [PATH] / restore PATH --yes / prune --older-than DAYS --yes    keep, restore or trim the store
     crossvet chat                          talk in one thread; /help lists the commands
     crossvet chat init [--openrouter]      write crossvet-chat.toml from the keys you have
     crossvet chat doctor                   check keys, slots and limits without calling a model
@@ -880,6 +881,68 @@ def _callable(model: str) -> bool:
         return False
 
 
+def _store_path() -> str:
+    from open_deep_research.chat.config import default_db_path
+
+    return load().db_path or default_db_path()
+
+
+def cmd_backup(args: argparse.Namespace) -> int:
+    """Run `crossvet chat backup`."""
+    from open_deep_research.chat import storage
+
+    try:
+        path, found = storage.backup(_store_path(), args.path)
+    except (OSError, RuntimeError) as exc:
+        print(f"backup failed: {exc}", file=sys.stderr)
+        return 1
+    print(f"backed up {found['turns']} turns, {found['notes']} notes and {found['ratings']} ratings to {path}")
+    return 0
+
+
+def cmd_restore(args: argparse.Namespace) -> int:
+    """Run `crossvet chat restore`."""
+    from open_deep_research.chat import storage
+
+    wrong = storage.problems(args.path)
+    if wrong:
+        print(f"not restoring: {'; '.join(wrong)}", file=sys.stderr)
+        return 1
+    target = _store_path()
+    if not args.yes:
+        print(f"This replaces the chat store at {target} with {args.path} (the current store is saved first).\n"
+              "Stop `crossvet chat serve`, `start` and any MCP server, then run again with --yes.")
+        return 2
+    try:
+        saved, found = storage.restore(args.path, target)
+    except (OSError, RuntimeError) as exc:
+        print(f"restore failed: {exc}", file=sys.stderr)
+        return 1
+    print(f"restored {found['turns']} turns, {found['notes']} notes and {found['ratings']} ratings"
+          + (f"; the previous store is at {saved}" if saved else ""))
+    return 0
+
+
+def cmd_prune(args: argparse.Namespace) -> int:
+    """Run `crossvet chat prune`."""
+    from open_deep_research.chat import storage
+
+    target = _store_path()
+    if not args.yes:
+        print(f"This keeps the last {args.older_than:g} days of turns in {target} (and their ratings); notes, the routing\n"
+              "table and handoffs are kept. A backup is saved first. Stop `crossvet chat serve`, `start` and any MCP\n"
+              "server, then run again with --yes.")
+        return 2
+    try:
+        result = storage.prune(target, args.older_than)
+    except (OSError, RuntimeError, ValueError) as exc:
+        print(f"prune failed: {exc}", file=sys.stderr)
+        return 1
+    print(f"kept {result.kept_turns} turns; removed {result.removed_turns} turns and {result.removed_ratings} ratings."
+          f" The store before pruning is at {result.backup}")
+    return 0
+
+
 def cmd_serve(args: argparse.Namespace) -> int:
     """Run `crossvet chat serve`."""
     from open_deep_research.chat.server import serve
@@ -1042,6 +1105,20 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--stale-after", type=float, default=900.0, help="reconcile: seconds before a claimed attempt is uncertain")
     p.add_argument("--limit", type=int, default=50)
     p.set_defaults(func=cmd_handoff)
+
+    p = sub.add_parser("backup", help="copy the chat store to a file (safe while the server runs)")
+    p.add_argument("path", nargs="?", help="where to write it (default: crossvet-chat-backup-<time>.db here)")
+    p.set_defaults(func=cmd_backup)
+
+    p = sub.add_parser("restore", help="replace the chat store with a backup (the current one is saved first)")
+    p.add_argument("path")
+    p.add_argument("--yes", action="store_true")
+    p.set_defaults(func=cmd_restore)
+
+    p = sub.add_parser("prune", help="keep only the last N days of turns; a backup is saved first")
+    p.add_argument("--older-than", type=float, required=True, metavar="DAYS", help="remove turns older than this many days")
+    p.add_argument("--yes", action="store_true")
+    p.set_defaults(func=cmd_prune)
 
     p = sub.add_parser("start", help="one step: write a config if needed, check keys, print Hermes and Cursor settings, serve")
     p.add_argument("--host", default="127.0.0.1")
