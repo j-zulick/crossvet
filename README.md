@@ -9,14 +9,14 @@ One model checking its own work shares its blind spots, and LLM judges favor the
 ## Quick start
 
 ```bash
-uv tool install "crossvet[all] @ git+https://github.com/j-zulick/crossvet@v0.4.0"   # everything (Python 3.11–3.13)
+uv tool install "crossvet[all] @ git+https://github.com/j-zulick/crossvet@v0.5.0"   # everything (Python 3.11–3.13)
 mkdir my-research && cd my-research                                                  # .env and run files live in this folder
 crossvet demo                                                                        # a one-minute tour, free
 ```
 
 | Install | Gives you | Packages |
 |---|---|---|
-| `uv tool install "git+https://github.com/j-zulick/crossvet@v0.4.0"` | the chat, the scanner and the demo | about 30, installs in seconds |
+| `uv tool install "git+https://github.com/j-zulick/crossvet@v0.5.0"` | the chat, the scanner and the demo | about 30, installs in seconds |
 | `"crossvet[langfuse] @ git+…"` | the same, recording chat turns in Langfuse | |
 | `"crossvet[research] @ git+…"` | adds research, review, the benchmarks and the MCP research tools | about 200 |
 | `"crossvet[all] @ git+…"` | all of the above | |

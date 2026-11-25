@@ -208,9 +208,11 @@ crossvet chat routes reset code       # back to the starting line for code
 
 ```bash
 crossvet chat routes import saved-post.html notes.txt https://example.com/post
-crossvet chat routes import --manual my-claims.jsonl     # rows: kind, model, verdict (good/bad), vendor, model_id, quote
-crossvet chat routes evidence                            # pending claims, each with what accepting it would change
-crossvet chat routes accept 4 7       # or: reject 5
+crossvet chat routes import ~/model-posts/                # every .txt, .md and .html file in the folder (up to 500)
+crossvet chat routes import --urls reading-list.txt       # one URL or file path per line; lines starting with # are skipped
+crossvet chat routes import --manual my-claims.jsonl      # rows: kind, model, verdict (good/bad), vendor, model_id, quote
+crossvet chat routes evidence                             # pending claims, each with what accepting it would change
+crossvet chat routes accept 4 7       # or: reject 5; --one decides only that claim, not its repeats
 ```
 
 For each post, in this order:
@@ -219,6 +221,10 @@ For each post, in this order:
 2. A model from your balanced slot lists claims ("model X is good or bad at task Y") with an exact quote.
 3. Code keeps a claim only if its kind is known, its verdict is good or bad, and its quote appears in the post verbatim.
 4. Kept claims wait as pending evidence.
+
+After each post, every kept claim is listed with what accepting it would change, and whether it repeats or contradicts a claim from an earlier post.
+
+**Repeats and conflicts.** Claims with the same kind, model and verdict are the same claim, whichever post they came from; provider prefixes are ignored (`openrouter:openai/gpt-x`, `openai/gpt-x` and `gpt-x` are one model). `routes evidence` shows each claim once with the number of posts that made it, and marks claims that another post contradicts (same kind and model, opposite verdict). Accepting or rejecting a claim decides its repeats too, with one change to the table; `--one` decides only the claim named.
 
 Accepting a "good" claim puts the matching model from your slots first for that kind, or its vendor first if no configured model matches (`--model provider:model` overrides). Accepting a "bad" claim adds the model to the kind's avoid list. A post already imported is skipped unless `--again` is given. Posts and claims stay in the local store; nothing is sent anywhere but the extraction call. Sites that refuse automated reads can be saved from the browser and imported as files.
 

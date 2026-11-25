@@ -491,28 +491,45 @@ def cmd_routes(args: argparse.Namespace) -> int:
         if args.manual:
             result = tune_mod.import_manual(tuning, args.manual, _read_manual(args.manual))
             print(f"{result.source}: {len(result.kept)} kept" + "".join(f"\n  dropped: {d}" for d in result.dropped))
-        for source in words:
+        sources = _post_sources(words, args.urls)
+        if not sources and not args.manual:
+            print("usage: crossvet chat routes import FILE|FOLDER|URL ... [--urls FILE]", file=sys.stderr)
+            return 2
+        counts: dict[str, int] = {}
+        for source in sources:
             try:
                 raw = fetch(source, allow_private=False, max_bytes=2_000_000) if re.match(r"https?://", source) \
                     else Path(source).read_text(encoding="utf-8", errors="replace")
             except Exception as exc:  # noqa: BLE001  one bad source should not stop the rest
                 print(f"{source}: could not read ({type(exc).__name__}: {exc})")
+                counts["unreadable"] = counts.get("unreadable", 0) + 1
                 continue
+            before = {e.id for e in tuning.evidence()}
             result = tune_mod.import_post(hub, source, raw, again=args.again)
+            counts[result.outcome] = counts.get(result.outcome, 0) + 1
             print(f"{source}: {result.outcome}" + (f", {len(result.kept)} claim(s) kept" if result.outcome == "imported" else "")
                   + (f" ({result.detail})" if result.detail else ""))
             for reason in result.dropped:
                 print(f"  dropped: {reason}")
+            _print_post_changes(hub, tune_mod, result.kept, before)
+        if len(sources) > 1:
+            print("posts: " + ", ".join(f"{n} {outcome}" for outcome, n in sorted(counts.items())))
         print("next: crossvet chat routes evidence")
     elif args.action == "evidence":
         items = tuning.evidence(status=None if args.all else "pending", kind=args.kind)
         if not items:
             print("no pending evidence" if not args.all else "no evidence")
-        for item in items:
+        opposite = tune_mod.conflicts(tuning.evidence())
+        for group in tune_mod.group_evidence(items):
+            item = group[0]
             matches = tune_mod.match_models(item, hub.config.all_models())
+            also = f"  (same claim: {', '.join('#' + str(e.id) for e in group[1:])}; {len(group)} sources)" if len(group) > 1 else ""
             print(f"#{item.id} [{item.status}] {item.kind}: {item.model} is {item.verdict.upper()}"
-                  f"{' (vendor ' + item.vendor + ')' if item.vendor else ''}  source: {item.source}")
+                  f"{' (vendor ' + item.vendor + ')' if item.vendor else ''}  source: {item.source}{also}")
             print(f'    "{item.quote}"')
+            against = sorted({i for e in group for i in opposite.get(e.id, [])})
+            if against:
+                print(f"    conflicts with {', '.join('#' + str(i) for i in against)} (the opposite verdict)")
             if item.status == "pending":
                 if item.verdict == "bad":
                     effect = f"adds {item.model_id or item.model} to the avoid list"
@@ -527,14 +544,61 @@ def cmd_routes(args: argparse.Namespace) -> int:
             return 2
         for word in words:
             item_id = int(word.lstrip("#"))
-            item = next((e for e in tuning.evidence() if e.id == item_id), None)
+            everything = tuning.evidence()
+            item = next((e for e in everything if e.id == item_id), None)
             if item is None:
                 print(f"#{item_id}: no such evidence")
                 continue
             models = _csv(args.model) or tune_mod.match_models(item, hub.config.all_models())
             table = tuning.decide(item_id, args.action == "accept", models=models)
             print(f"#{item_id}: {args.action}ed" + (f", saved version {table.version}" if table else ""))
+            if not args.one:  # the same claim from other posts is decided with it, without changing the table again
+                key = tune_mod.claim_key(item)
+                repeats = [e for e in everything if e.id != item_id and e.status == "pending" and tune_mod.claim_key(e) == key]
+                for repeat in repeats:
+                    tuning.mark(repeat.id, f"{args.action}ed")
+                if repeats:
+                    print(f"  also {args.action}ed the same claim from other posts: {', '.join('#' + str(e.id) for e in repeats)}")
     return 0
+
+
+def _post_sources(words: list[str], urls_file: str | None) -> list[str]:
+    """Expand folders to the post files in them and add the lines of ``--urls``; keep the order given."""
+    from open_deep_research.chat.tuning import POST_SUFFIXES
+
+    out: list[str] = []
+    for word in words:
+        path = Path(word)
+        if not re.match(r"https?://", word) and path.is_dir():
+            files = sorted(f for f in path.rglob("*") if f.is_file() and f.suffix.lower() in POST_SUFFIXES)
+            out += [str(f) for f in files[:500]]
+            if len(files) > 500:
+                print(f"{word}: {len(files)} files; reading the first 500", file=sys.stderr)
+        else:
+            out.append(word)
+    if urls_file:
+        out += [line.strip() for line in Path(urls_file).read_text().splitlines() if line.strip() and not line.startswith("#")]
+    return list(dict.fromkeys(out))
+
+
+def _print_post_changes(hub: Any, tune_mod: Any, kept: list[int], before: set[int]) -> None:
+    """Say what each kept claim would change if accepted, and which earlier claims it repeats or contradicts."""
+    everything = hub.tuning.evidence()
+    old = [e for e in everything if e.id in before]
+    for item in (e for e in everything if e.id in kept):
+        key = tune_mod.claim_key(item)
+        same = [e.id for e in old if tune_mod.claim_key(e) == key]
+        against = [e.id for e in old if tune_mod.claim_key(e)[:2] == key[:2] and e.verdict != item.verdict]
+        if item.verdict == "bad":
+            effect = f"would add {item.model_id or item.model} to the {item.kind} avoid list"
+        else:
+            matches = tune_mod.match_models(item, hub.config.all_models())
+            effect = (f"would put {', '.join(matches)} first for {item.kind}" if matches
+                      else f"would put vendor {item.vendor} first for {item.kind}" if item.vendor
+                      else f"names no configured model or vendor for {item.kind}")
+        notes = ([f"repeats #{', #'.join(map(str, same))}"] if same else []) + \
+                ([f"contradicts #{', #'.join(map(str, against))}"] if against else [])
+        print(f"  #{item.id} {item.kind}: {item.model} is {item.verdict}; {effect}" + (f" ({'; '.join(notes)})" if notes else ""))
 
 
 def _sync(hub: Any, days: float, score: str) -> int:
@@ -920,6 +984,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--model", help="accept: put these provider:model names first instead of the automatic match")
     p.add_argument("--manual", help="import: a .jsonl or .csv of your own claims (kind, model, verdict, vendor, model_id, quote)")
     p.add_argument("--again", action="store_true", help="import: read a post again even if it was imported before")
+    p.add_argument("--urls", help="import: a text file with one URL (or file path) per line")
+    p.add_argument("--one", action="store_true", help="accept/reject: only this claim, not its repeats from other posts")
     p.add_argument("--kind", help="evidence: only this kind of task")
     p.add_argument("--all", action="store_true", help="evidence: include accepted and rejected claims")
     p.add_argument("--json", action="store_true")

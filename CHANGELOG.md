@@ -4,6 +4,11 @@ All notable changes to Crossvet. Versions follow [Semantic Versioning](https://s
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-24
+
+### Added
+- Post imports from folders and URL lists; per-post summary of what each claim would change; repeated claims merged and decided together; contradictions marked (design decision 38).
+
 ## [0.4.0] - 2026-11-24
 
 ### Added
