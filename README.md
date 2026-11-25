@@ -3,6 +3,10 @@
 **One chat that controls Claude, ChatGPT and other models.** Keep using Hermes, Cursor or any chat app you like: Crossvet sits behind it, sends each request to a model suited to it, and tells you which model answered, why, and what it cost. Every decision that matters (which kind of task, which model, whether an answer passed its check, whether a spend cap stops a call) is made in code, so you can read it and change it.
 
 [![CI](https://github.com/j-zulick/crossvet/actions/workflows/ci.yml/badge.svg)](https://github.com/j-zulick/crossvet/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/j-zulick/crossvet/actions/workflows/codeql.yml/badge.svg)](https://github.com/j-zulick/crossvet/actions/workflows/codeql.yml)
+[![Release](https://img.shields.io/github/v/release/j-zulick/crossvet)](https://github.com/j-zulick/crossvet/releases/latest)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)](pyproject.toml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 ```
 > Write a Python function that parses "2021 Toyota Tacoma SR5 - 34,210 mi - $31,995" into year, make, model, trim, miles and price.
@@ -19,7 +23,7 @@ Both answers are from the [live run of 2026-11-25](docs/live-runs/2026-11-25.md)
 ## Quick start
 
 ```bash
-uv tool install "crossvet[langfuse] @ git+https://github.com/j-zulick/crossvet@v1.1.0"
+uv tool install "crossvet[langfuse] @ git+https://github.com/j-zulick/crossvet@v1.1.1"
 mkdir ~/crossvet-work && cd ~/crossvet-work
 # put your keys in .env (copy .env.example from the repository): OPENAI_API_KEY, ANTHROPIC_API_KEY, ...
 crossvet chat start
@@ -38,6 +42,20 @@ crossvet chat start
 Typed as a whole message in any of them: `/why` (why that model), `/model NAME` (use this model; `/model auto` goes back), `/retry stronger` (ask again, one step up), `/good` and `/bad` (rate the answer), `/cost`.
 
 ## How a request is routed
+
+```mermaid
+flowchart LR
+    A["Your chat<br/>Hermes · Cursor · terminal"] --> B["Kind and difficulty<br/>(text rules, inputs)"]
+    B --> C["Slot and model<br/>(your routing table)"]
+    C --> D{"Spend caps and<br/>refused accounts"}
+    D -- "allowed" --> E["Model call"]
+    D -- "stopped" --> X["Refused before any call"]
+    E --> F{"Answer check"}
+    F -- "passes" --> G["Answer + model, reason, cost"]
+    F -- "fails: next model" --> C
+    G --> H["Record: SQLite + Langfuse"]
+    H --> I["/good, /bad → proposed table changes you accept"]
+```
 
 1. **What kind of task.** Text rules name the kind (code, review, writing, summarize, extract, translate, reasoning, fresh, quick, general) and a difficulty from 1 to 3, with the reason in words. Images, audio, PDFs and pasted code are noticed too.
 2. **Which models.** The kind picks a slot (quick, balanced, strong, fresh, long, vision, audio); difficulty moves it along quick → balanced → strong; your routing table puts preferred models first. An image goes to the vision slot; a long input to the long slot; a private request stays on a local model.

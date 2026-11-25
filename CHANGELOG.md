@@ -4,6 +4,14 @@ All notable changes to Crossvet. Versions follow [Semantic Versioning](https://s
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-11-25
+
+Repository presentation only; no change to how Crossvet behaves.
+
+### Added
+- `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1), completing GitHub's community profile.
+- A diagram of how a request is routed, and release, CodeQL, Python and license badges, in the README.
+
 ## [1.1.0] - 2026-11-25
 
 ### Tested live
