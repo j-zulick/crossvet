@@ -4,6 +4,12 @@ All notable changes to Crossvet. Versions follow [Semantic Versioning](https://s
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-24
+
+### Added
+- `crossvet chat sync`: ratings added in Langfuse count in tuning; `tune --sync`.
+- `crossvet chat report`: cost per model, ratings per kind, proposals; optionally posted to Langfuse (design decision 37).
+
 ## [0.3.0] - 2026-11-24
 
 ### Changed

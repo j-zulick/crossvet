@@ -18,7 +18,9 @@
     crossvet chat routes reset [KIND] | rollback VERSION
     crossvet chat routes import FILE_OR_URL...   claims like "model X is good at task Y" from posts or notes
     crossvet chat routes evidence | accept ID | reject ID
-    crossvet chat tune [--days N] [--apply KIND]    how each model did per kind of task, from your ratings
+    crossvet chat tune [--days N] [--apply KIND] [--sync]    how each model did per kind of task, from your ratings
+    crossvet chat sync [--days N]          ratings people added in Langfuse count here too
+    crossvet chat report [--days 7] [--langfuse]    cost per model, ratings per kind, proposals
     crossvet chat replay [--router R ...] [--table V ...] [--run]   how other routers or tables would have routed your history
     crossvet chat export --dataset NAME | --jsonl FILE              your answers and ratings as a Langfuse dataset or JSON lines
     crossvet chat handoff pilot DIR | new PACKET | send TASK --worker W | import RESULT | show TASK | list
@@ -535,11 +537,51 @@ def cmd_routes(args: argparse.Namespace) -> int:
     return 0
 
 
+def _sync(hub: Any, days: float, score: str) -> int:
+    from open_deep_research.chat.langfuse_sync import sync
+
+    try:
+        result = sync(hub, days=days, name=score)
+    except RuntimeError as exc:
+        print(f"Langfuse: {exc}", file=sys.stderr)
+        return 1
+    print(result.summary())
+    for note in result.notes[:10]:
+        print(f"  {note}")
+    return 0
+
+
+def cmd_sync(args: argparse.Namespace) -> int:
+    """Run `crossvet chat sync`: ratings added in Langfuse become ratings here."""
+    return _sync(_hub(), args.days, args.score)
+
+
+def cmd_report(args: argparse.Namespace) -> int:
+    """Run `crossvet chat report`."""
+    from open_deep_research.chat.report import send_to_langfuse, weekly
+
+    text = weekly(_hub(), args.days)
+    print(text)
+    if args.out:
+        Path(args.out).write_text(text)
+        print(f"wrote {args.out}", file=sys.stderr)
+    if args.langfuse:
+        try:
+            trace = send_to_langfuse(text, args.days)
+        except RuntimeError as exc:
+            print(f"Langfuse: {exc}", file=sys.stderr)
+            return 1
+        print(f"sent to Langfuse (trace {trace or 'id not reported'})", file=sys.stderr)
+    return 0
+
+
 def cmd_tune(args: argparse.Namespace) -> int:
     """Run `crossvet chat tune`."""
     from open_deep_research.chat.tuning import proposals, stats
 
     hub = _hub()
+    if getattr(args, "sync", False):
+        _sync(hub, 30, "user-feedback")
     since = time.time() - args.days * 86400 if args.days else 0.0
     table_stats = stats(hub, since)
     found = proposals(hub, table_stats, hub.config.min_ratings)
@@ -887,7 +929,19 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--days", type=int, default=0, help="only the last N days (default: everything)")
     p.add_argument("--apply", metavar="KIND", help="accept the proposal for this kind of task")
     p.add_argument("--json", action="store_true")
+    p.add_argument("--sync", action="store_true", help="first read ratings added in Langfuse (`crossvet chat sync`)")
     p.set_defaults(func=cmd_tune)
+
+    p = sub.add_parser("sync", help="save ratings people added in Langfuse as ratings here, so tune counts them")
+    p.add_argument("--days", type=float, default=30, help="scores from the last N days (default 30)")
+    p.add_argument("--score", default="user-feedback", help="the Langfuse score name to read (default user-feedback)")
+    p.set_defaults(func=cmd_sync)
+
+    p = sub.add_parser("report", help="cost per model, ratings per kind of task and proposals, for the last N days")
+    p.add_argument("--days", type=float, default=7)
+    p.add_argument("--out", help="also write the report to this file (markdown)")
+    p.add_argument("--langfuse", action="store_true", help="also post it to Langfuse as a trace named crossvet-weekly-report")
+    p.set_defaults(func=cmd_report)
 
     p = sub.add_parser("replay", help="how other routers or routing-table versions would have routed your history")
     p.add_argument("--router", action="append", choices=ROUTERS, help="repeat to compare several (default: rules)")

@@ -157,6 +157,26 @@ A turn's trace id is derived from its id and the store's own id, so a rating giv
 
 `crossvet chat log --thread ID` shows each answer's turn id and its ratings.
 
+**Ratings added in Langfuse.** Scores you add in Langfuse's interface (on a trace, or through an annotation queue) count too:
+
+```bash
+crossvet chat sync                  # read the last 30 days of Langfuse scores named user-feedback; save new ones here
+crossvet chat sync --days 7 --score my-score
+crossvet chat tune --sync           # sync first, then tune
+```
+
+Only scores people added in Langfuse (source `ANNOTATION`) are read; the ones Crossvet sent are skipped, and each score is saved once. A score is matched to its answer by trace id, so only answers saved by this store can be matched. Its value becomes good or bad in code: a number from 0 to 1 (0.5 and above is good), true or false, or a label such as good, bad, positive, negative, yes, no, up, down, or a thumbs-up or thumbs-down sign. Anything else is listed and not saved. Create the score in Langfuse with the same name (`user-feedback`) as a numeric 0–1, boolean or categorical good/bad score.
+
+**Weekly report.**
+
+```bash
+crossvet chat report                # the last 7 days: answers and cost, cost per model, ratings per kind of task, proposals
+crossvet chat report --days 30 --out report.md
+crossvet chat report --langfuse     # also post it to Langfuse as a trace named crossvet-weekly-report
+```
+
+Every number is counted from the local store; proposals use the same rule as `crossvet chat tune`.
+
 ## Tuning the routes
 
 The routing table says, per kind of task, which slot to use, which vendors come first, which models to try first and which to avoid. It lives in the chat store with every version kept. Code never changes it on its own: you do, by one of three routes.
@@ -293,7 +313,10 @@ crossvet chat handoff show assistant-handoff-001
 | `crossvet chat bench -m A -m B [--apply]` | Twelve code-scored cases per model; `--apply` writes the best-value models into the slots |
 | `crossvet chat routes show\|history\|set\|reset\|rollback` | The routing table you tune |
 | `crossvet chat routes import\|evidence\|accept\|reject` | Evidence from posts and notes |
-| `crossvet chat tune [--days N] [--apply KIND]` | How each model did per kind of task, from your ratings, with proposals |
+| `crossvet chat tune [--days N] [--apply KIND] [--sync]` | How each model did per kind of task, from your ratings, with proposals |
+| `crossvet chat sync [--days N] [--score NAME]` | Save ratings people added in Langfuse as ratings here |
+| `crossvet chat report [--days 7] [--out FILE] [--langfuse]` | Cost per model, ratings per kind of task and proposals |
+| `crossvet chat start [--no-serve]` | Config, key check, Hermes and Cursor settings, then the server |
 | `crossvet chat replay [--router R] [--table V] [--run]` | How other routers or table versions would have routed your history |
 | `crossvet chat export --dataset NAME \| --jsonl FILE` | Answers and ratings as a Langfuse dataset or JSON lines |
 | `crossvet chat handoff pilot\|new\|send\|import\|show\|list\|kit\|reconcile\|resolve\|cancel` | Versioned packets between models, apps and agents |

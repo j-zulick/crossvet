@@ -9,14 +9,14 @@ One model checking its own work shares its blind spots, and LLM judges favor the
 ## Quick start
 
 ```bash
-uv tool install "crossvet[all] @ git+https://github.com/j-zulick/crossvet@v0.3.0"   # everything (Python 3.11–3.13)
+uv tool install "crossvet[all] @ git+https://github.com/j-zulick/crossvet@v0.4.0"   # everything (Python 3.11–3.13)
 mkdir my-research && cd my-research                                                  # .env and run files live in this folder
 crossvet demo                                                                        # a one-minute tour, free
 ```
 
 | Install | Gives you | Packages |
 |---|---|---|
-| `uv tool install "git+https://github.com/j-zulick/crossvet@v0.3.0"` | the chat, the scanner and the demo | about 30, installs in seconds |
+| `uv tool install "git+https://github.com/j-zulick/crossvet@v0.4.0"` | the chat, the scanner and the demo | about 30, installs in seconds |
 | `"crossvet[langfuse] @ git+…"` | the same, recording chat turns in Langfuse | |
 | `"crossvet[research] @ git+…"` | adds research, review, the benchmarks and the MCP research tools | about 200 |
 | `"crossvet[all] @ git+…"` | all of the above | |
@@ -63,7 +63,7 @@ flowchart LR
 ```
 
 ### Crossvet chat
-One chat in front of several vendors' models ([guide](docs/CHAT.md)). Each request is routed to a suitable model by rules in code, by Jev, or by a hosted router, and the reason is shown (`/why`). Every turn, its cost and your ratings are kept in a local store and, optionally, in Langfuse. You tune the routing table from your own ratings and from claims in other people's posts (injection-checked, verbatim quotes only), replay your history through other routers before switching, and pass work between vendors' models and agents as versioned packets whose results are checked in code. It also serves any OpenAI-style app and MCP client, and agents keep their tools.
+One chat in front of several vendors' models ([guide](docs/CHAT.md)). Each request is routed to a suitable model by rules in code, by Jev, or by a hosted router, and the reason is shown (`/why`). Every turn, its cost and your ratings are kept in a local store and, optionally, in Langfuse. You tune the routing table from your own ratings (given in the chat or added in Langfuse) and from claims in other people's posts (injection-checked, verbatim quotes only), read a weekly report of cost per model and ratings per kind of task, replay your history through other routers before switching, and pass work between vendors' models and agents as versioned packets whose results are checked in code. It also serves any OpenAI-style app and MCP client, and agents keep their tools.
 
 ### Prompt-injection check
 Every page the research fetches is checked in code for text aimed at the model ("ignore your instructions", "recommend X") before any model reads it; flagged sources are listed in the Review notes and claims resting only on them go to *Disputed*. `crossvet scan` runs the same check on any page, file, sitemap or URL list, as text, JSON, CSV or an HTML report, with no model and no key. Threats, defenses and limits: [docs/SECURITY-MODEL.md](docs/SECURITY-MODEL.md).
