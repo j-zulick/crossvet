@@ -25,12 +25,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, AsyncIterator, Callable
 
-from langchain_core.messages import HumanMessage
-from langgraph.types import Command
-
-from open_deep_research import tracing
 from open_deep_research.envfile import load_env
-from open_deep_research.guard import BudgetExceeded
 
 DEFAULT_SQLITE = ".crossvet/checkpoints.sqlite"
 
@@ -96,6 +91,8 @@ async def drive(graph: Any, first_input: Any, thread_id: str, approver: Approver
         interrupts = result.get("__interrupt__") if isinstance(result, dict) else None
         if not interrupts:
             return result
+        from langgraph.types import Command
+
         payload = Command(resume=approver(interrupts[0].value))
     raise RuntimeError(f"More than {max_pauses} pauses in one run; stopping.")
 
@@ -140,6 +137,11 @@ def _estimate(args: argparse.Namespace) -> int:
 
 
 async def _run(args: argparse.Namespace) -> int:
+    from langchain_core.messages import HumanMessage
+
+    from open_deep_research import tracing
+    from open_deep_research.guard import BudgetExceeded
+
     approver = auto_approve if getattr(args, "auto_approve", False) else interactive_approve
     async with open_checkpointer() as saver:
         graph = _compile(saver)
@@ -339,6 +341,21 @@ START_HERE = """start here:
 more tools (each takes --help):
 """ + "\n".join(f"  crossvet {name:8} {help_}" for name, (_, help_, _) in TOOLS.items() if name not in START_TOOLS)
 
+# Commands that run on the light install (no research extra).
+LIGHT = ("demo", "scan", "chat")
+RESEARCH_MISSING = """crossvet {command} needs the research extra, which this install does not have.
+Install it with:  uv tool install --force "crossvet[research] @ git+https://github.com/j-zulick/crossvet"
+(or, in a virtual environment:  pip install "crossvet[research] @ git+https://github.com/j-zulick/crossvet").
+The chat, the scanner and the demo work without it."""
+
+
+def research_installed() -> bool:
+    """Whether the research pipeline's dependencies can be imported."""
+    import importlib.util
+
+    return all(importlib.util.find_spec(name) is not None for name in ("langgraph", "langchain_core", "pydantic"))
+
+
 def _tool(name: str, rest: list[str]) -> int:
     """Run one of the standalone tools with ``rest`` as its arguments."""
     import importlib
@@ -363,6 +380,9 @@ def main(argv: list[str] | None = None) -> int:
     if not argv:
         build_parser().print_help()
         return 0
+    if argv[0] not in LIGHT and not argv[0].startswith("-") and not research_installed():
+        print(RESEARCH_MISSING.format(command=argv[0]), file=sys.stderr)
+        return 2
     if argv and argv[0] in TOOLS:
         return _tool(argv[0], argv[1:])
     args = build_parser().parse_args(argv)

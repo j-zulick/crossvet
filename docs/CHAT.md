@@ -133,7 +133,7 @@ One SQLite file (`~/.local/share/crossvet/chat.db`, or `CROSSVET_CHAT_DB`) holds
 
 Every turn and every rating is written to the local store first. Copies go to Langfuse, a JSON-lines file, or both (`[record]` in the settings). A copy that fails never breaks a turn.
 
-**Langfuse.** Set `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY` and, for a self-hosted instance, `LANGFUSE_BASE_URL` in `.env`. With the default `sink = "auto"`, each answer becomes one generation on its own trace:
+**Langfuse.** Install with the `langfuse` (or `all`) extra, then set `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY` and, for a self-hosted instance, `LANGFUSE_BASE_URL` in `.env`. `crossvet chat doctor` says when the keys are set but the package is missing. With the default `sink = "auto"`, each answer becomes one generation on its own trace:
 
 - the model, and the model a hosted router picked;
 - metadata: kind of task, difficulty, slot, router, the reason in words, every attempt, seconds, and whether tools were called;

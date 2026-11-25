@@ -25,7 +25,7 @@ Crossvet is a fork of LangChain's Open Deep Research (MIT). It writes a research
 
 ## Commands
 ```bash
-uv sync                          # install
+uv sync --extra research         # install (the base install is only the chat, scanner and demo)
 uv run pytest tests/unit -q      # tests: offline, must pass before any commit
 uvx ruff@0.17.4 check <files>    # lint: CI's file list is in .github/workflows/ci.yml
 uv run crossvet-doctor           # check a configuration without spending tokens

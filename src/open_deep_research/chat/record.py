@@ -201,7 +201,10 @@ def build(sink: str = "auto", content: str = "full", jsonl: str = "") -> Recorde
         if langfuse_configured():
             try:
                 sinks.append(LangfuseSink())
-            except Exception as exc:  # noqa: BLE001  missing SDK or bad settings: say so, keep going
+            except ImportError:
+                logging.getLogger(__name__).warning("Langfuse keys are set but the langfuse package is not installed; "
+                                                    "install crossvet[langfuse] to record there")
+            except Exception as exc:  # noqa: BLE001  bad settings: say so, keep going
                 logging.getLogger(__name__).warning(
                     "Langfuse is configured but could not start (%s); not recording there", type(exc).__name__)
         elif sink == "langfuse":
@@ -211,3 +214,10 @@ def build(sink: str = "auto", content: str = "full", jsonl: str = "") -> Recorde
     elif sink == "jsonl":
         raise ValueError("record sink is jsonl but [record] jsonl has no path")
     return Recorder(sinks, content)
+
+
+def langfuse_installed() -> bool:
+    """Whether the Langfuse SDK can be imported (the ``langfuse`` extra)."""
+    import importlib.util
+
+    return importlib.util.find_spec("langfuse") is not None

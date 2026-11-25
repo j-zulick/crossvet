@@ -140,6 +140,12 @@ def cmd_doctor(_: argparse.Namespace) -> int:
     vendors = {providers.vendor_of(m) for m in cfg.all_models()}
     if len(vendors) < 2:
         print("note: all models are from one vendor; `crossvet chat challenge` needs a second vendor")
+    from open_deep_research.chat.record import langfuse_configured, langfuse_installed
+
+    if cfg.record_sink in ("auto", "langfuse") and langfuse_configured() and not langfuse_installed():
+        print("problem: Langfuse keys are set but the langfuse package is not installed; "
+              'install with: uv tool install --force "crossvet[langfuse] @ git+https://github.com/j-zulick/crossvet"')
+        problems += 1
     print(f"limits: ${cfg.max_usd_per_day:g} a day, ${cfg.max_usd_per_call:g} a call (0 = no cap)")
     print("ok" if not problems else f"{problems} problem(s)")
     return 1 if problems else 0

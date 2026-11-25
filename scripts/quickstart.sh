@@ -31,7 +31,7 @@ if [[ -n "${UV_PYTHON:-}" && "${UV_PYTHON}" != "$py" ]]; then
 fi
 export UV_PYTHON="$py"   # newest Pythons can lack prebuilt wheels (e.g. tiktoken), forcing a Rust build
 uv python install "$py"
-uv sync --locked
+uv sync --locked --extra research
 uv run python -c "import sys; v=sys.version_info; assert (v.major, v.minor) == tuple(map(int, '$py'.split('.'))), f'expected Python $py, got {sys.version}'" \
   || { echo "The environment is not on Python $py. Run: rm -rf .venv && scripts/quickstart.sh"; exit 1; }
 

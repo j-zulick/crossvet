@@ -9,12 +9,19 @@ One model checking its own work shares its blind spots, and LLM judges favor the
 ## Quick start
 
 ```bash
-uv tool install "git+https://github.com/j-zulick/crossvet@v0.2.0"   # puts `crossvet` on your PATH (Python 3.11–3.13)
-mkdir my-research && cd my-research                                   # .env and run files live in this folder
-crossvet demo                                                         # a one-minute tour, free
+uv tool install "crossvet[all] @ git+https://github.com/j-zulick/crossvet@v0.3.0"   # everything (Python 3.11–3.13)
+mkdir my-research && cd my-research                                                  # .env and run files live in this folder
+crossvet demo                                                                        # a one-minute tour, free
 ```
 
-No uv? `pip install "git+https://github.com/j-zulick/crossvet@v0.2.0"` in a virtual environment works too. Each [release](https://github.com/j-zulick/crossvet/releases) also carries the wheel. Working from a clone: [docs/SETUP.md](docs/SETUP.md).
+| Install | Gives you | Packages |
+|---|---|---|
+| `uv tool install "git+https://github.com/j-zulick/crossvet@v0.3.0"` | the chat, the scanner and the demo | about 30, installs in seconds |
+| `"crossvet[langfuse] @ git+…"` | the same, recording chat turns in Langfuse | |
+| `"crossvet[research] @ git+…"` | adds research, review, the benchmarks and the MCP research tools | about 200 |
+| `"crossvet[all] @ git+…"` | all of the above | |
+
+No uv? `pip install` takes the same strings in a virtual environment. Each [release](https://github.com/j-zulick/crossvet/releases) also carries the wheel. Working from a clone: [docs/SETUP.md](docs/SETUP.md).
 
 | You want to | Run | Needs |
 |---|---|---|

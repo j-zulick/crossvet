@@ -12,12 +12,12 @@ WORKDIR /app
 
 # Dependencies first, for layer caching.
 COPY pyproject.toml uv.lock README.md ./
-RUN uv sync --locked --no-install-project
+RUN uv sync --locked --no-install-project --extra research
 
 COPY src ./src
 COPY tests ./tests
 COPY docker/langgraph.json ./langgraph.json
-RUN uv sync --locked \
+RUN uv sync --locked --extra research \
     && useradd --create-home --uid 10001 crossvet \
     && chown -R crossvet /app
 

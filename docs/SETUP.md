@@ -11,7 +11,7 @@ scripts/quickstart.sh     # checks tools, installs, asks for keys (hidden), pick
 ```
 Or step by step:
 ```bash
-uv sync
+uv sync --extra research
 uv run crossvet-setup --check                        # writes .env: cross-vendor panel + independent reviser from available models
 uv run python -m open_deep_research.doctor           # checks keys, reviewers, search; never prints key values
 uv run crossvet-doctor --jev                         # same checker as a command; --jev asks Jev two known questions

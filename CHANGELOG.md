@@ -4,6 +4,11 @@ All notable changes to Crossvet. Versions follow [Semantic Versioning](https://s
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-24
+
+### Changed
+- Light base install (chat, scanner, demo); `research`, `langfuse` and `all` extras; clear messages when an extra is missing; light-install and newest-dependency checks in CI (design decision 36).
+
 ## [0.2.0] - 2026-11-24
 
 ### Added

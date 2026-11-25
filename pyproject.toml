@@ -1,7 +1,7 @@
 [project]
 name = "crossvet"
-version = "0.2.0"
-description = "Deep research whose reports are checked by models from several AI vendors before you read them. Built on LangChain Open Deep Research."
+version = "0.3.0"
+description = "AI research and chat whose answers are checked by models from other AI vendors, with every outcome-deciding check in code."
 authors = [
     { name = "Joseph Zulick" },
     { name = "Lance Martin (Open Deep Research)" }
@@ -23,45 +23,9 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = [
-    "langgraph>=0.5.4",
-    "langchain-community>=0.3.9",
-    "langchain-openai>=0.3.28",
-    "langchain-anthropic>=0.3.15",
-    "langchain-mcp-adapters>=0.1.6",
-    "langchain-deepseek>=0.1.2",
-    "langchain-tavily",
-    "langchain-groq>=0.2.4",
-    "openai>=1.99.2",
-    "tavily-python>=0.5.0",
-    "arxiv>=2.1.3",
-    "pymupdf>=1.25.3",
-    "xmltodict>=0.14.2",
-    "linkup-sdk>=0.2.3",
-    "duckduckgo-search>=3.0.0",
-    "exa-py>=1.8.8",
-    "requests>=2.32.3",
-    "beautifulsoup4==4.14.3",
-    "python-dotenv>=1.0.1",
     "httpx>=0.24.0",
-    "markdownify>=0.11.6",
-    "azure-identity>=1.21.0",
-    "azure-search>=1.0.0b2",
-    "azure-search-documents>=11.5.2",
-    "rich>=13.0.0",
-    "langgraph-cli[inmem]>=0.3.1",
-    "langsmith>=0.3.37",
-    "langchain-google-vertexai>=2.0.25",
-    "langchain-google-genai>=2.1.5",
-    "supabase>=2.15.3",
     "mcp>=1.9.4,<2",
-    "langchain-aws>=0.2.28",
-    "pandas>=2.3.1",
-    "langchain-ollama>=1.0",
-    "langgraph-checkpoint-sqlite>=3",
-    "langfuse>=3",
-    "deepagents>=0.7.34,<0.8",
-    "typesafe-sdk>=0.7.5,<0.8",
-    "langchain-openrouter>=0.2.9,<0.4",
+    "python-dotenv>=1.0.1",
 ]
 
 [project.urls]
@@ -84,6 +48,47 @@ crossvet-chat = "open_deep_research.chat.cli:main"
 crossvet-demo = "open_deep_research.demo:main"
 
 [project.optional-dependencies]
+# The base install is the chat, the scanner and the demo. Research, review and the benchmarks need "research".
+research = [
+    "langgraph>=0.5.4",
+    "langchain-community>=0.3.9",
+    "langchain-openai>=0.3.28",
+    "langchain-anthropic>=0.3.15",
+    "langchain-mcp-adapters>=0.1.6",
+    "langchain-deepseek>=0.1.2",
+    "langchain-tavily",
+    "langchain-groq>=0.2.4",
+    "openai>=1.99.2",
+    "tavily-python>=0.5.0",
+    "arxiv>=2.1.3",
+    "pymupdf>=1.25.3",
+    "xmltodict>=0.14.2",
+    "linkup-sdk>=0.2.3",
+    "duckduckgo-search>=3.0.0",
+    "exa-py>=1.8.8",
+    "requests>=2.32.3",
+    "beautifulsoup4==4.14.3",
+    "markdownify>=0.11.6",
+    "azure-identity>=1.21.0",
+    "azure-search>=1.0.0b2",
+    "azure-search-documents>=11.5.2",
+    "rich>=13.0.0",
+    "langgraph-cli[inmem]>=0.3.1",
+    "langsmith>=0.3.37",
+    "langchain-google-vertexai>=2.0.25",
+    "langchain-google-genai>=2.1.5",
+    "supabase>=2.15.3",
+    "langchain-aws>=0.2.28",
+    "pandas>=2.3.1",
+    "langchain-ollama>=1.0",
+    "langgraph-checkpoint-sqlite>=3",
+    "langfuse>=3",
+    "deepagents>=0.7.34,<0.8",
+    "typesafe-sdk>=0.7.5,<0.8",
+    "langchain-openrouter>=0.2.9,<0.4",
+]
+langfuse = ["langfuse>=3"]
+all = ["crossvet[research,langfuse]"]
 dev = ["mypy>=1.11.1", "ruff>=0.6.1"]
 postgres = [
     "langgraph-checkpoint-postgres>=3",

@@ -19,15 +19,39 @@ jobs:
           python-version: "3.13"
           enable-cache: true
       - name: Install (locked)
-        run: uv sync --locked
+        run: uv sync --locked --extra research
       - name: Lint (new modules)
-        run: uvx ruff@0.17.4 check src/open_deep_research/cross_vendor_review.py src/open_deep_research/doctor.py src/open_deep_research/setup_wizard.py src/open_deep_research/quickrun.py src/open_deep_research/gateway_search.py src/open_deep_research/mcp_server.py src/open_deep_research/approval.py src/open_deep_research/cli.py src/open_deep_research/tracing.py src/open_deep_research/compare.py src/open_deep_research/deliberation.py src/open_deep_research/blind_pass.py src/open_deep_research/support_check.py src/open_deep_research/context.py src/open_deep_research/followup.py src/open_deep_research/api.py src/open_deep_research/deep_agent.py src/open_deep_research/dataset.py src/open_deep_research/configuration.py src/open_deep_research/models.py src/open_deep_research/bench.py src/open_deep_research/bench_cases.py src/open_deep_research/injection_check.py src/open_deep_research/scan_cli.py src/open_deep_research/review_doc.py src/open_deep_research/settings_doc.py src/open_deep_research/crawl_source.py src/open_deep_research/support_key.py src/open_deep_research/effort.py src/open_deep_research/guard.py src/open_deep_research/chat src/open_deep_research/estimate.py src/open_deep_research/demo.py src/open_deep_research/envfile.py tests/unit
+        run: uvx ruff@0.17.4 check src/open_deep_research/cross_vendor_review.py src/open_deep_research/doctor.py src/open_deep_research/setup_wizard.py src/open_deep_research/quickrun.py src/open_deep_research/gateway_search.py src/open_deep_research/mcp_server.py src/open_deep_research/approval.py src/open_deep_research/cli.py src/open_deep_research/tracing.py src/open_deep_research/compare.py src/open_deep_research/deliberation.py src/open_deep_research/blind_pass.py src/open_deep_research/support_check.py src/open_deep_research/context.py src/open_deep_research/followup.py src/open_deep_research/api.py src/open_deep_research/deep_agent.py src/open_deep_research/dataset.py src/open_deep_research/configuration.py src/open_deep_research/models.py src/open_deep_research/bench.py src/open_deep_research/bench_cases.py src/open_deep_research/injection_check.py src/open_deep_research/scan_cli.py src/open_deep_research/review_doc.py src/open_deep_research/settings_doc.py src/open_deep_research/crawl_source.py src/open_deep_research/support_key.py src/open_deep_research/effort.py src/open_deep_research/guard.py src/open_deep_research/chat src/open_deep_research/estimate.py src/open_deep_research/demo.py src/open_deep_research/envfile.py src/open_deep_research/verdict.py tests/unit
       - name: Graphs build
         run: |
           uv run python -c "import open_deep_research.deep_researcher as d; assert 'cross_vendor_review' in d.deep_researcher.get_graph().nodes"
           uv run python -c "import open_deep_research.deep_agent as d; assert 'cross_vendor_review' in d.deep_agent.get_graph().nodes"
       - name: Unit tests (no API keys, no network)
         run: uv run pytest tests/unit -q
+
+  light-install:
+    # the base install: chat, scanner and demo, without the research extra
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.13"
+      - run: uv build --wheel
+      - name: Install the wheel without extras
+        run: |
+          uv venv /tmp/light
+          uv pip install --python /tmp/light/bin/python dist/*.whl pytest
+      - name: Light commands run; research explains what to install
+        run: |
+          export PATH=/tmp/light/bin:$PATH
+          crossvet --version
+          crossvet demo > /dev/null
+          crossvet scan docs/samples/demo-page.html > /dev/null || [ $? -eq 1 ]
+          crossvet chat route "Fix the race condition in this Go worker pool" || [ $? -eq 1 ]
+          crossvet research "x" 2>&1 | grep -q "needs the research extra"
+      - name: Chat tests on the light install
+        run: /tmp/light/bin/python -m pytest -q -p no:cacheprovider tests/unit/chat tests/unit/test_light_install.py
 
   web:
     runs-on: ubuntu-latest

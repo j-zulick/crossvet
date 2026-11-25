@@ -27,8 +27,8 @@ def run(out=None) -> int:
     from open_deep_research.chat.hub import Hub
     from open_deep_research.chat.memory import Memory
     from open_deep_research.chat.record import Recorder
-    from open_deep_research.cross_vendor_review import verdict_line
     from open_deep_research.scan_cli import scan_text
+    from open_deep_research.verdict import verdict_line
 
     out.write("1. Prompt-injection check (crossvet scan): a page with text hidden from readers\n")
     result = scan_text("demo-page.html", PAGE)

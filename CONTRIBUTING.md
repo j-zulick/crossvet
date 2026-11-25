@@ -8,7 +8,7 @@ Thanks for your interest. Crossvet is a small project; issues and focused pull r
 
 ## Set up and test
 ```bash
-uv sync
+uv sync --extra research
 uv run pytest tests/unit -q      # offline: no API keys, no network
 uvx ruff@0.17.4 check <files>    # CI's lint list is in .github/workflows/ci.yml
 ```
