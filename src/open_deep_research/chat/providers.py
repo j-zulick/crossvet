@@ -20,8 +20,10 @@ the chat endpoint without losing them. It works for every provider except ``anth
 
 from __future__ import annotations
 
+import json
 import os
 import time
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -124,6 +126,132 @@ def call(model: str, messages: list[dict[str, str]], max_tokens: int = 4000,
     reply.model = model
     reply.seconds = round(time.monotonic() - started, 2)
     return reply
+
+
+def stream(model: str, messages: list[dict[str, str]], max_tokens: int = 4000,
+           transport: httpx.BaseTransport | None = None) -> Iterator[str | Reply]:
+    """Stream ``model``'s answer: yield each piece of text as it arrives, then one finished ``Reply``.
+
+    An error before the first piece raises ``ProviderError``; an error after it ends the stream
+    with the text so far and ``raw_stop = "error"``, so the caller can record what happened.
+    """
+    provider, name = split(model)
+    started = time.monotonic()
+    if provider == "anthropic":
+        key = os.environ.get("ANTHROPIC_API_KEY", "")
+        if not key:
+            raise ProviderError("ANTHROPIC_API_KEY is not set")
+        system = "\n\n".join(m["content"] for m in messages if m["role"] == "system")
+        body: dict[str, Any] = {"model": name, "max_tokens": max_tokens, "stream": True,
+                                "messages": [m for m in messages if m["role"] != "system"]}
+        if system:
+            body["system"] = system
+        url, headers, parse = ANTHROPIC_URL, {"x-api-key": key, "anthropic-version": "2023-06-01"}, _anthropic_event
+    else:
+        url, headers = _endpoint(provider)
+        body = {"model": name, "messages": messages, "max_tokens": max_tokens, "stream": True,
+                "stream_options": {"include_usage": True}}
+        if provider == "openrouter":
+            body["usage"] = {"include": True}
+        parse = _openai_event
+    reply = Reply(text="", model=model)
+    pieces: list[str] = []
+    try:
+        with _client(transport) as client, client.stream("POST", url, headers=headers, json=body) as response:
+            if response.status_code >= 400:
+                response.read()
+                raise ProviderError(f"HTTP {response.status_code} from {httpx.URL(url).host}: {response.text[:300]}")
+            if "text/event-stream" not in response.headers.get("content-type", ""):
+                # a server that ignores "stream" and answers in one piece
+                response.read()
+                try:
+                    data = response.json()
+                except ValueError as exc:
+                    raise ProviderError(f"{httpx.URL(url).host} did not return JSON or a stream") from exc
+                whole = _whole_reply(provider, data)
+                whole.model, whole.seconds = model, round(time.monotonic() - started, 2)
+                if whole.text:
+                    yield whole.text
+                yield whole
+                return
+            for line in response.iter_lines():
+                if not line.startswith("data:"):
+                    continue
+                data = line[5:].strip()
+                if not data or data == "[DONE]":
+                    continue
+                try:
+                    event = json.loads(data)
+                except ValueError:
+                    continue
+                piece = parse(event, reply)
+                if piece:
+                    pieces.append(piece)
+                    yield piece
+    except ProviderError:
+        if not pieces:
+            raise
+        reply.raw_stop = "error"
+    except httpx.HTTPError as exc:
+        if not pieces:
+            raise ProviderError(f"{type(exc).__name__} calling {httpx.URL(url).host}") from exc
+        reply.raw_stop = "error"
+    reply.text = "".join(pieces)
+    reply.truncated = reply.truncated or reply.raw_stop in ("length", "max_tokens")
+    reply.seconds = round(time.monotonic() - started, 2)
+    yield reply
+
+
+def _whole_reply(provider: str, data: dict[str, Any]) -> Reply:
+    """Read a complete (not streamed) reply from either API shape."""
+    if provider != "anthropic":
+        return _reply(data, provider)[0]
+    try:
+        text = "".join(block.get("text", "") for block in data["content"] if block.get("type") == "text")
+    except (KeyError, TypeError) as exc:
+        raise ProviderError("unexpected reply shape from anthropic") from exc
+    usage = data.get("usage") or {}
+    stop = str(data.get("stop_reason") or "")
+    return Reply(text=text, model="", input_tokens=int(usage.get("input_tokens", 0) or 0),
+                 output_tokens=int(usage.get("output_tokens", 0) or 0), truncated=stop == "max_tokens", raw_stop=stop)
+
+
+def _openai_event(event: dict[str, Any], reply: Reply) -> str:
+    """Read one OpenAI-style stream chunk into ``reply``; return its text."""
+    usage = event.get("usage") or {}
+    if usage:
+        reply.input_tokens = int(usage.get("prompt_tokens", 0) or 0)
+        reply.output_tokens = int(usage.get("completion_tokens", 0) or 0)
+        cost = usage.get("cost")
+        if isinstance(cost, (int, float)):
+            reply.cost = float(cost)
+    if event.get("model"):
+        reply.extra["served_by"] = str(event["model"])
+    choices = event.get("choices") or []
+    if not choices:
+        return ""
+    choice = choices[0] or {}
+    if choice.get("finish_reason"):
+        reply.raw_stop = str(choice["finish_reason"])
+    return _content(choice.get("delta") or {})
+
+
+def _anthropic_event(event: dict[str, Any], reply: Reply) -> str:
+    """Read one Anthropic stream event into ``reply``; return its text."""
+    kind = event.get("type")
+    if kind == "message_start":
+        usage = (event.get("message") or {}).get("usage") or {}
+        reply.input_tokens = int(usage.get("input_tokens", 0) or 0)
+    elif kind == "content_block_delta":
+        delta = event.get("delta") or {}
+        if delta.get("type") == "text_delta":
+            return str(delta.get("text", ""))
+    elif kind == "message_delta":
+        reply.raw_stop = str((event.get("delta") or {}).get("stop_reason") or reply.raw_stop)
+        reply.output_tokens = int((event.get("usage") or {}).get("output_tokens", 0) or reply.output_tokens)
+    elif kind == "error":
+        raise ProviderError("anthropic: " + str((event.get("error") or {}).get("message", "stream error"))[:200])
+    return ""
 
 
 def _headers(provider: str, key: str) -> dict[str, str]:

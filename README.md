@@ -9,12 +9,12 @@ One model checking its own work shares its blind spots, and LLM judges favor the
 ## Quick start
 
 ```bash
-uv tool install "git+https://github.com/j-zulick/crossvet@v0.1.1"   # puts `crossvet` on your PATH (Python 3.11–3.13)
+uv tool install "git+https://github.com/j-zulick/crossvet@v0.2.0"   # puts `crossvet` on your PATH (Python 3.11–3.13)
 mkdir my-research && cd my-research                                   # .env and run files live in this folder
 crossvet demo                                                         # a one-minute tour, free
 ```
 
-No uv? `pip install "git+https://github.com/j-zulick/crossvet@v0.1.1"` in a virtual environment works too. Each [release](https://github.com/j-zulick/crossvet/releases) also carries the wheel. Working from a clone: [docs/SETUP.md](docs/SETUP.md).
+No uv? `pip install "git+https://github.com/j-zulick/crossvet@v0.2.0"` in a virtual environment works too. Each [release](https://github.com/j-zulick/crossvet/releases) also carries the wheel. Working from a clone: [docs/SETUP.md](docs/SETUP.md).
 
 | You want to | Run | Needs |
 |---|---|---|
@@ -26,6 +26,7 @@ No uv? `pip install "git+https://github.com/j-zulick/crossvet@v0.1.1"` in a virt
 
 - **Keys, once:** `crossvet setup` asks for the keys you have (input hidden), finds the models they can call and writes `.env` in the folder you run it from; every command reads that file. One OpenRouter key covers most vendors, or use local models for free; Crossvet calls models through their APIs, not chat subscriptions. `crossvet doctor` checks the result without spending anything.
 - **Cost before you spend:** `crossvet research "QUESTION" --estimate` prints a cost range per stage without calling a model; `--max-usd` stops a run at a cap; `--effort quick|standard|deep` sets how much work a run does.
+- **Chat from Hermes or Cursor:** `crossvet chat start` checks your keys, prints the settings to paste into Hermes or Cursor, and serves; answers stream as they are written ([guide](docs/CHAT.md#use-it-from-other-apps)).
 - **Everything else:** `crossvet --help`.
 
 ## What it does

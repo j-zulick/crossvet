@@ -1,5 +1,6 @@
 """``crossvet chat``: one chat that routes each request to a suitable model.
 
+    crossvet chat start                    one step for Hermes or Cursor: check keys, print settings, serve
     crossvet chat                          talk in one thread; /help lists the commands
     crossvet chat init [--openrouter]      write crossvet-chat.toml from the keys you have
     crossvet chat doctor                   check keys, slots and limits without calling a model
@@ -34,9 +35,12 @@ import argparse
 import json
 import os
 import re
+import shlex
 import sys
 import time
+from collections.abc import Iterator
 from pathlib import Path
+from typing import Any
 
 from open_deep_research.chat import __version__, providers
 from open_deep_research.chat.config import SLOT_HELP, SLOTS, config_path, load
@@ -160,12 +164,23 @@ def cmd_route(args: argparse.Namespace) -> int:
     return 0 if decision.candidates else 1
 
 
+def _print_streamed(pieces: Iterator[Any]) -> Any:
+    """Print text as it arrives; return the finished answer."""
+    from open_deep_research.chat.hub import Answer
+
+    for item in pieces:
+        if isinstance(item, Answer):
+            print()
+            return item
+        print(item, end="", flush=True)
+    raise providers.ProviderError("the answer ended without a result")
+
+
 def cmd_ask(args: argparse.Namespace) -> int:
     """Run `crossvet chat ask`."""
     hub = _hub()
-    answer = hub.ask(_read_prompt(args.prompt), thread=args.thread, model=args.model, slot=args.slot, effort=args.effort,
-                     use_memory=not args.no_memory, router=args.router)
-    print(answer.text)
+    answer = _print_streamed(hub.ask_stream(_read_prompt(args.prompt), thread=args.thread, model=args.model, slot=args.slot,
+                                            effort=args.effort, use_memory=not args.no_memory, router=args.router))
     print(f"\n{answer.summary()} thread {answer.thread}", file=sys.stderr)
     return 0
 
@@ -255,12 +270,12 @@ def cmd_chat(args: argparse.Namespace) -> int:
                 print(f"challenge failed: {exc}")
         else:
             try:
-                last = hub.ask(line, thread=thread, model=model, slot=slot, router=router)
+                last = _print_streamed(hub.ask_stream(line, thread=thread, model=model, slot=slot, router=router))
                 last_prompt = line
                 session_cost += last.cost or 0
-                print(f"{last.text}\n{last.summary()}")
+                print(last.summary())
             except (providers.ProviderError, RuntimeError, ValueError) as exc:
-                print(f"error: {exc}")
+                print(f"\nerror: {exc}")
 
 
 def cmd_compare(args: argparse.Namespace) -> int:
@@ -694,6 +709,65 @@ def cmd_handoff(args: argparse.Namespace) -> int:
     return 0
 
 
+def start_report(host: str, port: int, folder: Path, token: str) -> str:
+    """Return the settings to paste into Hermes and Cursor for a server at ``host:port``."""
+    base = f"http://{host}:{port}/v1"
+    key = token and "the value of CROSSVET_CHAT_TOKEN" or "any text (not checked on this computer)"
+    cursor = json.dumps({"mcpServers": {"crossvet": {"command": "bash",
+                                                     "args": ["-lc", f"cd {shlex.quote(str(folder))} && crossvet chat mcp"]}}}, indent=2)
+    return f"""Hermes (or any app with an OpenAI-compatible provider):
+  base URL   {base}
+  model      auto   (or crossvet/quick, crossvet/balanced, crossvet/strong, crossvet/long, crossvet/fresh)
+  API key    {key}
+
+Cursor (MCP tools; add to ~/.cursor/mcp.json):
+{cursor}
+
+Activity page: http://{host}:{port}/{'?token=...' if token else ''}
+"""
+
+
+def cmd_start(args: argparse.Namespace) -> int:
+    """Run `crossvet chat start`: write a config if there is none, check it, print app settings, serve."""
+    from open_deep_research.chat.setup import build
+
+    if config_path() is None:
+        use_openrouter = bool(os.environ.get("OPENROUTER_API_KEY"))
+        try:
+            text, notes = build(use_openrouter)
+        except Exception as exc:  # noqa: BLE001  network or parsing: say what happened
+            print(f"could not write crossvet-chat.toml: {exc}", file=sys.stderr)
+            return 1
+        Path("crossvet-chat.toml").write_text(text)
+        print("wrote crossvet-chat.toml" + (" from OpenRouter's model list" if use_openrouter else " from your keys"))
+        for note in notes:
+            print(f"note: {note}")
+    cfg = load()
+    usable = [m for name in ("quick", "balanced", "strong") for m in cfg.slots.get(name, [])
+              if _callable(m)]
+    if not usable:
+        print("no model in quick, balanced or strong can be called with the keys you have.\n"
+              "Add OPENROUTER_API_KEY (or a vendor key) to .env in this folder, or run `crossvet setup`, "
+              "then `crossvet chat start` again. `crossvet chat doctor` shows each slot.", file=sys.stderr)
+        return 1
+    print(f"config: {cfg.source}   models you can call: {len(usable)}\n")
+    token = os.environ.get("CROSSVET_CHAT_TOKEN", "")
+    print(start_report(args.host, args.port, Path.cwd(), token))
+    if args.no_serve:
+        return 0
+    from open_deep_research.chat.server import serve
+
+    print("Leave this running while you chat. Ctrl-C stops it.\n")
+    return serve(args.host, args.port)
+
+
+def _callable(model: str) -> bool:
+    try:
+        return providers.available(providers.split(model)[0])
+    except providers.ProviderError:
+        return False
+
+
 def cmd_serve(args: argparse.Namespace) -> int:
     """Run `crossvet chat serve`."""
     from open_deep_research.chat.server import serve
@@ -842,6 +916,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--stale-after", type=float, default=900.0, help="reconcile: seconds before a claimed attempt is uncertain")
     p.add_argument("--limit", type=int, default=50)
     p.set_defaults(func=cmd_handoff)
+
+    p = sub.add_parser("start", help="one step: write a config if needed, check keys, print Hermes and Cursor settings, serve")
+    p.add_argument("--host", default="127.0.0.1")
+    p.add_argument("--port", type=int, default=8787)
+    p.add_argument("--no-serve", action="store_true", help="print the settings without starting the server")
+    p.set_defaults(func=cmd_start)
 
     p = sub.add_parser("serve", help="OpenAI-compatible HTTP server and a page showing recent activity")
     p.add_argument("--host", default="127.0.0.1")

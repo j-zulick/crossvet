@@ -74,11 +74,40 @@ The next model in the slot is tried only when the one before fails a check code 
 
 ## Use it from other apps
 
+**One step:** from the folder that holds your `.env`,
+
+```bash
+crossvet chat start                # writes crossvet-chat.toml if there is none, checks your keys,
+                                   # prints the Hermes and Cursor settings, then serves (Ctrl-C stops it)
+```
+
+`--no-serve` prints the settings only; `--port` changes the port. It stops with what to add when no model in quick, balanced or strong can be called with your keys.
+
+**Hermes.** Add a custom OpenAI-compatible provider:
+
+| Field | Value |
+|---|---|
+| Base URL | `http://127.0.0.1:8787/v1` |
+| Model | `auto` (or `crossvet/quick`, `crossvet/balanced`, `crossvet/strong`, `crossvet/long`, `crossvet/fresh`) |
+| API key | any text on this computer; the value of `CROSSVET_CHAT_TOKEN` if you set one |
+
+Keep `crossvet chat start` running while you chat. Answers stream as they are written. Hermes can also reach the MCP tools below. These steps have not yet been checked against a live Hermes install.
+
+**Cursor.** Cursor reaches Crossvet through MCP tools (see why below). Add to `~/.cursor/mcp.json`, with your own folder:
+
+```json
+{"mcpServers": {"crossvet": {"command": "bash", "args": ["-lc", "cd ~/crossvet-work && crossvet chat mcp"]}}}
+```
+
+The `cd` makes the server read `.env` and `crossvet-chat.toml` from that folder. `crossvet chat start --no-serve` prints this entry with your folder filled in. Then ask Cursor's agent to use the `ask`, `compare_models` or `challenge` tools. Not yet checked against a live Cursor install.
+
 **Any chat app that takes an OpenAI-style URL** (Open WebUI, LibreChat, Hermes, scripts):
 
 ```bash
 crossvet chat serve                # http://127.0.0.1:8787/v1, model "auto"; activity page at http://127.0.0.1:8787/
 ```
+
+- **Streaming.** With `"stream": true` each piece of text is sent as it arrives, and a closing chunk carries the model, usage and the `crossvet` object. A model that fails before sending any text is skipped for the next one in the slot, as without streaming. Text already sent can't be taken back, so a later problem (cut off at the output limit, broken JSON, a dropped connection) is recorded on the turn and no other model is tried; the Jev answer check is not run on streamed answers. Requests that fail before any text get an HTTP error, as without streaming. Agent requests with tools are answered in one piece.
 
 - Model names: `auto` (the router decides), `crossvet/<slot>`, or `provider:model`.
 - Each response carries a `crossvet` object: model, slot, kind, the reason, cost, thread, turn id.
@@ -289,7 +318,7 @@ crossvet chat handoff show assistant-handoff-001
 - The Claude Code and Codex workers have been tested with a stand-in for the command; their flags follow the integration handoff of Nov 22 and should be checked against `claude --help` and `codex exec --help` on the machine that runs them.
 - The replay judge is one model's opinion; verdicts are counted in code but not checked against an answer key.
 - Extraction from posts depends on a model finding the claims; the verbatim-quote check stops invented claims, not missed ones.
-- Streaming is simulated: the finished answer is sent as one chunk.
+- Agent requests with tools are not streamed: the finished reply, tool calls included, is sent as one chunk.
 - Tool calls cannot pass through the direct Anthropic API.
 - Jev's answers and the hosted routers have been tested only against stand-ins. The Decisions API is in alpha and may change shape.
 - Not yet run against real models: only the offline tests, and `init --openrouter` against OpenRouter's public model list.

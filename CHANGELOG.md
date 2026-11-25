@@ -4,6 +4,12 @@ All notable changes to Crossvet. Versions follow [Semantic Versioning](https://s
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-24
+
+### Added
+- `crossvet chat start`: config, key check, Hermes and Cursor settings, and the server in one step.
+- Streamed answers in the server, `crossvet chat` and `crossvet chat ask`; fallback to the next model only before the first piece of text (design decision 35).
+
 ## [0.1.1] - 2026-11-24
 
 ### Fixed

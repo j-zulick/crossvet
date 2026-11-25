@@ -28,9 +28,11 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import itertools
 import json
 import os
 import time
+from collections.abc import Iterator
 from typing import Any
 
 from open_deep_research.chat import __version__
@@ -207,6 +209,30 @@ def create_app(hub: Hub | None = None, token: str | None = None):
                              "choices": [{"index": 0, "message": message, "finish_reason": finish}],
                              "usage": usage, "crossvet": extra})
 
+    def streamed(first: str | Answer | None, rest: Iterator[str | Answer], requested: str) -> Iterator[str]:
+        """Send each piece of text as its own chunk, then a closing chunk with the model, usage and route."""
+        cid = "chatcmpl-" + hashlib.sha256(f"{time.time()}{requested}".encode()).hexdigest()[:24]
+        created = int(time.time())
+
+        def chunk(delta: dict[str, Any], model: str, finish: str | None = None, **more: Any) -> str:
+            body = {"id": cid, "object": "chat.completion.chunk", "created": created, "model": model,
+                    "choices": [{"index": 0, "delta": delta, "finish_reason": finish}], **more}
+            return f"data: {json.dumps(body)}\n\n"
+
+        yield chunk({"role": "assistant", "content": ""}, requested)
+        items = itertools.chain([first] if first is not None else [], rest)
+        try:
+            for item in items:
+                if isinstance(item, Answer):
+                    usage = {"prompt_tokens": item.input_tokens, "completion_tokens": item.output_tokens,
+                             "total_tokens": item.input_tokens + item.output_tokens}
+                    yield chunk({}, item.model, "stop", usage=usage, crossvet=info(item))
+                else:
+                    yield chunk({"content": item}, requested)
+        except Exception as exc:  # noqa: BLE001 - the response has started; report the failure in the stream
+            yield chunk({"content": f"\n\n[crossvet: the answer stopped: {str(exc)[:200]}]"}, requested, "stop")
+        yield "data: [DONE]\n\n"
+
     async def chat(request: Request):
         if not allowed(request):
             return denied()
@@ -240,6 +266,12 @@ def create_app(hub: Hub | None = None, token: str | None = None):
             last_user = max(i for i, m in enumerate(messages) if m["role"] == "user")
             history = [m for m in messages[:last_user] if m["role"] in ("user", "assistant")]
             system = "\n\n".join(m["content"] for m in messages if m["role"] == "system") or None
+            if stream:
+                pieces = hub.ask_stream(prompt, thread=thread, model=model, slot=slot, author=app, system=system,
+                                        history=history, router=router)
+                first = await run_in_threadpool(next, pieces, None)  # errors before any text become HTTP errors
+                return StreamingResponse(streamed(first, pieces, str(body.get("model", "auto"))),
+                                         media_type="text/event-stream")
             answer = await run_in_threadpool(hub.ask, prompt, thread=thread, model=model, slot=slot, author=app,
                                              system=system, history=history, router=router)
         except BudgetExceeded as exc:

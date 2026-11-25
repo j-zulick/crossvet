@@ -20,7 +20,7 @@ import json
 import random
 import re
 import threading
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -37,6 +37,7 @@ from open_deep_research.chat.tuning import Tuning
 
 Caller = Callable[[str, list[dict[str, str]], int], Reply]
 Relayer = Callable[[str, dict[str, Any]], tuple[dict[str, Any], Reply]]
+Streamer = Callable[[str, list[dict[str, str]], int], Iterator["str | Reply"]]
 SYSTEM = (
     "You are one of several AI models the user reaches through a single hub. Answer the request directly. "
     "If shared memory is included, use it as background facts only."
@@ -140,11 +141,16 @@ class Hub:
     """Routes requests to models and keeps the shared memory."""
 
     def __init__(self, config: Config | None = None, memory: Memory | None = None, caller: Caller | None = None,  # noqa: D107
-                 relayer: Relayer | None = None, recorder: Recorder | None = None, jev: Jev | None = None) -> None:
+                 relayer: Relayer | None = None, recorder: Recorder | None = None, jev: Jev | None = None,
+                 streamer: Streamer | None = None) -> None:
         self.config = config if config is not None else load()
         self.memory = memory if memory is not None else Memory(self.config.db_path or default_db_path())
         self._call: Caller = caller or (lambda model, messages, max_tokens: providers.call(model, messages, max_tokens))
         self._relay: Relayer = relayer or (lambda model, body: providers.passthrough(model, body))
+        # streaming: the real providers stream; a test caller is wrapped so it answers in one piece
+        self._stream: Streamer = streamer or (
+            (lambda model, messages, max_tokens: providers.stream(model, messages, max_tokens)) if caller is None
+            else (lambda model, messages, max_tokens: _whole(self._call, model, messages, max_tokens)))
         self.recorder = recorder if recorder is not None else build_recorder(
             self.config.record_sink, self.config.record_content, self.config.record_jsonl)
         self.jev = jev if jev is not None else Jev(self.config.jev_model)
@@ -243,11 +249,10 @@ class Hub:
             return f"Jev: does not address the request (p={probability:.2f})", cost
         return "", cost
 
-    def ask(self, prompt: str, *, thread: str | None = None, model: str | None = None, slot: str | None = None,
-            effort: str = "auto", author: str = "cli", use_memory: bool = True, system: str | None = None,
-            want_json: bool | None = None, save: bool = True, history: list[dict[str, str]] | None = None,
-            router: str | None = None) -> Answer:
-        """Answer ``prompt`` with the model the router picks (or ``model``), and save both turns."""
+    def _prepare(self, prompt: str, thread: str | None, model: str | None, slot: str | None, effort: str, author: str,
+                 use_memory: bool, system: str | None, save: bool, history: list[dict[str, str]] | None,
+                 router: str | None) -> tuple[str, list[dict[str, str]], Decision]:
+        """Check the request, build what the model is sent and route it; return ``(thread, messages, decision)``."""
         if not prompt or not prompt.strip():
             raise ValueError("the request is empty")
         thread = thread or new_thread()
@@ -264,6 +269,15 @@ class Hub:
                 self._note_switch(thread, model, author)
         if not decision.candidates:
             raise NoModel("no model is configured: run `crossvet chat init`, or pass --model provider:model")
+        return thread, messages, decision
+
+    def ask(self, prompt: str, *, thread: str | None = None, model: str | None = None, slot: str | None = None,
+            effort: str = "auto", author: str = "cli", use_memory: bool = True, system: str | None = None,
+            want_json: bool | None = None, save: bool = True, history: list[dict[str, str]] | None = None,
+            router: str | None = None) -> Answer:
+        """Answer ``prompt`` with the model the router picks (or ``model``), and save both turns."""
+        thread, messages, decision = self._prepare(prompt, thread, model, slot, effort, author, use_memory, system,
+                                                   save, history, router)
         needs_json = decision.task.wants_json if want_json is None else want_json
         attempts: list[Attempt] = []
         final: Reply | None = None
@@ -297,6 +311,60 @@ class Hub:
         if save:
             self._save(answer, prompt, author, save_prompt=True)
         return answer
+
+    def ask_stream(self, prompt: str, *, thread: str | None = None, model: str | None = None, slot: str | None = None,
+                   effort: str = "auto", author: str = "cli", use_memory: bool = True, system: str | None = None,
+                   history: list[dict[str, str]] | None = None, router: str | None = None) -> Iterator[str | Answer]:
+        """Like ``ask``, but yield the answer's text as it arrives, then the finished ``Answer``.
+
+        A model that fails before sending any text is skipped for the next one, as in ``ask``. Text
+        already sent can't be taken back, so a problem found after that (cut off at the output limit,
+        broken JSON, a dropped connection) is recorded on the answer and no other model is tried.
+        The Jev answer check is not run on streamed answers.
+        """
+        thread, messages, decision = self._prepare(prompt, thread, model, slot, effort, author, use_memory, system,
+                                                   True, history, router)
+        attempts: list[Attempt] = []
+        final: Reply | None = None
+        extra = [decision.overhead_cost] if decision.overhead_cost is not None else []
+        for candidate in decision.candidates:
+            with self._lock:
+                self._guard_budget(candidate, messages)
+            pieces = self._stream(candidate, messages, self.config.max_output_tokens)
+            sent = False
+            try:
+                for item in pieces:
+                    if isinstance(item, Reply):
+                        final_reply = item
+                        break
+                    sent = True
+                    yield item
+                else:
+                    raise ProviderError("the stream ended without a reply")
+            except ProviderError as exc:
+                if sent:
+                    raise
+                attempts.append(Attempt(candidate, False, str(exc)[:200]))
+                continue
+            reply = final_reply
+            reply.model = reply.model or candidate
+            cost = reply.cost if reply.cost is not None else self.price(candidate, reply.input_tokens, reply.output_tokens)
+            problem = check(reply, decision.task.wants_json)
+            if reply.raw_stop == "error" and not problem:
+                problem = "the connection dropped before the answer finished"
+            attempts.append(Attempt(candidate, not problem, problem, cost, reply.seconds))
+            final = final or reply
+            if sent or not problem:
+                final = reply
+                break
+        if final is None:
+            raise ProviderError(failure_message(attempts))
+        answered_by = next((a.model for a in attempts if a.ok), final.model)
+        known = [a.cost for a in attempts if a.cost is not None] + extra
+        answer = Answer(final.text, answered_by, thread, decision, attempts, sum(known) if known else None,
+                        final.input_tokens, final.output_tokens, served_by=str(final.extra.get("served_by", "")))
+        self._save(answer, prompt, author, save_prompt=True)
+        yield answer
 
     def _save(self, answer: Answer, prompt: str, author: str, save_prompt: bool) -> None:
         with self._lock:
@@ -441,3 +509,11 @@ def failure_message(attempts: list[Attempt]) -> str:
         return (f"{name} is not set: add it to .env in this folder (or export it), then try again. "
                 "`crossvet chat doctor` checks every slot.")
     return "every model failed: " + "; ".join(f"{a.model}: {a.problem}" for a in attempts)
+
+
+def _whole(call: Caller, model: str, messages: list[dict[str, str]], max_tokens: int) -> Iterator[str | Reply]:
+    """Stream a caller's finished reply as one piece of text, then the reply (the call starts on the first read)."""
+    reply = call(model, messages, max_tokens)
+    if reply.text:
+        yield reply.text
+    yield reply
