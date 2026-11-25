@@ -9,14 +9,14 @@ One model checking its own work shares its blind spots, and LLM judges favor the
 ## Quick start
 
 ```bash
-uv tool install "crossvet[all] @ git+https://github.com/j-zulick/crossvet@v0.6.0"   # everything (Python 3.11–3.13)
+uv tool install "crossvet[all] @ git+https://github.com/j-zulick/crossvet@v0.7.0"   # everything (Python 3.11–3.13)
 mkdir my-research && cd my-research                                                  # .env and run files live in this folder
 crossvet demo                                                                        # a one-minute tour, free
 ```
 
 | Install | Gives you | Packages |
 |---|---|---|
-| `uv tool install "git+https://github.com/j-zulick/crossvet@v0.6.0"` | the chat, the scanner and the demo | about 30, installs in seconds |
+| `uv tool install "git+https://github.com/j-zulick/crossvet@v0.7.0"` | the chat, the scanner and the demo | about 30, installs in seconds |
 | `"crossvet[langfuse] @ git+…"` | the same, recording chat turns in Langfuse | |
 | `"crossvet[research] @ git+…"` | adds research, review, the benchmarks and the MCP research tools | about 200 |
 | `"crossvet[all] @ git+…"` | all of the above | |
@@ -34,6 +34,7 @@ No uv? `pip install` takes the same strings in a virtual environment. Each [rele
 - **Keys, once:** `crossvet setup` asks for the keys you have (input hidden), finds the models they can call and writes `.env` in the folder you run it from; every command reads that file. One OpenRouter key covers most vendors, or use local models for free; Crossvet calls models through their APIs, not chat subscriptions. `crossvet doctor` checks the result without spending anything.
 - **Cost before you spend:** `crossvet research "QUESTION" --estimate` prints a cost range per stage without calling a model; `--max-usd` stops a run at a cap; `--effort quick|standard|deep` sets how much work a run does.
 - **Chat from Hermes or Cursor:** `crossvet chat start` checks your keys, prints the settings to paste into Hermes or Cursor, and serves; answers stream as they are written ([guide](docs/CHAT.md#use-it-from-other-apps)).
+- **From anywhere:** on your own server behind HTTPS, Cursor can use it as its chat model and the ChatGPT and claude.ai apps can connect after you sign in ([deploy/chat](deploy/chat/README.md)).
 - **Everything else:** `crossvet --help`.
 
 ## What it does

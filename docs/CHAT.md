@@ -125,6 +125,16 @@ Thirteen tools: `ask`, `ask_model`, `compare_models`, `challenge`, `explain_rout
 
 **Cursor's "Override OpenAI Base URL"** is not recommended: Cursor calls that URL from its own servers, so a local address does not work, and the override also redirects Cursor's own models. Use the MCP server in Cursor.
 
+## Hosted: Cursor's chat, the ChatGPT and claude.ai apps, your phone
+
+On your own server, behind HTTPS, the same chat works from anywhere: Cursor can use it as its chat model (its base-URL override needs a public address), and the ChatGPT and claude.ai apps can connect to the MCP server after you sign in. [`deploy/chat/`](../deploy/chat/README.md) has the Docker Compose files: the API, the MCP server with sign-in, and Caddy for the certificate.
+
+- **The API** (`crossvet chat serve --host 0.0.0.0`) requires `Authorization: Bearer <CROSSVET_CHAT_TOKEN>`.
+- **The MCP server** (`crossvet chat mcp --http --host 0.0.0.0 --public-url https://your-domain`) signs in its owner over OAuth: an app registers itself, sends you to `/login`, and you enter `CROSSVET_CHAT_TOKEN` (at least 16 characters); only then does the app get a code, which it trades for an access token (1 hour) and a refresh token (30 days, replaced on every use). PKCE is required; only hashes of codes and tokens are stored; tokens are accepted only for this server; requests for any other host are refused; five wrong passphrases in 15 minutes lock sign-in for the rest of that window.
+- Without `--public-url`, the HTTP transport only listens on localhost.
+
+The kit has not yet been run on a live server; `deploy/chat/README.md` lists what to check.
+
 ## Shared memory
 
 One SQLite file (`~/.local/share/crossvet/chat.db`, or `CROSSVET_CHAT_DB`) holds every turn and every note, from every app. The database refuses updates and deletes. Notes are shown to models inside a marked block, as reference data, never as instructions.
@@ -349,8 +359,10 @@ crossvet chat handoff show assistant-handoff-001
 |---|---|
 | `CROSSVET_CHAT_CONFIG` | Path of the settings file |
 | `CROSSVET_CHAT_DB` | Path of the shared memory |
-| `CROSSVET_CHAT_TOKEN` | Bearer token the server requires |
+| `CROSSVET_CHAT_TOKEN` | Bearer token the server requires; the passphrase for signing in to the hosted MCP server |
 | `CROSSVET_CHAT_ROUTER` | Override the router for every request |
+| `CROSSVET_CHAT_PUBLIC_URL` | Hosted MCP server: the https:// address apps reach; turns on sign-in |
+| `CROSSVET_CHAT_OAUTH_DB` | Where sign-in clients and token hashes are kept |
 | `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_BASE_URL` | Langfuse, shared with the research pipeline |
 
 `[limits]` in the settings file: `max_usd_per_day` and `max_usd_per_call` (spend caps; 0 = none), `max_output_tokens` (4000), `timeout_seconds` (120: one model call, start to finish) and `max_request_bytes` (2,000,000: larger requests to the server get HTTP 413).

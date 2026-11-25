@@ -23,10 +23,13 @@ one assistant is there for the next.
 
     crossvet chat mcp            stdio (Claude Code, Claude Desktop, Codex, Cursor)
     crossvet chat mcp --http     Streamable HTTP on 127.0.0.1:8788
+    crossvet chat mcp --http --host 0.0.0.0 --public-url https://chat.example.com
+                                 hosted, with sign-in, for the ChatGPT and claude.ai apps (behind HTTPS)
 """
 
 from __future__ import annotations
 
+import os
 import sys
 from typing import Any
 
@@ -145,23 +148,71 @@ def tools(hub: Hub, app: str = "mcp") -> dict[str, Any]:
                                     search_memory, recent_turns, rate_answer, handoff_submit, handoff_result, handoff_status)}
 
 
-def build_server(hub: Hub | None = None, host: str = "127.0.0.1", port: int = 8788):
-    """Create the MCP server (FastMCP from the MCP Python SDK, as ``crossvet-mcp`` uses)."""
+def build_server(hub: Hub | None = None, host: str = "127.0.0.1", port: int = 8788, public_url: str = "",
+                 oauth: Any | None = None):
+    """Create the MCP server (FastMCP from the MCP Python SDK, as ``crossvet-mcp`` uses).
+
+    With ``public_url`` the server signs in its owner over OAuth (``oauth.py``) and accepts only
+    requests addressed to that host.
+    """
     from mcp.server.fastmcp import FastMCP
 
+    options: dict[str, Any] = {}
+    provider = None
+    if public_url:
+        from urllib.parse import urlsplit
+
+        from mcp.server.auth.settings import (
+            AuthSettings,
+            ClientRegistrationOptions,
+            RevocationOptions,
+        )
+        from mcp.server.transport_security import TransportSecuritySettings
+
+        from open_deep_research.chat.oauth import SCOPE, OwnerOAuth
+
+        public_url = public_url.rstrip("/")
+        provider = oauth or OwnerOAuth(public_url, os.environ.get("CROSSVET_CHAT_TOKEN", ""))
+        options["auth_server_provider"] = provider
+        options["auth"] = AuthSettings(
+            issuer_url=public_url, resource_server_url=f"{public_url}/mcp",
+            client_registration_options=ClientRegistrationOptions(enabled=True, valid_scopes=[SCOPE], default_scopes=[SCOPE]),
+            revocation_options=RevocationOptions(enabled=True), required_scopes=[SCOPE], validate_token_resource=True)
+        netloc = urlsplit(public_url).netloc
+        options["transport_security"] = TransportSecuritySettings(
+            enable_dns_rebinding_protection=True, allowed_hosts=[netloc, f"{netloc}:*", "127.0.0.1:*", "localhost:*"],
+            allowed_origins=[f"https://{netloc}", f"http://{netloc}"])
     server = FastMCP("crossvet-chat", instructions=f"Crossvet chat {__version__}: one router in front of several vendors' models.",
-                     host=host, port=port)
+                     host=host, port=port, **options)
     for name, function in tools(hub or Hub()).items():
         server.tool(name=name)(function)
+    if provider is not None:
+        from open_deep_research.chat.oauth import add_login_routes
+
+        add_login_routes(server, provider)
     return server
 
 
-def main(http: bool = False, host: str = "127.0.0.1", port: int = 8788) -> int:
-    """Run the MCP server over stdio, or Streamable HTTP with ``http``."""
-    if http and host not in ("127.0.0.1", "localhost", "::1"):
-        print("the HTTP transport has no sign-in yet, so it only listens on localhost", file=sys.stderr)
+def main(http: bool = False, host: str = "127.0.0.1", port: int = 8788, public_url: str = "") -> int:
+    """Run the MCP server over stdio, or Streamable HTTP with ``http`` (signed in when ``public_url`` is set)."""
+    from open_deep_research.chat.oauth import SIGN_IN_MIN_CHARS
+
+    public_url = public_url or os.environ.get("CROSSVET_CHAT_PUBLIC_URL", "")
+    if public_url:
+        if not http:
+            print("--public-url needs --http", file=sys.stderr)
+            return 2
+        if not public_url.startswith("https://") and not public_url.startswith(("http://localhost", "http://127.0.0.1")):
+            print("the public URL must start with https://", file=sys.stderr)
+            return 2
+        if len(os.environ.get("CROSSVET_CHAT_TOKEN", "")) < SIGN_IN_MIN_CHARS:
+            print(f"set CROSSVET_CHAT_TOKEN (at least {SIGN_IN_MIN_CHARS} characters): it is the passphrase you sign in with",
+                  file=sys.stderr)
+            return 2
+    elif http and host not in ("127.0.0.1", "localhost", "::1"):
+        print("without --public-url (and sign-in) the HTTP transport only listens on localhost", file=sys.stderr)
         return 2
-    server = build_server(host=host, port=port)
+    server = build_server(host=host, port=port, public_url=public_url)
     server.run(transport="streamable-http" if http else "stdio")
     return 0
 

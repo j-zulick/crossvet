@@ -954,7 +954,7 @@ def cmd_mcp(args: argparse.Namespace) -> int:
     """Run `crossvet chat mcp`."""
     from open_deep_research.chat.mcp_server import main as mcp_main
 
-    return mcp_main(http=args.http, host=args.host, port=args.port)
+    return mcp_main(http=args.http, host=args.host, port=args.port, public_url=args.public_url)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -1133,6 +1133,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("mcp", help="MCP server for Claude Code, Codex, Cursor or Hermes")
     p.add_argument("--http", action="store_true", help="serve over Streamable HTTP instead of stdio")
+    p.add_argument("--public-url", default="", help="hosted: the https:// address apps reach; turns on sign-in "
+                   "(passphrase: CROSSVET_CHAT_TOKEN); also CROSSVET_CHAT_PUBLIC_URL")
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=8788)
     p.set_defaults(func=cmd_mcp)

@@ -1,6 +1,6 @@
 [project]
 name = "crossvet"
-version = "0.6.0"
+version = "0.7.0"
 description = "AI research and chat whose answers are checked by models from other AI vendors, with every outcome-deciding check in code."
 authors = [
     { name = "Joseph Zulick" },

@@ -4,6 +4,11 @@ All notable changes to Crossvet. Versions follow [Semantic Versioning](https://s
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-24
+
+### Added
+- Sign-in (OAuth, one owner) for the hosted MCP server; `deploy/chat/` with Docker Compose and Caddy; `CROSSVET_CHAT_PUBLIC_URL`, `CROSSVET_CHAT_OAUTH_DB` (design decision 40).
+
 ## [0.6.0] - 2026-11-24
 
 ### Added

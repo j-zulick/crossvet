@@ -1,0 +1,50 @@
+# Crossvet chat behind HTTPS (Caddy gets the certificate). From this folder:
+#   cp .env.example .env    # fill it in; keys stay on the server
+#   docker compose build && docker compose run --rm api crossvet chat init --openrouter --out /data/crossvet-chat.toml
+#   docker compose up -d
+name: crossvet-chat
+
+services:
+  api:  # OpenAI-style API for Cursor, Hermes and other apps (bearer token: CROSSVET_CHAT_TOKEN)
+    build:
+      context: ../..
+      dockerfile: deploy/chat/Dockerfile
+    image: crossvet-chat:local
+    command: ["crossvet", "chat", "serve", "--host", "0.0.0.0", "--port", "8787"]
+    env_file: .env
+    volumes:
+      - data:/data
+    restart: unless-stopped
+
+  mcp:  # MCP for the ChatGPT and claude.ai apps, with sign-in (passphrase: CROSSVET_CHAT_TOKEN)
+    build:
+      context: ../..
+      dockerfile: deploy/chat/Dockerfile
+    image: crossvet-chat:local
+    command: ["crossvet", "chat", "mcp", "--http", "--host", "0.0.0.0", "--port", "8788",
+              "--public-url", "https://${CROSSVET_DOMAIN:?set CROSSVET_DOMAIN in .env}"]
+    env_file: .env
+    volumes:
+      - data:/data
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      CROSSVET_DOMAIN: ${CROSSVET_DOMAIN:?set CROSSVET_DOMAIN in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+      - mcp
+    restart: unless-stopped
+
+volumes:
+  data:
+  caddy_data:
+  caddy_config:

@@ -79,6 +79,14 @@ jobs:
         run: docker build -t crossvet-api:ci .
       - name: Build web image
         run: docker build -t crossvet-web:ci web
+      - name: Build the hosted chat image; both servers start
+        run: |
+          docker build -f deploy/chat/Dockerfile -t crossvet-chat:ci .
+          docker run --rm crossvet-chat:ci crossvet chat --version
+          passphrase=$(openssl rand -hex 16)  # made up for this run only
+          docker run -d --name chat -e CROSSVET_CHAT_TOKEN="$passphrase" -p 8787:8787 crossvet-chat:ci
+          for _ in $(seq 1 15); do curl -sf http://localhost:8787/health && break; sleep 1; done
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8787/v1/models)" = 401
       - name: API serves both graphs
         run: |
           docker run -d --name api -p 2024:2024 crossvet-api:ci

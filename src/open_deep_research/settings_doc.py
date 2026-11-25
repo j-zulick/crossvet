@@ -28,6 +28,8 @@ ENV_ONLY = {
     "LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY, LANGFUSE_BASE_URL": "Langfuse tracing with cost per model.",
     "CROSSVET_CHAT_CONFIG, CROSSVET_CHAT_DB, CROSSVET_CHAT_TOKEN":
         "`crossvet chat`: settings file, shared-memory file, and the bearer token its server requires (docs/CHAT.md).",
+    "CROSSVET_CHAT_PUBLIC_URL": "`crossvet chat mcp --http`: the https:// address apps reach; turns on sign-in for the ChatGPT and claude.ai apps.",
+    "CROSSVET_CHAT_OAUTH_DB": "`crossvet chat`: where sign-in clients and token hashes are kept (default chat-oauth.db next to the chat store).",
     "CROSSVET_CHAT_ROUTER": "`crossvet chat`: override the router (rules, jev, openrouter-auto, openrouter-auto-code, jev-router).",
     "LANGSMITH_API_KEY, LANGSMITH_PROJECT, LANGSMITH_TRACING": "LangSmith tracing (upstream).",
     "GET_API_KEYS_FROM_CONFIG, SUPABASE_URL, SUPABASE_KEY": "Hosted deployments only (upstream): keys from the run config, and auth.",

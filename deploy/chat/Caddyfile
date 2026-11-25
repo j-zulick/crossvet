@@ -1,0 +1,20 @@
+# One address for both servers. Caddy gets and renews the HTTPS certificate for CROSSVET_DOMAIN.
+{$CROSSVET_DOMAIN} {
+	encode gzip
+
+	# MCP and its sign-in (OAuth) endpoints
+	@mcp path /mcp /mcp/* /authorize /token /register /revoke /login /.well-known/*
+	handle @mcp {
+		reverse_proxy mcp:8788
+	}
+
+	# the OpenAI-style API (/v1/...), ratings (/api/...) and the activity page (/)
+	handle {
+		reverse_proxy api:8787
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+}
