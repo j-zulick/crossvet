@@ -9,16 +9,8 @@ updates:
       # build-system requirement in pyproject.toml; Dependabot's uv updater can't change it
       - dependency-name: "setuptools"
     groups:
-      # one pull request a month for all Python updates (LangChain packages also pin each other's versions)
+      # one pull request a month for all Python updates
       python:
-        patterns: ["*"]
-  - package-ecosystem: "npm"
-    directory: "/web"
-    open-pull-requests-limit: 3
-    schedule:
-      interval: "monthly"
-    groups:
-      web:
         patterns: ["*"]
   - package-ecosystem: "github-actions"
     directory: "/"

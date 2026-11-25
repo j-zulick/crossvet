@@ -1,7 +1,7 @@
 # Crossvet chat settings. Copy to crossvet-chat.toml (this folder) or ~/.config/crossvet/chat.toml.
 # Example configuration. `crossvet chat init` writes a real one from the keys you have (`--openrouter` fills it from OpenRouter's current model list).
 # API keys are NOT stored here: they are read from the environment (.env.example).
-# Model ids below are examples dated 2026-11. Model names go stale: check them with your vendor.
+# Model ids below were called successfully by the live tests on 2026-11-25 (docs/live-runs/2026-11-25.md). Names go stale: check yours with `crossvet chat doctor`.
 
 [slots]
 # quick: short lookups, summaries, extraction: the cheapest capable model
@@ -34,13 +34,22 @@ reviewer = ["openai:gpt-6.1-sol"]
 max_usd_per_day = 5.0     # 0 = no cap
 max_usd_per_call = 0.50   # worst-case estimate before a call; needs prices below
 max_output_tokens = 4000
+timeout_seconds = 120        # one model call, start to finish
+max_request_bytes = 2000000  # the largest request `crossvet chat serve` accepts
 
 [router]
 # Who picks the model: rules (free), jev (Jev names the kind and difficulty; your slots pick the model),
 # openrouter-auto, openrouter-auto-code or jev-router (hosted routers on OpenRouter; your slot is the fallback).
 use = "rules"
+# goal = "auto"             # best | cheapest | fastest | auto; also per request (--goal, x-crossvet-goal, crossvet/cheapest)
+# cascade = false           # true: start from the quick models and climb a slot only when an answer fails a check
+# local_first = false       # true: quick requests try your local models (ollama:, local:) first, then the cloud
+# learned_min_confidence = 0.6   # with use = "learned" (train it with `crossvet chat learn`)
 # jev_model = "~typesafe/jev-latest"
 # jev_min_confidence = 0.5    # below this, the rules decide
+# With use = "rules": ask a small model to name the kind of requests the rules call "general" (off by default).
+# "quick" = the first model in the quick slot, or a provider:model name. One short call; /why shows its answer.
+# classify_general = "quick"
 # Ask Jev whether each answer addresses the request; below the threshold, try the next model ("" = off)
 check = ""
 # check_threshold = 0.2
@@ -65,6 +74,30 @@ content = "full"
 [memory]
 chars = 6000              # how much shared memory a model is shown
 history_turns = 12
+quick_history_turns = 4   # earlier turns sent to a quick-slot model
+
+[inputs]
+# Which slot a request with images, audio or PDFs goes to. Fill the vision and audio slots under [slots].
+image = "vision"
+audio = "audio"
+pdf = "long"
+# transcribe = "openai:gpt-4o-transcribe"   # turn audio into text first, then route it as text
+
+[privacy]
+auto = true               # requests with keys, ID or card numbers, or "confidential" stay on your machine
+# models = ["ollama:gemma3"]   # where private requests may go (default: any ollama: or local: model in your slots)
+
+# [kinds]                 # models to try first for one kind of task; `crossvet chat bench --apply` writes this
+# code = ["anthropic:...", "openai:..."]
+# Tell routing which inputs a model takes (skipped for inputs it doesn't):
+# [models."openai:gpt-..."]
+# takes = ["image", "pdf"]
+
+[retention]
+# How long turns stay in the store. 0 = keep everything. `crossvet chat doctor` counts turns past it;
+# `crossvet chat prune --yes` removes them (stop the servers first; a backup is saved).
+# Notes, the routing table and handoffs are never pruned. [record] content = "metadata" keeps text out of Langfuse.
+keep_days = 0
 
 # context = context window in tokens (0 = unknown); input/output = USD per million tokens (examples to verify).
 [models."openai:gpt-6-luna"]

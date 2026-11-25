@@ -3,40 +3,38 @@
 Instructions for coding agents (Claude Code, Codex, Cursor) and for people. `CLAUDE.md` points here.
 
 ## What this repository is
-Crossvet is a fork of LangChain's Open Deep Research (MIT). It writes a research report, then has models from several AI vendors review it. Code checks the review: cited URLs must appear in the research notes, a quote used as evidence must appear verbatim in the notes, and stop decisions in deliberation are made by code, not by a model. `crossvet-bench` measures which model to use for each role.
+Crossvet is one chat that controls Claude, ChatGPT and other models. You use it from Hermes, Cursor or any chat app that speaks the OpenAI API or MCP, and it sends each request to a suitable model with the reason shown. Every outcome-deciding step (which kind of task, which model, whether an answer passed its check, whether a spend cap stops a call) is code, not a model's judgment.
+
+**Scope rule:** a change belongs here only if it serves "one chat controls many models". Anything else is out of scope.
 
 ## Layout
-- `src/open_deep_research/`: the package
-  - `deep_researcher.py`: LangGraph edition (graph `deep_researcher`)
-  - `deep_agent.py`: Deep Agents edition (graph `deep_agent`), same review
-  - `cross_vendor_review.py`: critiques, anonymized Borda vote, citation check, critic, revision
-  - `deliberation.py`, `blind_pass.py`, `support_check.py`: debate rounds and early stopping, the blind first pass, Jev support checks
-  - `injection_check.py`, `scan_cli.py`, `review_doc.py`: the prompt-injection check, `crossvet-scan`, and `crossvet review` for existing reports
-  - `chat/`: `crossvet chat`, one chat that routes each request to a model (routing, guard, shared memory, server, MCP); settings in `crossvet-chat.toml`, guide in `docs/CHAT.md`
-  - `effort.py`, `guard.py`: effort tiers (`EFFORT`, `--effort`), escalation to a stronger model after a failed check, and the spend cap
-  - `models.py`: the model factory (`provider:model`, OpenRouter, local servers) and the capability catalog
-  - `bench.py`, `bench_cases.py`: the role benchmark and its synthetic cases
-  - `configuration.py`: every setting (environment variable = upper-case field name)
-  - `cli.py`, `api.py`, `mcp_server.py`, `compare.py`, `doctor.py`, `setup_wizard.py`, `context.py`, `followup.py`, `dataset.py`, `gateway_search.py`, `tracing.py`
-- `src/security/auth.py`: auth handler for LangGraph deployments
-- `tests/unit/`: the offline test suite (no keys, no network)
-- `docs/`: design decisions, architecture, evaluation protocol, model selection, benchmark results, release notes
-- `web/`: Agent Chat UI (Next.js)
+- `src/crossvet/cli.py`: the `crossvet` front door (`crossvet chat ...`)
+- `src/crossvet/chat/`: the chat
+  - `classify.py`, `routing.py`, `router.py`, `inputs.py`: what kind of task a request is, which models to try and why, routers (rules, Jev, OpenRouter), routing by what a request carries
+  - `hub.py`: route, guard the call (answer checks, escalation, spend caps, refused accounts), save the turn
+  - `providers.py`: OpenAI, Anthropic, Google, xAI, OpenRouter, Ollama and any OpenAI-compatible server through one function
+  - `server.py`: the OpenAI-compatible server for Hermes and other chat apps; `mcp_server.py`: MCP tools for Cursor, Claude Code and Codex
+  - `memory.py`, `migrations.py`, `storage.py`: the chat store (one SQLite file), its upgrades, backup and restore
+  - `record.py`, `langfuse_sync.py`, `report.py`: recording turns and ratings locally and in Langfuse, rating sync, the weekly report
+  - `tuning.py`, `pages.py`, `learned.py`, `bench.py`: the routing table you tune (with posts checked for prompt injection), the learned router, and the chat benchmark
+  - `council.py`, `handoff.py`, `replay.py`, `dashboard.py`, `setup.py`, `config.py`, `cli.py`
+- `src/crossvet/injection_check.py`: the prompt-injection patterns used on imported posts
+- `tests/unit/`: offline tests (no keys, no network); `tests/live/`: real API calls, skipped without keys
+- `docs/`: `CHAT.md` (the guide), `SETUP.md`, `ARCHITECTURE.md`, `SECURITY-MODEL.md`, `DESIGN-DECISIONS.md`, `STABILITY.md`, `live-runs/` (dated real runs), `releases/`
 
 ## Commands
 ```bash
-uv sync                          # install
-uv run pytest tests/unit -q      # tests: offline, must pass before any commit
-uvx ruff@0.17.4 check <files>    # lint: CI's file list is in .github/workflows/ci.yml
-uv run crossvet-doctor           # check a configuration without spending tokens
-uv run crossvet scan <url|file>  # check a page for prompt injection (no model, no key); `crossvet --help` lists every tool
-uvx langgraph dev                # LangGraph Studio
+uv sync --all-extras             # install
+uv run pytest tests/unit -q      # offline tests: must pass before any commit
+uvx ruff@0.17.4 check src tests  # lint
+uv run pytest tests/live -q      # live tests: real API calls with the keys in .env (a few cents)
+uv run crossvet chat doctor      # check a configuration without spending tokens
 ```
 
 ## Rules
 - Never read, print or commit `.env` or any key. `.env.example` lists every setting with an empty value.
-- A claim in the README, a release note or a doc must match the code and the tests in the same commit. Results are published only from real runs, with date, model ids and cost (`docs/EVALS.md`).
-- Checks that decide outcomes (citations, quotes, stop rules, support thresholds) stay in code. Don't replace them with a model's judgment.
+- A claim in the README, a release note or a doc must match the code and the tests in the same commit. Results are published only from real runs, with date, model ids and cost (`docs/live-runs/`). No made-up examples in anything published.
+- Checks that decide outcomes stay in code.
 - A new design choice gets an entry in `docs/DESIGN-DECISIONS.md` (context, decision, cost).
-- New setting: add it to `configuration.py`, `.env.example` (empty or default value) and the README, and test it.
-- Model names go stale. Defaults come from a benchmark run and are labelled with its date; don't change one without new results.
+- New setting: add it to `.env.example` or `crossvet-chat.example.toml`, document it in `docs/CHAT.md`, and test it. `docs/STABILITY.md` lists what stays compatible across 1.x; a test checks it.
+- Model names go stale. Defaults come from a dated benchmark run; don't change one without new results.

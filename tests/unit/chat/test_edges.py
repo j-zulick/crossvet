@@ -5,11 +5,11 @@ import json
 import httpx
 import pytest
 
-from open_deep_research.chat import bench, cli, providers, setup
-from open_deep_research.chat.hub import Hub
-from open_deep_research.chat.mcp_server import tools
-from open_deep_research.chat.memory import Memory
-from open_deep_research.chat.providers import ProviderError, Reply
+from crossvet.chat import bench, cli, providers, setup
+from crossvet.chat.hub import Hub
+from crossvet.chat.mcp_server import tools
+from crossvet.chat.memory import Memory
+from crossvet.chat.providers import ProviderError, Reply
 
 from .conftest import CONFIG, parse
 
@@ -147,23 +147,24 @@ def test_init_text_parses_back_and_notes_gaps(monkeypatch, tmp_path):
 
 def test_scorers():
     by_name = {c.name: c for c in bench.CASES}
-    assert by_name["capital"].score("Canberra") == 1.0 and by_name["capital"].score("Sydney") == 0.0
-    assert by_name["trains"].score("It moved for 260 minutes.") == 1.0 and by_name["trains"].score("285") == 0.0
-    assert by_name["discount"].score("The final price is $183.60") == 1.0 and by_name["discount"].score("183.6") == 1.0
-    assert by_name["invoice"].score('```json\n{"invoice": "INV-2291", "total": "1480.50", "due": "2026-03-14"}\n```') == 1.0
-    assert by_name["invoice"].score("INV-2291, 1480.50") == 0.0
-    assert by_name["store-closures"].score("Northwind closes 14 stores, cuts 380 jobs, keeps online.") == 1.0
-    assert by_name["store-closures"].score("14 380 online " + "word " * 60) == 0.5
-    good = "```python\ndef slugify(text):\n    import re\n    return re.sub(r'[^a-z0-9]+', '-', text.lower()).strip('-')\n```"
-    assert by_name["slugify"].score(good) == 1.0 and by_name["slugify"].score("def slugify(:") == 0.0
-    assert bench.run_code_score(good, "slugify", by_name["slugify"].score.checks) == 1.0
-    assert bench.run_code_score("def slugify(text):\n    return text", "slugify", by_name["slugify"].score.checks) < 1.0
+    assert by_name["zip"].score("34236") == 1.0 and by_name["zip"].score("34231") == 0.0
+    assert by_name["missing-search"].score("It was missing from 2.") == 1.0 and by_name["missing-search"].score("1") == 0.0
+    assert by_name["out-the-door"].score("The total is $15,802.65") == 1.0 and by_name["out-the-door"].score("15687") == 0.0
+    listing = '```json\n{"year": 2019, "make": "Ford", "model": "EcoSport", "trim": "Titanium", "miles": 115176, "price": 6799}\n```'
+    assert by_name["listing"].score(listing) == 1.0 and by_name["listing"].score("2019 Ford EcoSport, 6799") == 0.0
+    assert by_name["search-summary"].score("Kelley Blue Book led; Sarasota Ford was the only dealer site.") == 1.0
+    assert by_name["search-summary"].score("Kelley Blue Book Sarasota Ford " + "word " * 60) == 0.5
+    good = "```python\ndef parse_miles(text):\n    t = text.lower().split()[0].replace(',', '')\n    return int(float(t[:-1]) * 1000) if t.endswith('k') else int(t)\n```"
+    assert by_name["parse-miles"].score(good) == 1.0 and by_name["parse-miles"].score("def parse_miles(:") == 0.0
+    assert bench.run_code_score(good, "parse_miles", by_name["parse-miles"].score.checks) == 1.0
+    assert bench.run_code_score("def parse_miles(text):\n    return 0", "parse_miles", by_name["parse-miles"].score.checks) < 1.0
 
 
 def test_leaderboard_and_best_value(hub, models):
-    answers = {"capital": "Canberra", "boiling": "100", "store-closures": "14 stores, 380 jobs, online stays.",
-               "two-sentences": "Northwind closes 14 stores.", "invoice": '{"invoice":"INV-2291","total":"1480.50","due":"2026-03-14"}',
-               "contact": '{"name":"Priya Raman","email":"priya.raman@example.org"}'}
+    answers = {"zip": "34236", "missing-search": "2", "search-summary": "Kelley Blue Book led; Sarasota Ford ranked directly.",
+               "gold-certified": "172-point inspection, under 6 years, under 80,000 miles.",
+               "listing": '{"year":2019,"make":"Ford","model":"EcoSport","trim":"Titanium","miles":115176,"price":6799}',
+               "dealer-address": '{"name":"Gulf Coast Auto Brokers of Sarasota","street":"4343 Clark Rd","city":"Sarasota","zip":"34233"}'}
 
     def good(messages):
         prompt = messages[-1]["content"]
@@ -195,7 +196,7 @@ def test_bench_records_errors(hub, models):
 def client(hub):
     from starlette.testclient import TestClient
 
-    from open_deep_research.chat.server import create_app
+    from crossvet.chat.server import create_app
 
     return TestClient(create_app(hub, token=""))
 
@@ -240,15 +241,53 @@ def test_models_turns_viewer_and_health(client, hub):
 def test_token_is_required_when_set(hub):
     from starlette.testclient import TestClient
 
-    from open_deep_research.chat.server import create_app, serve
+    from crossvet.chat.server import create_app, serve
 
     locked = TestClient(create_app(hub, token="s3cret"))
     assert locked.get("/v1/models").status_code == 401 and locked.get("/api/turns").status_code == 401
     assert locked.post("/v1/chat/completions", json={"messages": [{"role": "user", "content": "x"}]}).status_code == 401
     assert locked.get("/v1/models", headers={"Authorization": "Bearer s3cret"}).status_code == 200
-    assert locked.get("/?token=s3cret").status_code == 200 and locked.get("/").status_code == 401
+    # the token only counts in the header: a URL would put it in logs and browser history
+    assert locked.get("/api/turns?token=s3cret").status_code == 401
+    page = locked.get("/")  # the page holds no data; its script reads the token after #
+    assert page.status_code == 200 and "location.hash" in page.text and "s3cret" not in page.text
+    assert page.headers["referrer-policy"] == "no-referrer"
     assert locked.get("/health").status_code == 200
     assert serve("0.0.0.0", 1) == 2   # no token in the environment: refuses a public address
+
+
+def test_a_public_address_needs_a_long_token(monkeypatch, capsys):
+    from crossvet.chat.server import serve
+
+    monkeypatch.setenv("CROSSVET_CHAT_TOKEN", "short")
+    assert serve("0.0.0.0", 1) == 2 and "at least 16 characters" in capsys.readouterr().err
+
+
+def test_a_wrong_token_is_answered_slowly(hub, monkeypatch):
+    import time
+
+    from starlette.testclient import TestClient
+
+    from crossvet.chat import server
+
+    monkeypatch.setattr(server, "FAIL_DELAY_SECONDS", 0.3)
+    locked = TestClient(server.create_app(hub, token="s3cret"))
+    began = time.monotonic()
+    assert locked.get("/v1/models", headers={"Authorization": "Bearer guess"}).status_code == 401
+    assert time.monotonic() - began >= 0.3
+    began = time.monotonic()
+    assert locked.get("/v1/models", headers={"Authorization": "Bearer s3cret"}).status_code == 200
+    assert time.monotonic() - began < 0.3
+
+
+def test_a_bad_limit_is_a_400(hub):
+    from starlette.testclient import TestClient
+
+    from crossvet.chat.server import create_app
+
+    client = TestClient(create_app(hub, token=""))
+    assert client.get("/api/turns?limit=lots").status_code == 400
+    assert client.get("/api/turns?limit=0").status_code == 200
 
 
 # --- MCP tools ---
@@ -276,7 +315,7 @@ def test_mcp_tools_share_one_memory(hub, models):
 def test_mcp_server_registers_the_tools(hub):
     import asyncio
 
-    from open_deep_research.chat.mcp_server import build_server
+    from crossvet.chat.mcp_server import build_server
 
     server = build_server(hub)
     listed = asyncio.run(server.list_tools())
@@ -341,7 +380,7 @@ def test_cli_init_doctor_bench(tmp_path, monkeypatch, capsys, hub, models):
     assert "openai:gpt-6-luna" in out and "all models are from one vendor" in out
     monkeypatch.setattr(cli, "_hub", lambda: hub)
     assert cli.main(["bench", "--dry-run", "-m", "openai:small"]) == 0 and "Nothing was sent" in capsys.readouterr().out
-    models.set("openai:small", "Canberra")
+    models.set("openai:small", "34236")
     assert cli.main(["bench", "-m", "openai:small", "--apply", "--out", "rows.jsonl"]) == 0
     assert "updated" in capsys.readouterr().out and len((tmp_path / "rows.jsonl").read_text().splitlines()) == len(bench.CASES)
     assert 'quick = ["openai:small"]' in (tmp_path / "crossvet-chat.toml").read_text()
@@ -415,3 +454,21 @@ def test_strong_takes_the_newer_version_of_the_same_model():
     assert slots["strong"] == ["openrouter:anthropic/claude-fable-5.2"]
     assert slots["balanced"] == ["openrouter:anthropic/claude-fable-5.2"]
     assert slots["quick"] == ["openrouter:anthropic/claude-haiku-5"]
+
+
+def test_openai_gets_max_completion_tokens_and_passthrough_converts(monkeypatch):
+    """Found by the live tests on 2026-11-25: OpenAI's current models refuse max_tokens."""
+    monkeypatch.setenv("OPENAI_API_KEY", "k-test")
+    bodies = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        bodies.append(json.loads(request.content))
+        return httpx.Response(200, json={"choices": [{"message": {"content": "hi"}, "finish_reason": "stop"}],
+                                         "usage": {"prompt_tokens": 7, "completion_tokens": 3}})
+
+    providers.call("openai:gpt-6-luna", [{"role": "user", "content": "hello"}], 50, transport(handler))
+    assert bodies[-1]["max_completion_tokens"] == 50 and "max_tokens" not in bodies[-1]
+    providers.passthrough("openai:gpt-6-luna", {"messages": [{"role": "user", "content": "hi"}], "max_tokens": 80,
+                                                "stream": True}, transport(handler))
+    assert bodies[-1]["max_completion_tokens"] == 80 and "max_tokens" not in bodies[-1] and "stream" not in bodies[-1]
+    assert providers.limit_field("openrouter") == providers.limit_field("xai") == "max_tokens"

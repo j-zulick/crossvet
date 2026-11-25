@@ -8,8 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from open_deep_research.chat import cli
-from open_deep_research.chat import handoff as ho
+from crossvet.chat import cli
+from crossvet.chat import handoff as ho
 
 GOOD = {"task_id": "assistant-handoff-001", "revision": 1, "verdict": "contradicted", "quote": "The fixture lists one indexable page."}
 
@@ -146,7 +146,7 @@ def test_cli_pilot_import_show_and_list(hub, monkeypatch, capsys, tmp_path):
 
 
 def test_mcp_handoff_tools(hub):
-    from open_deep_research.chat.mcp_server import tools
+    from crossvet.chat.mcp_server import tools
 
     t = tools(hub, app="chatgpt")
     assert t["handoff_submit"](ho.PILOT_PACKET)["new"] is True

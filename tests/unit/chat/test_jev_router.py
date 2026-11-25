@@ -7,14 +7,14 @@ import json
 import httpx
 import pytest
 
-from open_deep_research.chat import cli
-from open_deep_research.chat.classify import Task
-from open_deep_research.chat.config import parse
-from open_deep_research.chat.hub import Hub
-from open_deep_research.chat.memory import Memory
-from open_deep_research.chat.providers import ProviderError, Reply
-from open_deep_research.chat.record import Recorder
-from open_deep_research.chat.router import DECISIONS_URL, Jev, JevError, chosen
+from crossvet.chat import cli
+from crossvet.chat.classify import Task
+from crossvet.chat.config import parse
+from crossvet.chat.hub import Hub
+from crossvet.chat.memory import Memory
+from crossvet.chat.providers import ProviderError, Reply
+from crossvet.chat.record import Recorder
+from crossvet.chat.router import DECISIONS_URL, Jev, JevError, chosen
 
 from .conftest import CONFIG
 
@@ -153,7 +153,7 @@ def test_cli_route_with_a_hosted_router_is_free(models, monkeypatch, capsys):
 def test_server_router_header(models):
     from starlette.testclient import TestClient
 
-    from open_deep_research.chat.server import create_app
+    from crossvet.chat.server import create_app
 
     hub = make(models, FakeJev())
     client = TestClient(create_app(hub, token=""))

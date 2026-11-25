@@ -5,7 +5,7 @@ import sqlite3
 
 import pytest
 
-from open_deep_research.chat.council import (
+from crossvet.chat.council import (
     Objection,
     challenge,
     compare,
@@ -13,15 +13,15 @@ from open_deep_research.chat.council import (
     parse_objections,
     pick_reviewer,
 )
-from open_deep_research.chat.hub import (
+from crossvet.chat.hub import (
     BudgetExceeded,
     Hub,
     NoModel,
     check,
     strip_fences,
 )
-from open_deep_research.chat.memory import Memory
-from open_deep_research.chat.providers import ProviderError, Reply
+from crossvet.chat.memory import Memory
+from crossvet.chat.providers import ProviderError, Reply
 
 from .conftest import CONFIG, parse
 
@@ -216,6 +216,16 @@ def test_challenge_revises_through_the_author(hub, models):
     result = challenge(hub, "Plan a cache rollout", "old plan", author_model="anthropic:big", revise=True)
     assert result.revised == "Revised: warm the cache first."
     assert "On a cold start" in models.calls[-1][1][-1]["content"]
+
+
+def test_a_cut_off_review_says_so(hub, models):
+    """Found by the live tests on 2026-11-25: a review cut off at the output limit is not valid JSON."""
+    limit = hub.config.max_output_tokens
+    models.set("openai:big", Reply(text='{"objections": [{"claim": "Step 2', model="openai:big", output_tokens=limit))
+    result = challenge(hub, "Plan a cache rollout", "1. Deploy. 2. Switch traffic.", author_model="anthropic:big")
+    assert "cut off at the output limit" in result.problem and result.kept == []
+    models.set("openai:big", Reply(text="not json at all", model="openai:big", output_tokens=5))
+    assert "not valid JSON" in challenge(hub, "r", "work", author_model="anthropic:big").problem
 
 
 def test_reviewer_must_come_from_another_vendor(hub, models):

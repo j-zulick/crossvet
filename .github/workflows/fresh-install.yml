@@ -1,0 +1,32 @@
+name: fresh install
+
+# Installs from the built wheel without uv.lock, the way `uv tool install` and `pip install` from GitHub
+# do, so every dependency is at its newest allowed version, and runs the offline tests. It catches an
+# upstream release that breaks Crossvet (mcp 2.x did, Nov 24, 2026) before users meet it.
+on:
+  schedule:
+    - cron: "17 6 * * 1"  # Mondays
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  newest-dependencies:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.13"
+      - run: uv build --wheel
+      - name: Install with every extra a user would pick, newest versions
+        run: |
+          uv venv /tmp/fresh
+          wheel=$(ls dist/*.whl)
+          uv pip install --python /tmp/fresh/bin/python "crossvet[all] @ file://$PWD/$wheel" pytest
+          uv pip list --python /tmp/fresh/bin/python | grep -iE "^(mcp|httpx|langfuse|opentelemetry-sdk) "
+      - name: Offline tests
+        run: /tmp/fresh/bin/python -m pytest -q -p no:cacheprovider tests/unit

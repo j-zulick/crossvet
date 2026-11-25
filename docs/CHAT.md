@@ -1,8 +1,6 @@
 # Crossvet chat
 
-One chat in front of several vendors' models. Each request is classified and routed to a model suited to it. You can always see why that model was picked and what the answer cost, and a model from another vendor can be asked to break an answer.
-
-`crossvet chat` is a separate tool from the research pipeline. It shares the repository, the install and the rule that outcomes are decided in code.
+One chat that controls Claude, ChatGPT and other models. Use it from Hermes, Cursor or any chat app: each request is classified and routed to a model suited to it, you can always see why that model was picked and what the answer cost, and a model from another vendor can be asked to break an answer. Every step that decides an outcome is code.
 
 - [Start](#start)
 - [How a request is routed](#how-a-request-is-routed)
@@ -38,14 +36,27 @@ Every answer ends with one line: the model, the kind of task, the slot, and the 
 
 ## How a request is routed
 
-Code, not a model, makes the choice:
+Code, not a model, makes the choice, in this order:
 
-1. **Kind of task.** Text rules sort the request into code, review, writing, summarize, extract, translate, reasoning, fresh (current events), quick (one short question) or general. An unclear request is "general", never "quick".
+1. **Kind of task.** Text rules sort the request into code, review, writing, summarize, extract, translate, reasoning, fresh (current events), quick (one short question) or general. An unclear request is "general", never "quick". Pasted code makes a quick or general request a code task.
 2. **Difficulty.** 1 to 3. Words such as "architecture", "security" or "end-to-end", a long request, or three or more parts make it harder.
-3. **Slot.** Each kind starts in a slot (`[routes]` in the settings): quick, balanced, strong, fresh, long or reviewer. A hard task moves up to strong; `--effort high` moves up one slot, `--effort low` down one.
-4. **Fit.** Models whose context window is too small for the input are skipped; if none fit, the `long` slot is used.
+3. **Slot.** Each kind starts in a slot (`[routes]` in the settings): quick, balanced, strong, fresh, long, reviewer, vision or audio. A hard task moves up to strong; `--effort high` moves up one slot, `--effort low` down one.
+4. **What it carries.** Images go to the `vision` slot, audio to `audio`, PDFs to `long` (`[inputs]` changes these). With `[inputs] transcribe = "openai:..."`, audio is turned into text first and routed as text. A model whose settings say `takes = ["image"]` goes first for images; one whose `takes` leaves an input out is skipped for it. Anthropic models get images and PDFs in Anthropic's own format; they don't take audio.
+5. **Your table per kind.** `[kinds]` names the models to try first for one kind of task (`code = ["openai:..."]`). `crossvet chat bench --apply` writes it from measured scores.
+6. **Goal.** `auto` (default), `best` (the strongest slot), `cheapest` (the cheapest models first, moving up only when an answer fails a check) or `fastest` (models ordered by their median answer time over your recent answers). Set it with `[router] goal`, `--goal`, `/goal`, the `x-crossvet-goal` header, or the model names `crossvet/best`, `crossvet/cheapest` and `crossvet/fastest`.
+7. **Cascade.** `[router] cascade = true` starts every request from the quick models and moves up a slot only when an answer fails a check. With `check = "jev"`, Jev's check counts too.
+8. **Fit and history.** Models whose context window is too small for the input are skipped; if none fit, the `long` slot is used. A quick model is sent only the last `[memory] quick_history_turns` turns (4 by default).
+9. **Privacy, last.** A request marked private (`--private`, `/private`, `x-crossvet-private: 1`, or the MCP `private` argument) goes only to local models (`ollama:` or `local:`, or the list in `[privacy] models`). With `[privacy] auto` (on by default), a request that contains an API key, a private key, an ID or card number, or the word "confidential" is private too. A private request with no local model configured is refused, not sent; its text is left out of Langfuse and the JSON-lines copy. No router or table overrides this step.
 
-`crossvet chat route "request"` shows the decision without calling a model. In a chat, `/why` shows it for the last answer.
+**Local first.** `[router] local_first = true` puts your local models (`ollama:`, `local:`) first for quick requests; cloud models follow if a local answer fails a check.
+
+**Prompt caching.** Long system text (shared notes and instructions) sent to Anthropic is marked for caching, so repeated turns pay less for it; OpenAI, Gemini and OpenRouter cache repeated prefixes on their own. Cached input tokens are recorded per answer and summed in the weekly report. `CROSSVET_CHAT_CACHE=0` turns the markers off.
+
+**OpenTelemetry.** With `OTEL_EXPORTER_OTLP_ENDPOINT` set and the `otel` extra installed, every turn is also sent as a span with the standard GenAI attributes (model, tokens) plus kind, slot, router and cost, never its text.
+
+`crossvet chat route "request" [--goal cheapest] [--private] [--attach FILE]` shows the decision without calling a model. In a chat, `/why` shows it for the last answer.
+
+**The learned router.** `crossvet chat learn` trains a small model (naive Bayes over words, in plain Python) on your rated answers: a good rating teaches that slot, a bad rating or a stronger retry teaches the next slot up. It holds out the newest 20%, scores itself and the rules on them, and says which did better. `[router] use = "learned"` then routes with it when it is at least `learned_min_confidence` sure (0.6 by default); otherwise the rules decide. It needs 30 rated answers to start.
 
 ## Routers and Jev
 
@@ -59,6 +70,7 @@ Five routers (`[router] use`, `CROSSVET_CHAT_ROUTER`, `--router`, `/router` in a
 | `openrouter-auto-code` | OpenRouter's router for coding work (`openrouter/auto-code`) | Same |
 | `jev-router` | TypeSafe's Jev Router on OpenRouter (`typesafe/jev-router`), which also picks the reasoning effort | Same |
 
+- **Help for "general" requests (off by default).** With the `rules` router, `[router] classify_general = "quick"` (or a `provider:model` name) asks a small model to name the kind of any request the rules could not place, with one word from the list of kinds. Code reads the word: anything else, an error or a reached daily cap leaves the request "general". The difficulty stays the rules' own, the call's cost is added to the turn, and `/why` shows what the model said.
 - With a hosted router, the model it chose is recorded (`served by …` in the answer line, `served_by` in Langfuse), and the slot the rules pick is the fallback when the hosted call fails a check.
 - A named slot or model skips the router; such turns are recorded with router `manual`.
 - Jev is TypeSafe's decision model. It answers typed questions about text (a choice, a yes/no probability) rather than writing text. Crossvet reaches it through OpenRouter's Decisions API with the same `OPENROUTER_API_KEY`; input is billed and output is free. The Decisions API is in alpha.
@@ -74,11 +86,42 @@ The next model in the slot is tried only when the one before fails a check code 
 
 ## Use it from other apps
 
+**One step:** from the folder that holds your `.env`,
+
+```bash
+crossvet chat start                # writes crossvet-chat.toml if there is none, checks your keys,
+                                   # prints the Hermes, Cursor and Pi settings, then serves (Ctrl-C stops it)
+```
+
+`--no-serve` prints the settings only; `--port` changes the port. It stops with what to add when no model in quick, balanced or strong can be called with your keys.
+
+**Hermes.** Add a custom OpenAI-compatible provider:
+
+| Field | Value |
+|---|---|
+| Base URL | `http://127.0.0.1:8787/v1` |
+| Model | `auto` (or a slot such as `crossvet/strong`, or a goal: `crossvet/best`, `crossvet/cheapest`, `crossvet/fastest`) |
+| API key | any text on this computer; the value of `CROSSVET_CHAT_TOKEN` if you set one |
+
+Keep `crossvet chat start` running while you chat. Answers stream as they are written. Hermes can also reach the MCP tools below. The live run of 2026-11-25 drove the server the way Hermes calls it (plain, streamed and `/why`; [results](live-runs/2026-11-25.md)); it has not yet been checked from inside the Hermes app.
+
+**Cursor.** Cursor reaches Crossvet through MCP tools (see why below). Add to `~/.cursor/mcp.json`, with your own folder:
+
+```json
+{"mcpServers": {"crossvet": {"command": "bash", "args": ["-lc", "cd ~/crossvet-work && crossvet chat mcp"]}}}
+```
+
+The `cd` makes the server read `.env` and `crossvet-chat.toml` from that folder. `crossvet chat start --no-serve` prints this entry with your folder filled in. Then ask Cursor's agent to use the `ask`, `compare_models` or `challenge` tools. The live run of 2026-11-25 started the MCP server over stdio the way Cursor does, listed its tools and called `explain_route` and `ask`; it has not yet been checked from inside the Cursor app.
+
+**Pi.** Pi reads MCP servers from `~/.pi/agent/mcp.json`. `crossvet chat start --write-pi` adds a `crossvet` entry there (keeping your other servers, with the old file saved as `mcp.json.bak`); `pi mcp list` checks it. Not yet checked against a live Pi install.
+
 **Any chat app that takes an OpenAI-style URL** (Open WebUI, LibreChat, Hermes, scripts):
 
 ```bash
 crossvet chat serve                # http://127.0.0.1:8787/v1, model "auto"; activity page at http://127.0.0.1:8787/
 ```
+
+- **Streaming.** With `"stream": true` each piece of text is sent as it arrives, and a closing chunk carries the model, usage and the `crossvet` object. A model that fails before sending any text is skipped for the next one in the slot, as without streaming. Text already sent can't be taken back, so a later problem (cut off at the output limit, broken JSON, a dropped connection) is recorded on the turn and no other model is tried; the Jev answer check is not run on streamed answers. Requests that fail before any text get an HTTP error, as without streaming. Agent requests with tools are answered in one piece.
 
 - Model names: `auto` (the router decides), `crossvet/<slot>`, or `provider:model`.
 - Each response carries a `crossvet` object: model, slot, kind, the reason, cost, thread, turn id.
@@ -100,11 +143,25 @@ Thirteen tools: `ask`, `ask_model`, `compare_models`, `challenge`, `explain_rout
 
 One SQLite file (`~/.local/share/crossvet/chat.db`, or `CROSSVET_CHAT_DB`) holds every turn and every note, from every app. The database refuses updates and deletes. Notes are shown to models inside a marked block, as reference data, never as instructions.
 
+**Backup, restore and retention.**
+
+```bash
+crossvet chat backup                       # a consistent copy (safe while the server runs): crossvet-chat-backup-<time>.db
+crossvet chat backup ~/Backups/chat.db
+crossvet chat restore ~/Backups/chat.db --yes          # the current store is saved next to it first
+crossvet chat prune --older-than 180 --yes             # keep the last 180 days of turns; a backup is saved first
+crossvet chat prune --yes                              # the same, with the days from [retention] keep_days
+```
+
+Every copy is checked (SQLite's integrity check, and that it is a Crossvet chat store) before it is used. The store refuses deletes, so `prune` builds a new file with the turns of the last N days and their ratings, keeps every note, the routing table, its evidence and handoffs, keeps the store's id (so Langfuse trace ids still match), and puts it in place of the old one. Stop `crossvet chat serve`, `start` and any MCP server before `restore` or `prune`: a process that keeps the old file open would go on writing to it. Without `--yes`, both say what they would do and stop.
+
+**Retention.** `[retention] keep_days` in the settings file says how long turns stay (0, the default, keeps everything). `crossvet chat doctor` counts the turns past it, and `crossvet chat prune --yes` removes them. Pruning stays a step you run, not something the server does on its own, because it replaces the store file. On a server: `docker compose stop api mcp`, `docker compose run --rm api crossvet chat prune --yes`, `docker compose start api mcp`. Sign-in records clean themselves up: expired requests, codes and tokens are deleted as new ones arrive. To keep request and answer text out of Langfuse and the JSON-lines copy, set `[record] content = "metadata"`.
+
 ## Recording and ratings
 
 Every turn and every rating is written to the local store first. Copies go to Langfuse, a JSON-lines file, or both (`[record]` in the settings). A copy that fails never breaks a turn.
 
-**Langfuse.** Set `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY` and, for a self-hosted instance, `LANGFUSE_BASE_URL` in `.env`. With the default `sink = "auto"`, each answer becomes one generation on its own trace:
+**Langfuse.** Install with the `langfuse` (or `all`) extra, then set `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY` and, for a self-hosted instance, `LANGFUSE_BASE_URL` in `.env`. `crossvet chat doctor` says when the keys are set but the package is missing. With the default `sink = "auto"`, each answer becomes one generation on its own trace:
 
 - the model, and the model a hosted router picked;
 - metadata: kind of task, difficulty, slot, router, the reason in words, every attempt, seconds, and whether tools were called;
@@ -127,6 +184,26 @@ A turn's trace id is derived from its id and the store's own id, so a rating giv
 **OpenRouter Broadcast** can also send every OpenRouter call to Langfuse without code. If both are on, each call appears twice; only Crossvet's trace carries the routing reason and the ratings.
 
 `crossvet chat log --thread ID` shows each answer's turn id and its ratings.
+
+**Ratings added in Langfuse.** Scores you add in Langfuse's interface (on a trace, or through an annotation queue) count too:
+
+```bash
+crossvet chat sync                  # read the last 30 days of Langfuse scores named user-feedback; save new ones here
+crossvet chat sync --days 7 --score my-score
+crossvet chat tune --sync           # sync first, then tune
+```
+
+Only scores people added in Langfuse (source `ANNOTATION`) are read; the ones Crossvet sent are skipped, and each score is saved once. A score is matched to its answer by trace id, so only answers saved by this store can be matched. Its value becomes good or bad in code: a number from 0 to 1 (0.5 and above is good), true or false, or a label such as good, bad, positive, negative, yes, no, up, down, or a thumbs-up or thumbs-down sign. Anything else is listed and not saved. Create the score in Langfuse with the same name (`user-feedback`) as a numeric 0–1, boolean or categorical good/bad score.
+
+**Weekly report.**
+
+```bash
+crossvet chat report                # the last 7 days: answers and cost, cost per model, ratings per kind of task, proposals
+crossvet chat report --days 30 --out report.md
+crossvet chat report --langfuse     # also post it to Langfuse as a trace named crossvet-weekly-report
+```
+
+Every number is counted from the local store; proposals use the same rule as `crossvet chat tune`.
 
 ## Tuning the routes
 
@@ -158,18 +235,24 @@ crossvet chat routes reset code       # back to the starting line for code
 **2. Evidence from other people's posts or your notes.**
 
 ```bash
-crossvet chat routes import saved-post.html notes.txt https://example.com/post
-crossvet chat routes import --manual my-claims.jsonl     # rows: kind, model, verdict (good/bad), vendor, model_id, quote
-crossvet chat routes evidence                            # pending claims, each with what accepting it would change
-crossvet chat routes accept 4 7       # or: reject 5
+crossvet chat routes import saved-post.html notes.txt https://openrouter.ai/rankings
+crossvet chat routes import ~/model-posts/                # every .txt, .md and .html file in the folder (up to 500)
+crossvet chat routes import --urls reading-list.txt       # one URL or file path per line; lines starting with # are skipped
+crossvet chat routes import --manual my-claims.jsonl      # rows: kind, model, verdict (good/bad), vendor, model_id, quote
+crossvet chat routes evidence                             # pending claims, each with what accepting it would change
+crossvet chat routes accept 4 7       # or: reject 5; --one decides only that claim, not its repeats
 ```
 
 For each post, in this order:
 
-1. The prompt-injection check (the same one as `crossvet scan`) reads it. If it matches, the post is not sent to a model.
+1. The prompt-injection check (`injection_check.py`, patterns in code) reads it. If it matches, the post is not sent to a model.
 2. A model from your balanced slot lists claims ("model X is good or bad at task Y") with an exact quote.
 3. Code keeps a claim only if its kind is known, its verdict is good or bad, and its quote appears in the post verbatim.
 4. Kept claims wait as pending evidence.
+
+After each post, every kept claim is listed with what accepting it would change, and whether it repeats or contradicts a claim from an earlier post.
+
+**Repeats and conflicts.** Claims with the same kind, model and verdict are the same claim, whichever post they came from; provider prefixes are ignored (`openrouter:openai/gpt-x`, `openai/gpt-x` and `gpt-x` are one model). `routes evidence` shows each claim once with the number of posts that made it, and marks claims that another post contradicts (same kind and model, opposite verdict). Accepting or rejecting a claim decides its repeats too, with one change to the table; `--one` decides only the claim named.
 
 Accepting a "good" claim puts the matching model from your slots first for that kind, or its vendor first if no configured model matches (`--model provider:model` overrides). Accepting a "bad" claim adds the model to the kind's avoid list. A post already imported is skipped unless `--again` is given. Posts and claims stay in the local store; nothing is sent anywhere but the extraction call. Sites that refuse automated reads can be saved from the browser and imported as files.
 
@@ -211,6 +294,14 @@ crossvet chat replay --router openrouter-auto --run --sample 20 --max-usd 2 --ou
 ```
 
 For a sample of questions where a setup would pick a different model, that model answers again. A judge from a third vendor (reviewer slot first, then strong, then balanced) compares the new answer with the original, in random order and without names. Code tallies the verdicts per setup and stops before the cap. Nothing is saved as a chat turn.
+
+**As a Langfuse experiment.**
+
+```bash
+crossvet chat replay --router rules --router learned --table 4 --experiment routing-nov
+```
+
+Each router and table version becomes a run of the experiment `routing-nov`, one item per past answer, scored per item (same model, keeps good, moves troubled) so runs compare side by side in Langfuse. Private requests are skipped; request text is sent only when `[record] content = "full"`.
 
 **Datasets.**
 
@@ -261,11 +352,17 @@ crossvet chat handoff show assistant-handoff-001
 | `crossvet chat note add KEY "text"` / `list` / `search` | Shared notes |
 | `crossvet chat log [--thread ID] [--why]` | What was asked, who answered, why, the cost, turn ids and ratings |
 | `crossvet chat feedback good\|bad [--turn ID] [--comment TEXT]` | Rate an answer (default: the latest) |
-| `crossvet chat bench -m A -m B [--apply]` | Twelve code-scored cases per model; `--apply` writes the best-value models into the slots |
+| `crossvet chat bench -m A -m B [--suite standard\|hard\|all] [--apply]` | Code-scored cases per model: twelve easy ones (`standard`), or sixteen hard ones with traps, strict formats, code edge cases and a 9,000-word document (`hard`); `--apply` writes the best-value models into the slots (`long` too, from the hard suite); `--page FOLDER` writes a results page whose every number comes from the run |
 | `crossvet chat routes show\|history\|set\|reset\|rollback` | The routing table you tune |
 | `crossvet chat routes import\|evidence\|accept\|reject` | Evidence from posts and notes |
-| `crossvet chat tune [--days N] [--apply KIND]` | How each model did per kind of task, from your ratings, with proposals |
-| `crossvet chat replay [--router R] [--table V] [--run]` | How other routers or table versions would have routed your history |
+| `crossvet chat tune [--days N] [--apply KIND] [--sync]` | How each model did per kind of task, from your ratings, with proposals |
+| `crossvet chat sync [--days N] [--score NAME]` | Save ratings people added in Langfuse as ratings here |
+| `crossvet chat report [--days 7] [--out FILE] [--langfuse]` | Cost per model, ratings per kind of task and proposals |
+| `crossvet chat start [--no-serve]` | Config, key check, Hermes and Cursor settings, then the server |
+| `crossvet chat learn [--min N]` | Train the learned router on your ratings and compare it with the rules |
+| `crossvet chat backup [PATH]` / `restore PATH --yes` / `prune [--older-than DAYS] --yes` | Copy, restore or trim the store (`prune` defaults to `[retention] keep_days`) |
+| `crossvet chat replay [--router R] [--table V] [--run] [--experiment NAME]` | How other routers or table versions would have routed your history; `--experiment` records each as a Langfuse experiment run |
+| `crossvet chat dashboard [--days N] [--out FILE]` | One HTML page of cost and quality from your store: spend per day, answers per model and slot, rated good per kind, escalations, prompt-cache share, requests kept local |
 | `crossvet chat export --dataset NAME \| --jsonl FILE` | Answers and ratings as a Langfuse dataset or JSON lines |
 | `crossvet chat handoff pilot\|new\|send\|import\|show\|list\|kit\|reconcile\|resolve\|cancel` | Versioned packets between models, apps and agents |
 | `crossvet chat serve` | The OpenAI-style server |
@@ -279,9 +376,16 @@ crossvet chat handoff show assistant-handoff-001
 |---|---|
 | `CROSSVET_CHAT_CONFIG` | Path of the settings file |
 | `CROSSVET_CHAT_DB` | Path of the shared memory |
-| `CROSSVET_CHAT_TOKEN` | Bearer token the server requires |
+| `CROSSVET_CHAT_TOKEN` | Bearer token the server requires (header only; at least 16 characters off localhost) |
 | `CROSSVET_CHAT_ROUTER` | Override the router for every request |
-| `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_BASE_URL` | Langfuse, shared with the research pipeline |
+| `CROSSVET_CHAT_CACHE` | `0` turns off prompt-cache markers on long system text sent to Anthropic (on by default) |
+| `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_BASE_URL` | Langfuse |
+
+The store records its schema version. A newer release upgrades it in place when it opens, saving a backup beside it first; a store written by a newer release than yours is refused rather than changed.
+
+`[limits]` in the settings file: `max_usd_per_day` and `max_usd_per_call` (spend caps; 0 = none), `max_output_tokens` (4000), `timeout_seconds` (120: one model call, start to finish) and `max_request_bytes` (2,000,000: larger requests to the server get HTTP 413).
+
+A provider that refuses the account (a bad key, no credit, a spending limit, billing) is skipped for the rest of the process; fix the account and restart.
 
 ## Limits
 
@@ -289,7 +393,7 @@ crossvet chat handoff show assistant-handoff-001
 - The Claude Code and Codex workers have been tested with a stand-in for the command; their flags follow the integration handoff of Nov 22 and should be checked against `claude --help` and `codex exec --help` on the machine that runs them.
 - The replay judge is one model's opinion; verdicts are counted in code but not checked against an answer key.
 - Extraction from posts depends on a model finding the claims; the verbatim-quote check stops invented claims, not missed ones.
-- Streaming is simulated: the finished answer is sent as one chunk.
+- Agent requests with tools are not streamed: the finished reply, tool calls included, is sent as one chunk.
 - Tool calls cannot pass through the direct Anthropic API.
 - Jev's answers and the hosted routers have been tested only against stand-ins. The Decisions API is in alpha and may change shape.
-- Not yet run against real models: only the offline tests, and `init --openrouter` against OpenRouter's public model list.
+- Run against real models: OpenAI and Anthropic, on 2026-11-25 ([live-runs/2026-11-25.md](live-runs/2026-11-25.md)). Not yet run live: Google, xAI, OpenRouter, Jev, the hosted routers, local models and the chat benchmark.

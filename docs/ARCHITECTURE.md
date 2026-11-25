@@ -1,79 +1,21 @@
 # Architecture
 
-Crossvet is a LangGraph application with two research engines ("editions") that share one review stage, plus command-line tools around them. This page explains how the parts fit; [DESIGN-DECISIONS.md](DESIGN-DECISIONS.md) explains why.
-
-## Components
-
-| Path | Role |
-|---|---|
-| `src/open_deep_research/deep_researcher.py` | LangGraph edition (graph `deep_researcher`), extended from Open Deep Research |
-| `src/open_deep_research/deep_agent.py` | Deep Agents edition (graph `deep_agent`) |
-| `src/open_deep_research/cross_vendor_review.py` | Review node shared by both editions |
-| `src/open_deep_research/deliberation.py` | Optional deliberation rounds inside the review |
-| `src/open_deep_research/approval.py` | Optional human approval before the report |
-| `src/open_deep_research/gateway_search.py` | Search through a self-hosted research gateway over MCP |
-| `src/open_deep_research/cli.py` | `crossvet`: durable runs with checkpoints |
-| `src/open_deep_research/compare.py` | `crossvet-compare`: setups × questions comparison |
-| `src/open_deep_research/dataset.py` | `crossvet-dataset`: MLX LoRA datasets from run exports |
-| `src/open_deep_research/mcp_server.py` | `crossvet-mcp`: models as MCP tools for coding agents |
-| `src/open_deep_research/doctor.py` | Setup checker |
-| `src/open_deep_research/models.py` | One model factory for every role; capabilities, structured-output method, cost, context limits |
-| `src/open_deep_research/bench.py` | `crossvet-bench`: per-role benchmark, leaderboard and role maps (cases in `bench_cases.py`) |
-| `web/` | Agent Chat UI (Next.js) |
-
-## The LangGraph edition
-
-```mermaid
-flowchart LR
-    S([start]) --> C[clarify_with_user] --> B[write_research_brief] --> SV[research_supervisor]
-    SV -->|ConductResearch, in parallel| R[researcher subgraph<br/>search → summarize → compress]
-    R --> SV
-    SV --> A[approve_research<br/>interrupt if REQUIRE_APPROVAL]
-    A --> F[final_report_generation] --> X[cross_vendor_review] --> E([end])
+```
+ Hermes / any OpenAI-style chat app ──HTTP──► server.py ─┐
+ Cursor / Claude Code / Codex ──────MCP────► mcp_server.py ├─► hub.py ──► providers.py ──► OpenAI, Anthropic, Google, xAI,
+ Terminal ─────────────────────────────────► cli.py ─────┘      │                          OpenRouter, Ollama, local servers
+                                                                 ├─ classify.py / inputs.py   what kind of task, what it carries
+                                                                 ├─ router.py / routing.py    which models to try, and why
+                                                                 ├─ guard (in hub.py)         answer checks, escalation, caps,
+                                                                 │                            refused accounts
+                                                                 └─ memory.py / record.py     the store; copies to Langfuse
 ```
 
-Researchers return compressed findings and keep **raw notes**: the search results they actually received. Raw notes are the ground truth every later check is measured against.
+One request, start to finish:
 
-## The Deep Agents edition
+1. **Classify.** Text rules (`classify.py`) name the kind of task (code, review, writing, summarize, extract, translate, reasoning, fresh, quick, general) and a difficulty from 1 to 3, with the reason in words. `inputs.py` notices images, audio, PDFs and pasted code. Optionally Jev, or a small model for "general" requests, names the kind instead; code accepts its answer only above a confidence.
+2. **Route.** The kind picks a slot (quick, balanced, strong, fresh, long, vision, audio, reviewer); difficulty and `--effort` move it along quick → balanced → strong; a long input moves it to `long`. The routing table you tune (`tuning.py`) puts preferred models first and drops avoided ones; a goal (best, cheapest, fastest) reorders; a private request stays on a local model. The result is an ordered list of models and the reason.
+3. **Call and guard.** `hub.py` calls the first model through `providers.py`. The next model is tried only after an error, an empty or cut-off answer, invalid JSON when JSON was asked for, or (optionally) a failed Jev answer check. Daily and per-call spend caps stop a call before it is made. A provider that refuses the account (401, 402, a quota or billing refusal) is skipped for the rest of the process.
+4. **Record.** The turn (model, kind, slot, reason, attempts, tokens, cost, seconds, escalation) goes to the local SQLite store first, which refuses updates and deletes, then to Langfuse if configured. `/good` and `/bad` add ratings; `tune` turns ratings into proposed table changes that only you accept; the chat benchmark (`bench.py`) scores models per kind of task with answer keys and can write the table.
 
-```mermaid
-flowchart LR
-    S([start]) --> D[deep_research<br/>Deep Agent + researcher sub-agent] --> X[cross_vendor_review] --> E([end])
-    D -.callback.-> N[(captured search results = raw notes)]
-```
-
-The agent plans, delegates and writes `/report.md` in its virtual filesystem. A callback on the run records the output of every search tool call, including calls made inside sub-agents, so the review checks against retrieved text rather than the agent's own summary.
-
-## The review stage
-
-Input: the draft report, the raw notes and the research brief. Output: the revised report with *Review notes* (and a *Disputed* section when needed), a `review` summary in state, and optionally one JSON line in the run export.
-
-1. **Critique.** Every model in `REVIEW_MODELS` critiques the draft in parallel as a typed `Critique`. Failed reviewers are recorded; fewer than two successes skips review (quorum).
-2. **Anonymize.** Critiques are shuffled and relabelled `C1…Cn`.
-3. **Critic.** For each critique, a different model judges every finding against the notes. `DISAGREE_EVIDENCE` must quote the notes; the quote is checked in code (`quote_in_notes`) before it can drop a finding. Unresolved findings go to *Disputed*.
-4. **Deliberation** (optional, ≤ 3 rounds). A rotating challenger contests findings; the author maintains, revises or withdraws. Changes apply only when a quote is verified in the notes; otherwise they are ignored and counted as possible sycophancy.
-5. **Vote.** Each successful reviewer ranks the anonymized critiques; ballots combine by confidence-weighted Borda count.
-6. **Citation check.** URLs in the draft that never appear in the notes are flagged (`check_citations`), no model involved.
-7. **Revise.** `REVIEW_REVISER_MODEL` (ideally a vendor outside the panel) applies the feedback in vote order plus the citation flags.
-
-Every model call in steps 1–7 is isolated: one failure degrades the review and is reported; it never ends the run.
-
-## Configuration
-
-`Configuration` (Pydantic) is read in every node with `Configuration.from_runnable_config`. **Environment variables take precedence** over values passed in `configurable` (behaviour kept from upstream). `crossvet-compare` relies on this: it applies each setup through environment variables for the duration of a run.
-
-## Persistence and tracing
-
-- LangGraph server: in-memory (development server), or LangGraph Platform.
-- `crossvet` CLI: `AsyncSqliteSaver` by default, `AsyncPostgresSaver` with `DATABASE_URL`; every super-step is checkpointed, so `resume` continues after a crash without repeating completed calls.
-- Langfuse callbacks when its keys are set; LangSmith via the standard variables.
-
-## Model routing
-
-`models.build_chat_model(model)` resolves `provider:model` strings for every stage and review role: `local:` → any OpenAI-compatible server at `LOCAL_LLM_BASE_URL`; `openrouter:` → the official `langchain-openrouter` integration (per-call cost in `response_metadata`, `OPENROUTER_*` host routing); everything else → `init_chat_model` (OpenAI, Anthropic, Google, Ollama, Groq, DeepSeek, Bedrock…). In the LangGraph edition, `stage_model()` sends `openrouter:` and `local:` models through the factory and keeps LangChain's configurable model for the rest. `vendor_of()` maps each string to its vendor (OpenRouter models to their maker, local routes to `self-hosted`) for independence checks.
-
-Roles: `Configuration.model_for(role)` gives the orchestration (`SUPERVISOR_MODEL`) and research (`RESEARCHER_MODEL`) models, falling back to `RESEARCH_MODEL`. `models.capabilities()` reads OpenRouter's catalog (saved by `crossvet-setup`) or LangChain's model profiles; the doctor and setup use it to reject a model that cannot call tools or return typed output for a role that needs them, and `structured_output_kwargs()` picks JSON schema or a forced tool call accordingly.
-
-## Deployment
-
-`docker compose up --build` runs the API (both graphs, port 2024) and the web UI (port 3000), bound to localhost. The API image runs as a non-root user and reads keys from `.env` at runtime; no key is baked into an image.
+Settings: keys in `.env`, routing in `crossvet-chat.toml` ([`crossvet-chat.example.toml`](../crossvet-chat.example.toml)). Design records: [DESIGN-DECISIONS.md](DESIGN-DECISIONS.md).

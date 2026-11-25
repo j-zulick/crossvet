@@ -7,11 +7,11 @@ import json
 import httpx
 import pytest
 
-from open_deep_research.chat import cli, providers
-from open_deep_research.chat.config import parse
-from open_deep_research.chat.hub import Hub, in_tool_loop, stronger_slot
-from open_deep_research.chat.memory import Memory
-from open_deep_research.chat.providers import ProviderError, Reply
+from crossvet.chat import cli, providers
+from crossvet.chat.config import parse
+from crossvet.chat.hub import Hub, in_tool_loop, stronger_slot
+from crossvet.chat.memory import Memory
+from crossvet.chat.providers import ProviderError, Reply
 
 from .conftest import CONFIG
 
@@ -136,7 +136,7 @@ def test_stronger_slot_and_retry(hub, models):
 def client(agent_hub):
     from starlette.testclient import TestClient
 
-    from open_deep_research.chat.server import create_app
+    from crossvet.chat.server import create_app
 
     return TestClient(create_app(agent_hub, token=""))
 
@@ -175,12 +175,12 @@ def test_chat_cli_retry_and_cost(hub, models, monkeypatch, capsys):
 
 
 def test_crossvet_dispatches_chat(hub, models, monkeypatch, capsys):
-    from open_deep_research import cli as crossvet_cli
+    from crossvet import cli as crossvet_cli
 
     monkeypatch.setattr(cli, "load", lambda: hub.config)
     assert crossvet_cli.main(["chat", "route", "Fix this Python bug"]) == 0
     assert "code task" in capsys.readouterr().out
-    assert "crossvet chat" in crossvet_cli.START_HERE
+    assert "crossvet chat" in crossvet_cli.__doc__
 
 
 def test_every_chat_environment_variable_is_documented():
@@ -189,7 +189,7 @@ def test_every_chat_environment_variable_is_documented():
 
     root = Path(__file__).resolve().parents[3]
     used = set()
-    for file in (root / "src" / "open_deep_research" / "chat").glob("*.py"):
+    for file in (root / "src" / "crossvet" / "chat").glob("*.py"):
         used |= set(re.findall(r"CROSSVET_CHAT_[A-Z_]+", file.read_text()))
     example = (root / ".env.example").read_text()
     guide = (root / "docs" / "CHAT.md").read_text()

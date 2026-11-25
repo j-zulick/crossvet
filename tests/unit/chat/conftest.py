@@ -4,11 +4,20 @@ from __future__ import annotations
 
 import pytest
 
-from open_deep_research.chat.config import parse
-from open_deep_research.chat.hub import Hub
-from open_deep_research.chat.memory import Memory
-from open_deep_research.chat.providers import ProviderError, Reply
-from open_deep_research.chat.record import Recorder
+from crossvet.chat.config import parse
+from crossvet.chat.hub import Hub
+from crossvet.chat.memory import Memory
+from crossvet.chat.providers import ProviderError, Reply
+from crossvet.chat.record import Recorder
+
+
+@pytest.fixture(autouse=True)
+def _no_pause_on_wrong_tokens(monkeypatch):
+    """The server pauses a second before refusing a token; tests that check the pause set it themselves."""
+    from crossvet.chat import server
+
+    monkeypatch.setattr(server, "FAIL_DELAY_SECONDS", 0.0)
+
 
 CONFIG = {
     "slots": {

@@ -7,12 +7,12 @@ from contextlib import contextmanager
 
 import pytest
 
-from open_deep_research.chat import cli
-from open_deep_research.chat.config import parse
-from open_deep_research.chat.hub import Hub
-from open_deep_research.chat.memory import Memory
-from open_deep_research.chat.providers import ProviderError
-from open_deep_research.chat.record import (
+from crossvet.chat import cli
+from crossvet.chat.config import parse
+from crossvet.chat.hub import Hub
+from crossvet.chat.memory import Memory
+from crossvet.chat.providers import ProviderError
+from crossvet.chat.record import (
     JsonlSink,
     LangfuseSink,
     Recorder,
@@ -159,7 +159,7 @@ def test_build_picks_sinks_from_settings_and_keys(monkeypatch, tmp_path):
 def test_server_feedback_endpoint_and_commands(rec_hub, langfuse):
     from starlette.testclient import TestClient
 
-    from open_deep_research.chat.server import create_app
+    from crossvet.chat.server import create_app
 
     client = TestClient(create_app(rec_hub, token=""))
     convo = [{"role": "user", "content": "What is the capital of France?"}]
@@ -186,7 +186,7 @@ def test_cli_rates_and_log_shows_ratings(hub, models, monkeypatch, capsys):
 
 
 def test_mcp_rate_answer(hub):
-    from open_deep_research.chat.mcp_server import tools
+    from crossvet.chat.mcp_server import tools
 
     t = tools(hub, app="claude")
     answer = t["ask"]("What is the capital of France?")

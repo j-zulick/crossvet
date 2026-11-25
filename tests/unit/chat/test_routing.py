@@ -2,9 +2,9 @@
 
 import pytest
 
-from open_deep_research.chat.classify import classify
-from open_deep_research.chat.config import Config, load, parse
-from open_deep_research.chat.routing import route
+from crossvet.chat.classify import classify
+from crossvet.chat.config import Config, load, parse
+from crossvet.chat.routing import route
 
 from .conftest import CONFIG
 

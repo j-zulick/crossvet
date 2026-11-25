@@ -6,7 +6,7 @@ import json
 
 import pytest
 
-from open_deep_research.chat import cli, replay
+from crossvet.chat import cli, replay
 
 
 def seed(hub):
@@ -107,3 +107,32 @@ def test_cli_replay_and_export(hub, monkeypatch, capsys, tmp_path):
 @pytest.fixture(autouse=True)
 def _no_router_override(monkeypatch):
     monkeypatch.delenv("CROSSVET_CHAT_ROUTER", raising=False)
+
+
+def test_experiment_sends_one_run_per_setup_with_scores(hub, models):
+    from crossvet.chat import replay
+
+    class Client:
+        def __init__(self):
+            self.runs = []
+
+        def run_experiment(self, *, name, run_name, data, task, evaluators, **kw):
+            scores = []
+            for item in data:
+                output = task(item=item)
+                for evaluate in evaluators:
+                    found = evaluate(input=item["input"], output=output, expected_output=item["expected_output"],
+                                     metadata=item["metadata"])
+                    scores += found if isinstance(found, list) else [found]
+            self.runs.append((name, run_name, len(data), {(s.name, s.value) for s in scores}))
+
+        def flush(self):
+            pass
+
+    good = hub.ask("Fix this Python function that throws KeyError")
+    hub.feedback(True, turn_id=good.turn_id)
+    hub.ask("Summarize: this is confidential", private=True) if hub.config.local_models() else None
+    client = Client()
+    runs = replay.experiment(hub, replay.history(hub), ["rules"], [0], "routing-check", client)
+    assert runs == ["rules", "rules, table v0"] and client.runs[0][:3] == ("routing-check", "rules", 1)
+    assert ("same_model", 1.0) in client.runs[0][3] and ("keeps_good", 1.0) in client.runs[0][3]

@@ -14,7 +14,7 @@ def _specs() -> list[str]:
     return list(project["dependencies"]) + [s for extra in project.get("optional-dependencies", {}).values() for s in extra]
 
 
-def test_mcp_is_capped_below_2():
-    """mcp 2 renamed FastMCP and other APIs that Crossvet and langchain-mcp-adapters import (found Nov 24, 2026)."""
+def test_mcp_1_and_2_are_both_allowed():
+    """Chat runs on MCP SDK 1.x and 2.x; the cap stops an untested 3.x."""
     mcp = [s for s in _specs() if re.match(r"^mcp\b", s)]
-    assert mcp and all("<2" in s for s in mcp), mcp
+    assert mcp and all("<3" in s and "<2" not in s for s in mcp), mcp

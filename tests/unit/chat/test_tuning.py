@@ -7,12 +7,12 @@ import random
 
 import pytest
 
-from open_deep_research.chat import cli
-from open_deep_research.chat.config import parse
-from open_deep_research.chat.hub import Hub
-from open_deep_research.chat.memory import Memory
-from open_deep_research.chat.record import Recorder
-from open_deep_research.chat.tuning import (
+from crossvet.chat import cli
+from crossvet.chat.config import parse
+from crossvet.chat.hub import Hub
+from crossvet.chat.memory import Memory
+from crossvet.chat.record import Recorder
+from crossvet.chat.tuning import (
     DEFAULT,
     check_claims,
     import_manual,

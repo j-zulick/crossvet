@@ -59,14 +59,11 @@ logs/
 # Dependencies
 node_modules/
 
-# LangGraph specific
-.langgraph/
 
 # Temporary files
 tmp/
 temp/
 
-.langgraph_api
 .venv
 .next
 .ruff_cache
@@ -83,3 +80,6 @@ compare-results/
 /data/
 adapters/
 fused_model/
+
+# live test log (tests/live)
+live-run.jsonl

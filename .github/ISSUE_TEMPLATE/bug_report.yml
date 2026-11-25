@@ -9,14 +9,14 @@ body:
     id: what
     attributes:
       label: What happened
-      description: What you ran, what you expected, and what happened instead.
+      description: What you ran or asked, what you expected, and what happened instead.
     validations:
       required: true
   - type: textarea
     id: repro
     attributes:
       label: How to reproduce
-      description: The command or code, the question, and the settings that matter (model names, SEARCH_API, review settings). `uv run crossvet-doctor` output helps; it never prints keys.
+      description: The command or request, the chat app (Hermes, Cursor, terminal, other), and the settings that matter. `crossvet chat doctor` output helps; it never prints keys.
       render: shell
     validations:
       required: true
@@ -24,16 +24,12 @@ body:
     id: version
     attributes:
       label: Crossvet version
-      placeholder: "0.1.0"
+      description: "`crossvet --version`"
+      placeholder: "1.0.0"
     validations:
       required: true
-  - type: dropdown
-    id: edition
-    attributes:
-      label: Edition
-      options: [LangGraph (deep_researcher), Deep Agents (deep_agent), Not sure]
   - type: textarea
     id: logs
     attributes:
-      label: Error output or Review notes
+      label: Error output, or what `/why` showed
       render: text

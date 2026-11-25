@@ -13,7 +13,7 @@ body:
     id: proposal
     attributes:
       label: Proposal
-      description: What you'd like Crossvet to do. If it changes how review decides outcomes, say how it would be checked in code.
+      description: What you'd like Crossvet to do. If it changes how a request is routed or checked, say how it would be checked in code.
     validations:
       required: true
   - type: textarea
