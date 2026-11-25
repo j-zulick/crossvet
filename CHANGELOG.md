@@ -4,6 +4,19 @@ All notable changes to Crossvet. Versions follow [Semantic Versioning](https://s
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-25
+
+### Tested live
+- The chat benchmark: six models (gpt-6-luna, claude-haiku-5-5, gpt-6.1-terra, claude-sonnet-5-5, gpt-6.1-sol, claude-opus-5-5), all 28 cases each, code answers run and checked, 168 calls, none failed, $0.48: [docs/benchmarks/2026-11-25/](docs/benchmarks/2026-11-25/README.md).
+
+### Added
+- Benchmark rows keep the first 600 characters of each answer (`answer`), so a low score can be checked against what the model said.
+
+### Fixed (found by the live benchmark)
+- `corrected-listing` asked for a "model" key with no year or make key, and all six models wrote "2016 Nissan Rogue". The case now asks for year, make and model separately.
+- Names written with a typographic apostrophe (Scotti’s) did not match the answer key (Scotti's). Quote style is now ignored.
+- `gold-certified` needed the digit 6, so "under six years old" lost a third of the score. Either spelling now counts.
+
 ## [1.0.0] - 2026-11-25
 
 Crossvet is now one thing: one chat that controls Claude, ChatGPT and other models, used from Hermes, Cursor or any chat app. Everything else moved out (see Removed). Versions 0.2 to 0.9 were built but never published; their chat features are in this release.

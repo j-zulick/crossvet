@@ -17,6 +17,7 @@ from crossvet.chat.hub import Hub, strip_fences
 from crossvet.chat.providers import ProviderError
 
 VALUE_MARGIN = 0.10
+ANSWER_KEEP = 600  # characters of each answer kept in the rows, so a low score can be checked against what the model said
 SLOT_KINDS = {"quick": ("quick", "summarize", "extract"), "balanced": ("writing",), "strong": ("code", "reasoning"),
               "long": ("long",)}
 
@@ -46,9 +47,17 @@ def _number(expected: str) -> Callable[[str], float]:
     return score
 
 
+_QUOTES = str.maketrans({"\u2018": "'", "\u2019": "'", "\u201c": '"', "\u201d": '"'})
+
+
+def _text(value: object) -> str:
+    """Lower case, trimmed, with typographic quotes made plain (Scotti\u2019s == Scotti's)."""
+    return str(value).translate(_QUOTES).strip().lower()
+
+
 def _same(got: object, want: object) -> bool:
-    """Equal as text (case and spaces ignored), or as numbers when both read as numbers (1480.5 == "1480.50")."""
-    a, b = str(got).strip().lower(), str(want).strip().lower()
+    """Equal as text (case, spaces and quote style ignored), or as numbers when both read as numbers (1480.5 == "1480.50")."""
+    a, b = _text(got), _text(want)
     if a == b:
         return True
     try:
@@ -81,8 +90,8 @@ def _json_list(key: str, expected: list[str]) -> Callable[[str], float]:
         got = data.get(key) if data else None
         if not isinstance(got, list):
             return 0.0
-        got = [str(g).strip().lower() for g in got]
-        want = [e.lower() for e in expected]
+        got = [_text(g) for g in got]
+        want = [_text(e) for e in expected]
         if got == want:
             return 1.0
         return 0.5 * len(set(got) & set(want)) / len(set(got) | set(want))
@@ -133,9 +142,14 @@ def _plain(max_words: int, banned: tuple[str, ...], must_any: tuple[str, ...]) -
     return score
 
 
-def _summary(must: tuple[str, ...], max_words: int) -> Callable[[str], float]:
+def _summary(must: tuple[str | tuple[str, ...], ...], max_words: int) -> Callable[[str], float]:
+    """Share of ``must`` present (a tuple entry is met by any of its spellings, "6" or "six"), halved when over ``max_words``."""
+    def present(item: str | tuple[str, ...], low: str) -> bool:
+        return any(m.lower() in low for m in ((item,) if isinstance(item, str) else item))
+
     def score(text: str) -> float:
-        kept = sum(m.lower() in text.lower() for m in must) / len(must)
+        low = _text(text)
+        kept = sum(present(m, low) for m in must) / len(must)
         return kept if len(text.split()) <= max_words else kept * 0.5
     return score
 
@@ -201,7 +215,7 @@ CASES: tuple[Case, ...] = (
     Case("search-summary", "summarize", f"Summarize in at most 40 words:\n\n{_SEARCHES}",
          _summary(("Kelley Blue Book", "Sarasota Ford"), 40)),
     Case("gold-certified", "summarize", f"In at most 30 words, say what a Gold certified vehicle must meet:\n\n{_CPO}",
-         _summary(("172", "6", "80,000"), 30)),
+         _summary(("172", ("6", "six"), "80,000"), 30)),
     Case("listing", "extract", 'Extract as JSON with keys "year", "make", "model", "trim", "miles" and "price" (numbers '
          'without commas or symbols): "Used 2019 Ford EcoSport Titanium for Sale · 115,176 Miles · $6,799"',
          _json_fields({"year": "2019", "make": "Ford", "model": "EcoSport", "trim": "Titanium", "miles": "115176",
@@ -270,11 +284,12 @@ HARD_CASES: tuple[Case, ...] = (
          _summary_without(("four", "Sarasota Ford", "only"), ("five",), 30),
          "Sarasota Ford's own site appeared in four of six Sarasota used-car searches, the only dealer site that ranked directly."),
     Case("corrected-listing", "extract",
-         'Return JSON with keys "model", "trim", "price" (number) and "miles" (number) for the corrected listing: Our first note '
+         'Return JSON with keys "year" (number), "make", "model", "trim", "price" (number) and "miles" (number) for the '
+         'corrected listing: Our first note '
          "gave the used 2016 Nissan Rogue SV at Gettel Genesis of Sarasota as $11,949 with 45,585 miles. The TrueCar listing "
          "shows $11,994 and 45,558 miles; use the listing.",
-         _json_fields({"model": "Rogue", "trim": "SV", "price": "11994", "miles": "45558"}),
-         '{"model": "Rogue", "trim": "SV", "price": 11994, "miles": 45558}'),
+         _json_fields({"year": "2016", "make": "Nissan", "model": "Rogue", "trim": "SV", "price": "11994", "miles": "45558"}),
+         '{"year": 2016, "make": "Nissan", "model": "Rogue", "trim": "SV", "price": 11994, "miles": 45558}'),
     Case("directory-dealers", "extract",
          'Return a JSON object {"dealers": [...]} listing, in the order mentioned, the dealers that appeared only through '
          'marketplace or directory pages: "The results named Sarasota Ford, through its own site, and Gettel Hyundai of '
@@ -342,9 +357,10 @@ def run(hub: Hub, models: list[str], cases: tuple[Case, ...] = CASES, run_code: 
     rows: list[dict] = []
     for model in models:
         for case in cases:
-            row = {"model": model, "case": case.name, "kind": case.kind, "score": 0.0, "cost": None, "error": ""}
+            row = {"model": model, "case": case.name, "kind": case.kind, "score": 0.0, "cost": None, "error": "", "answer": ""}
             try:
                 answer = hub.ask(case.prompt, model=model, use_memory=False, save=False, author="bench", want_json=False)
+                row["answer"] = answer.text[:ANSWER_KEEP]
                 row["score"] = case.score(answer.text)
                 if run_code and hasattr(case.score, "checks") and row["score"] == 1.0:
                     row["score"] = run_code_score(answer.text, case.score.function_name, case.score.checks)  # type: ignore[attr-defined]
@@ -475,7 +491,7 @@ def results_page(rows: list[dict], *, date: str, suite: str, command: str, run_c
         f"- Every case is synthetic and small; a kind's score rests on {spread} case(s).",
         "- One run per model and case: a single answer can move a kind's score by a lot.",
         "- Scores say which models fail a job, and on the hard suite which fall for its traps; they are not a general ranking.",
-        "- `results.jsonl` next to this page has every row: model, case, kind, score, cost and any error.",
+        "- `results.jsonl` next to this page has every row: model, case, kind, score, cost, any error and the start of the answer.",
         "",
     ]
     return "\n".join(lines)

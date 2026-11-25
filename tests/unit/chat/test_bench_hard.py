@@ -26,7 +26,7 @@ def test_reference_code_passes_its_checks_when_run():
     ("count-letters", "5"),
     ("decimal-compare", "9.11"),
     ("corrected-figure", "Sarasota Ford's own site appeared in five of six searches, the only dealer site that ranked."),
-    ("corrected-listing", '{"model": "Rogue", "trim": "SV", "price": 11949, "miles": 45585}'),
+    ("corrected-listing", '{"year": 2016, "make": "Nissan", "model": "Rogue", "trim": "SV", "price": 11949, "miles": 45585}'),
     ("directory-dealers", '{"dealers": ["Sarasota Ford", "Gettel Hyundai of Sarasota", "Scotti\'s Auto", "Gulf Coast Auto Brokers of Sarasota"]}'),
     ("directory-dealers", '{"dealers": ["Scotti\'s Auto", "Gettel Hyundai of Sarasota", "Gulf Coast Auto Brokers of Sarasota"]}'),  # wrong order
     ("three-bullets", "- New price from 1 May!\n- It was $12.\n- It will be $15.\n- Thanks for staying with us."),
@@ -45,6 +45,25 @@ def test_traps_score_below_one(name, trap):
 def test_naming_the_wrong_answer_then_the_right_one_counts_the_right_one():
     assert HARD["search-order"].score("Not Cars.com: it is TrueCar.") == 1.0
     assert HARD["time-zones"].score("Not 05:30 but 6:30.") == 1.0
+
+
+def test_a_number_written_as_a_word_counts():
+    # 2026-11-25 live run: two models wrote "under six years old" and lost a third of the score.
+    gold = next(c for c in bench.CASES if c.name == "gold-certified")
+    assert gold.score("A Gold certified vehicle must pass a 172-point inspection, be under six years old, and have fewer than 80,000 miles.") == 1.0
+    assert gold.score("A Gold certified vehicle must pass a 172-point inspection and have fewer than 80,000 miles.") < 1.0
+
+
+def test_typographic_quotes_match_plain_ones():
+    assert bench._same("Scotti\u2019s Auto", "Scotti's Auto")
+    curly = '{"dealers": ["Gettel Hyundai of Sarasota", "Scotti\u2019s Auto", "Gulf Coast Auto Brokers of Sarasota"]}'
+    assert HARD["directory-dealers"].score(curly) == 1.0
+
+
+def test_a_listing_with_year_and_make_in_their_own_keys_scores_full():
+    # 2026-11-25 live run: all six models wrote "model": "2016 Nissan Rogue" when the prompt had no year or make key.
+    good = '{"year": 2016, "make": "Nissan", "model": "Rogue", "trim": "SV", "price": 11994, "miles": 45558}'
+    assert HARD["corrected-listing"].score(good) == 1.0
 
 
 def test_numbers_in_json_match_however_they_are_written():

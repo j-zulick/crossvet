@@ -352,7 +352,7 @@ crossvet chat handoff show assistant-handoff-001
 | `crossvet chat note add KEY "text"` / `list` / `search` | Shared notes |
 | `crossvet chat log [--thread ID] [--why]` | What was asked, who answered, why, the cost, turn ids and ratings |
 | `crossvet chat feedback good\|bad [--turn ID] [--comment TEXT]` | Rate an answer (default: the latest) |
-| `crossvet chat bench -m A -m B [--suite standard\|hard\|all] [--apply]` | Code-scored cases per model: twelve easy ones (`standard`), or sixteen hard ones with traps, strict formats, code edge cases and a 9,000-word document (`hard`); `--apply` writes the best-value models into the slots (`long` too, from the hard suite); `--page FOLDER` writes a results page whose every number comes from the run |
+| `crossvet chat bench -m A -m B [--suite standard\|hard\|all] [--apply]` | Code-scored cases per model: twelve easy ones (`standard`), or sixteen hard ones with traps, strict formats, code edge cases and a nearly 12,000-word document (`hard`); `--apply` writes the best-value models into the slots (`long` too, from the hard suite); `--page FOLDER` writes a results page whose every number comes from the run; each row keeps the first 600 characters of the answer, so a low score can be checked |
 | `crossvet chat routes show\|history\|set\|reset\|rollback` | The routing table you tune |
 | `crossvet chat routes import\|evidence\|accept\|reject` | Evidence from posts and notes |
 | `crossvet chat tune [--days N] [--apply KIND] [--sync]` | How each model did per kind of task, from your ratings, with proposals |
@@ -396,4 +396,4 @@ A provider that refuses the account (a bad key, no credit, a spending limit, bil
 - Agent requests with tools are not streamed: the finished reply, tool calls included, is sent as one chunk.
 - Tool calls cannot pass through the direct Anthropic API.
 - Jev's answers and the hosted routers have been tested only against stand-ins. The Decisions API is in alpha and may change shape.
-- Run against real models: OpenAI and Anthropic, on 2026-11-25 ([live-runs/2026-11-25.md](live-runs/2026-11-25.md)). Not yet run live: Google, xAI, OpenRouter, Jev, the hosted routers, local models and the chat benchmark.
+- Run against real models: OpenAI and Anthropic, on 2026-11-25 ([live-runs/2026-11-25.md](live-runs/2026-11-25.md)). The chat benchmark ran live on the same day with six OpenAI and Anthropic models ([benchmarks/2026-11-25/](benchmarks/2026-11-25/README.md)). Not yet run live: Google, xAI, OpenRouter, Jev, the hosted routers and local models.

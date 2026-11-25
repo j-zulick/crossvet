@@ -19,7 +19,7 @@ Both answers are from the [live run of 2026-11-25](docs/live-runs/2026-11-25.md)
 ## Quick start
 
 ```bash
-uv tool install "crossvet[langfuse] @ git+https://github.com/j-zulick/crossvet@v1.0.0"
+uv tool install "crossvet[langfuse] @ git+https://github.com/j-zulick/crossvet@v1.1.0"
 mkdir ~/crossvet-work && cd ~/crossvet-work
 # put your keys in .env (copy .env.example from the repository): OPENAI_API_KEY, ANTHROPIC_API_KEY, ...
 crossvet chat start
@@ -59,9 +59,11 @@ Providers: OpenAI, Anthropic, Google, xAI, OpenRouter (most other vendors with o
 - a rated turn reached Langfuse with its score;
 - the MCP server, started the way Cursor starts it, listed its tools and answered.
 
-The run found and fixed one serious bug: OpenAI's current models refuse the `max_tokens` field, so every OpenAI call failed until Crossvet sent `max_completion_tokens`. Not run live yet: the Hermes and Cursor apps themselves, Google, xAI, OpenRouter, Jev and local models, and the chat benchmark.
+The run found and fixed one serious bug: OpenAI's current models refuse the `max_tokens` field, so every OpenAI call failed until Crossvet sent `max_completion_tokens`. Not run live yet: the Hermes and Cursor apps themselves, Google, xAI, OpenRouter, Jev and local models.
 
-400 offline tests run on every change, with lint, CodeQL, a secret scan and an SBOM.
+The chat benchmark ran live on 2026-11-25: six OpenAI and Anthropic models, 28 code-scored cases each, $0.48 in all. The cheapest models, gpt-6-luna and claude-haiku-5-5, scored 1.00 on code, reasoning, quick questions and the nearly 12,000-word document, so the strong slot is a choice for harder work than these cases test. The misses were format misses: summaries and subject lines over their word limit, and commentary added after JSON. Every score and answer: [docs/benchmarks/2026-11-25/](docs/benchmarks/2026-11-25/README.md).
+
+403 offline tests run on every change, with lint, CodeQL, a secret scan and an SBOM.
 
 ## Documentation
 

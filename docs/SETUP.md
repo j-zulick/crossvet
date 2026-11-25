@@ -5,8 +5,8 @@
 Crossvet installs from GitHub (there is no PyPI package). With [uv](https://docs.astral.sh/uv/):
 
 ```bash
-uv tool install "git+https://github.com/j-zulick/crossvet@v1.0.0"                # the chat (3 dependencies)
-uv tool install "crossvet[langfuse] @ git+https://github.com/j-zulick/crossvet@v1.0.0"   # plus Langfuse recording
+uv tool install "git+https://github.com/j-zulick/crossvet@v1.1.0"                # the chat (3 dependencies)
+uv tool install "crossvet[langfuse] @ git+https://github.com/j-zulick/crossvet@v1.1.0"   # plus Langfuse recording
 ```
 
 `pip install` takes the same strings in a virtual environment. Python 3.11 to 3.13.

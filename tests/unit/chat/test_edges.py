@@ -180,13 +180,14 @@ def test_leaderboard_and_best_value(hub, models):
     assert bench.best_value(rows)["quick"] == ["openai:small", "anthropic:big"]   # same score, cheaper first; the failing model is out
     assert "openai:small" in bench.table(rows)
     assert hub.memory.recent(5) == []                                              # bench runs are not saved to memory
+    assert all(r["answer"] for r in rows if r["model"] != "openai:mid") and len(rows[0]["answer"]) <= bench.ANSWER_KEEP
 
 
 def test_bench_records_errors(hub, models):
     models.set("openai:small", ProviderError("down"))
     models.set("anthropic:small", ProviderError("down"))
     rows = bench.run(hub, ["openai:small"], bench.CASES[:1])
-    assert rows[0]["score"] == 0.0 and "down" in rows[0]["error"]
+    assert rows[0]["score"] == 0.0 and "down" in rows[0]["error"] and rows[0]["answer"] == ""
 
 
 # --- HTTP server ---
