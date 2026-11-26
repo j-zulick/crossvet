@@ -7,7 +7,7 @@ The interfaces below follow [Semantic Versioning](https://semver.org/): a change
 **Commands.** The `crossvet` program, these subcommands and their documented options:
 
 <!-- list:commands -->
-`ask`, `backup`, `bench`, `challenge`, `chat`, `compare`, `cost`, `dashboard`, `doctor`, `export`, `handoff`, `init`, `leaderboard`, `log`, `mcp`, `models`, `note`, `notes`, `prune`, `rate`, `replay`, `report`, `restore`, `review`, `route`, `score`, `serve`, `start`, `sync`, `tune`, `why`
+`ask`, `backup`, `bench`, `challenge`, `chat`, `compare`, `cost`, `dashboard`, `doctor`, `export`, `handoff`, `init`, `leaderboard`, `log`, `mcp`, `models`, `note`, `notes`, `prune`, `rate`, `replay`, `report`, `restore`, `review`, `route`, `score`, `serve`, `service`, `start`, `sync`, `tune`, `why`
 <!-- /list -->
 
 The 1.x spellings `crossvet chat <subcommand>` keep working for each of them. Exit codes: 0 success; 1 a failure or problems found; 2 a usage error; 3 a spend cap, or a log written by a newer Crossvet.

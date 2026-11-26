@@ -1,0 +1,9 @@
+.git
+.venv
+.env
+*.db
+.crossvet
+dist
+build
+tests
+docs

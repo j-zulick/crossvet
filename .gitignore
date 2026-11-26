@@ -83,3 +83,6 @@ fused_model/
 
 # live test log (tests/live)
 live-run.jsonl
+
+# Crossvet review records written in this repository
+.crossvet/

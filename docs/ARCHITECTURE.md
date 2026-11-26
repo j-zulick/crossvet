@@ -11,7 +11,7 @@
                                                                 └─ lab.py      decisions, ratings, notes, routes, handoffs
  Built on the core: multi.py (compare, challenge, replay), review.py and review_bench.py, score.py (judge, shadow,
  calibration, leaderboard), bench.py, tuning.py, langfuse.py,
- care.py, handoff.py
+ care.py, handoff.py; service.py runs the server at login (launchd, systemd); Dockerfile and compose.yaml for a server
 ```
 
 One request, start to finish:

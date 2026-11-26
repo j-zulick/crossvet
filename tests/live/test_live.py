@@ -415,3 +415,44 @@ def test_auto_routes_from_real_judged_answers(tmp_path):
     assert answer.model == decision.model and "34233" in answer.text
     log("route_from_scores", answer, board={m: {k: c[k] for k in ("n", "score", "low")} for m, c in board.items()},
         reason=decision.reason, judge_cost=sum(r["cost"] for r in cv.lab.db.execute("SELECT cost FROM scores").fetchall()))
+
+
+# --- 3.4: the server as a long-running process ------------------------------------------------------
+
+def test_the_server_process_answers_auto_over_http(tmp_path):
+    if not ready("openai:gpt-6-luna", "anthropic:claude-haiku-5-5"):
+        pytest.skip("needs a key")
+    import socket
+    import subprocess
+    import urllib.request
+
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        port = probe.getsockname()[1]
+    env = {**os.environ, "CROSSVET_DB": str(tmp_path / "svc.db"), "CROSSVET_CONFIG": ""}
+    server = subprocess.Popen([sys.executable, "-c", f"from crossvet.cli import main; main(['serve', '--port', '{port}'])"],
+                              env=env, cwd=tmp_path, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    try:
+        for _ in range(50):
+            try:
+                health = json.loads(urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=1).read())
+                break
+            except OSError:
+                time.sleep(0.2)
+        else:
+            pytest.fail("the server did not start: " + (server.stderr.read(2000) if server.stderr else b"").decode())
+        body = json.dumps({"model": "auto", "messages": [{"role": "user", "content": "Sarasota Ford is at 707 S Washington "
+                                                          "Blvd., Sarasota, FL 34236. What is its ZIP code? Number only."}]}).encode()
+        request = urllib.request.Request(f"http://127.0.0.1:{port}/v1/chat/completions", data=body,
+                                         headers={"content-type": "application/json"})
+        reply = json.loads(urllib.request.urlopen(request, timeout=60).read())
+    finally:
+        server.terminate()
+        server.wait(timeout=10)
+    text = reply["choices"][0]["message"]["content"]
+    from crossvet import __version__
+
+    assert health["status"] == "ok" and health["version"] == __version__
+    assert "34236" in text and reply["crossvet"]["decision"]["slot"] == "quick"
+    log("server_process", None, model=reply["model"], cost_usd=reply["crossvet"]["cost"], version=health["version"],
+        slot=reply["crossvet"]["decision"]["slot"], answer_start=text[:100])

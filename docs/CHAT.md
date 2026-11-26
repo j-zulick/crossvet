@@ -307,5 +307,6 @@ Keys come from the environment, `./.env` or `~/.config/crossvet/.env` (the envir
 | `crossvet handoff claude-code\|codex TASK [--cwd DIR]`, `handoff status\|result ID` | Hand a task to a coding agent |
 | `crossvet report [--days N] [--week [--json]]`, `dashboard [--out F]`, `export [--out F]`, `sync` | Your numbers as Markdown, HTML, JSON lines, or in Langfuse |
 | `crossvet backup DIR`, `restore DIR [--force]`, `prune [--days N]` | Look after the local files |
+| `crossvet service [install\|status\|uninstall] [--port P] [--weekly] [--no-load]` | Run the server at login, and the weekly job ([DEPLOY.md](DEPLOY.md)) |
 
 Exit codes: 0 success; 1 a failure or problems found; 2 a usage error; 3 a spend cap or a log written by a newer Crossvet.

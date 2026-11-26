@@ -1,0 +1,15 @@
+# docker compose up -d   (or a Komodo stack pointed at this file)
+# Put the keys and CROSSVET_TOKEN (16+ characters; `openssl rand -base64 24`) in .env next to this file (see .env.example).
+services:
+  crossvet:
+    build: .
+    image: crossvet:local
+    env_file: .env
+    ports:
+      - "127.0.0.1:8787:8787"   # this machine only; put a TLS reverse proxy in front to reach it from elsewhere
+    volumes:
+      - crossvet-data:/data
+    restart: unless-stopped
+
+volumes:
+  crossvet-data:

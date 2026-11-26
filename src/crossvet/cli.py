@@ -16,6 +16,7 @@
     crossvet backup / restore / prune             look after the local files
     crossvet cost / log / why   spend, the latest turns, the last auto decision
     crossvet serve / mcp        the OpenAI-compatible server, the MCP server
+    crossvet service install    run the server at login (launchd or systemd), and optionally a weekly job
     crossvet init / doctor      write a settings file; check keys, settings and the local files
 
 `crossvet chat start`, `crossvet chat route` and the other 1.x spellings still work.
@@ -468,6 +469,19 @@ def cmd_leaderboard(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_service(args: argparse.Namespace) -> int:
+    """Install, check or remove the background service."""
+    from crossvet import service
+
+    if args.action == "install":
+        print(service.install(args.port, weekly=args.weekly, load=not args.no_load))
+    elif args.action == "uninstall":
+        print(service.uninstall())
+    else:
+        print(service.status(args.port))
+    return 0
+
+
 def cmd_tune(args: argparse.Namespace) -> int:
     """Show ratings and proposals; accept, reject or roll back a route."""
     from crossvet import tuning
@@ -659,6 +673,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--out", default="", help="results folder (default docs/benchmarks/<date>)")
     p.add_argument("--review", action="store_true", help="the review benchmark instead: planted bugs, -m picks the reviewers")
     p.set_defaults(func=cmd_bench)
+    p = sub.add_parser("service", help="run the server at login (launchd on macOS, systemd on Linux)")
+    p.add_argument("action", nargs="?", default="status", choices=("install", "status", "uninstall"))
+    p.add_argument("--port", type=int, default=8787)
+    p.add_argument("--weekly", action="store_true", help="also a Monday job: score run, tune auto, report --week --json")
+    p.add_argument("--no-load", action="store_true", help="write the files without starting anything")
+    p.set_defaults(func=cmd_service)
     p = sub.add_parser("score", help="judge a sample of answers (opt-in: [score] enabled), shadow answers, calibration")
     p.add_argument("action", nargs="?", default="run", choices=("run", "shadow", "calibrate"))
     p.add_argument("--limit", type=int, default=20, help="judge at most this many answers")

@@ -5,10 +5,10 @@
 Crossvet installs from GitHub (there is no PyPI package). With [uv](https://docs.astral.sh/uv/):
 
 ```bash
-uv tool install "git+https://github.com/j-zulick/crossvet@v3.3.0"
+uv tool install "git+https://github.com/j-zulick/crossvet@v3.4.0"
 ```
 
-`pip install "git+https://github.com/j-zulick/crossvet@v3.3.0"` works in a virtual environment too. Python 3.11 to 3.13. Three dependencies: httpx, the MCP Python SDK (1.x or 2.x) and python-dotenv.
+`pip install "git+https://github.com/j-zulick/crossvet@v3.4.0"` works in a virtual environment too. Python 3.11 to 3.13. Three dependencies: httpx, the MCP Python SDK (1.x or 2.x) and python-dotenv.
 
 ## Keys
 
@@ -21,6 +21,10 @@ crossvet start
 ```
 
 It checks which keys are set (without calling a model), prints the settings for Hermes, Claude Code, Codex and Cursor, and starts the server. Leave it running while you chat from Hermes or another OpenAI-style app; the MCP apps start `crossvet mcp` themselves. `crossvet doctor` repeats the checks at any time. `crossvet init` writes the settings to a file you can edit ([Settings](CHAT.md#settings)).
+
+## Run it every day
+
+`crossvet service install` starts the server at login (launchd on macOS, systemd on Linux); `--weekly` adds the Monday scoring and report job. On a server, use the `Dockerfile` and `compose.yaml`. Details: [DEPLOY.md](DEPLOY.md).
 
 ## Connect your apps
 

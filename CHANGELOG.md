@@ -4,6 +4,15 @@ All notable changes to Crossvet. Versions follow [Semantic Versioning](https://s
 
 ## [Unreleased]
 
+## [3.4.0] - 2026-11-26
+
+The daily driver: run Crossvet in the background on your computer, or on a server.
+
+### Added
+- `crossvet service install|status|uninstall`: launchd agents on macOS and systemd user units on Linux for the server (127.0.0.1, started at login, restarted if it stops) and, with `--weekly`, a Monday job that runs `score run`, `tune auto` and `report --week --json` and keeps the report (`service.py`).
+- A `Dockerfile` (non-root, health check; refuses to listen beyond localhost without a 16+ character `CROSSVET_TOKEN`) and a `compose.yaml` (port on 127.0.0.1, data in a volume), with a Komodo note, in [docs/DEPLOY.md](docs/DEPLOY.md).
+- `.crossvet/` (review records) is ignored in this repository.
+
 ## [3.3.0] - 2026-11-26
 
 Route from scores: the cheapest model that your judged answers show is good enough.

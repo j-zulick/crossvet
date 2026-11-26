@@ -33,12 +33,12 @@ From the released build: the `route` lines are its output (it calls no model); t
 ## Quick start
 
 ```bash
-uv tool install "git+https://github.com/j-zulick/crossvet@v3.3.0"
+uv tool install "git+https://github.com/j-zulick/crossvet@v3.4.0"
 mkdir -p ~/.config/crossvet && cp .env.example ~/.config/crossvet/.env   # then fill in the keys you have
 crossvet start
 ```
 
-`crossvet start` checks your keys without calling a model, prints the settings for each app below, and starts the server. Three dependencies (httpx, the MCP Python SDK, python-dotenv); Python 3.11 to 3.13. More: [docs/SETUP.md](docs/SETUP.md).
+`crossvet start` checks your keys without calling a model, prints the settings for each app below, and starts the server. To keep it running, `crossvet service install` starts it at login (launchd on macOS, systemd on Linux); on a server, use the `Dockerfile` and `compose.yaml` ([docs/DEPLOY.md](docs/DEPLOY.md)). Three dependencies (httpx, the MCP Python SDK, python-dotenv); Python 3.11 to 3.13. More: [docs/SETUP.md](docs/SETUP.md).
 
 ## Use it from the chat you already have
 
@@ -85,7 +85,7 @@ flowchart LR
 
 ## Tested with real API calls
 
-`tests/live/` calls the real APIs (`CROSSVET_LIVE=1 uv run pytest tests/live`). The [run of 2026-11-26](docs/live-runs/2026-11-26-v3.3.0.md) passed all 24 checks with OpenAI and Anthropic keys, for **$0.075**:
+`tests/live/` calls the real APIs (`CROSSVET_LIVE=1 uv run pytest tests/live`). The [run of 2026-11-26](docs/live-runs/2026-11-26-v3.4.0.md) passed all 25 checks with OpenAI and Anthropic keys, for **$0.073**:
 
 - each of six models answered when named; through the server, `/model` switched vendors mid-conversation, the answer streamed, and `/cost` showed both;
 - agents' tool calls round-tripped (call `lookup_vin`, send the result, get the price) with Claude Sonnet, GPT-6.1 Sol and GPT-6 Luna, including streamed loops with two tool calls at once and OpenAI reasoning kept across tool steps;
@@ -93,15 +93,16 @@ flowchart LR
 - a model that doesn't exist failed with HTTP 404 and `auto` moved to the next model on the ladder, recording both attempts;
 - `compare` got answers from both vendors; `challenge` had Claude Sonnet check a wrong answer from the other vendor and return `wrong` with the reasons;
 - a planted auth bypass, said to be written by GPT-6.1 Sol, was reviewed by Claude Sonnet, which flagged the exact line as a blocker;
-- the judge (GPT-6.1 Sol, since the answer came from Anthropic) scored Claude Haiku's mileage answer 3 of 5; a shadow answer from GPT-6 Luna, judged by Claude Sonnet, scored 4;
+- the judge (GPT-6.1 Sol, since the answer came from Anthropic) scored Claude Haiku's mileage answer 3 of 5; a shadow answer from GPT-6 Luna, judged by Claude Sonnet, scored 5;
 - with routing from scores, four real judged answers (Luna and Haiku tied at 5.0) were enough for `auto` to pick from scores and explain the choice (a test setting of 2 judged answers per model; the default is 20);
-- on four benchmark cases, GPT-6 Luna and Claude Haiku each scored 1.0 on three and 0.5 on a 40-word summary; a per-call cap and a rejected key stopped calls before they were made; the MCP server listed its 16 tools, answered, and explained a route.
+- `crossvet serve`, started as its own process, answered `/health` and an HTTP request with `"model": "auto"` (Claude Haiku, `34236`, with the decision in the response);
+- on four benchmark cases, Claude Haiku scored 1.0 on all four and GPT-6 Luna on three (0.5 on a 40-word summary); a per-call cap and a rejected key stopped calls before they were made; the MCP server listed its 16 tools, answered, and explained a route.
 
-The live runs found five problems before release, all fixed and covered by tests ([3.0.0](docs/live-runs/2026-11-26-v3.0.0.md), [3.2.0](docs/live-runs/2026-11-26-v3.2.0.md)): "ZIP code" counted as program code; a short fact plus a question was not counted as quick; "answer in one sentence" made a question count as a summary; parallel calls could collide on the log's one SQLite connection; and a lab file could end up next to the wrong log. The full chat benchmark (28 cases, six models, $0.48) is in [docs/benchmarks/2026-11-25](docs/benchmarks/2026-11-25/README.md). In the [review benchmark](docs/benchmarks/2026-11-26-review/README.md) (twelve planted bugs in Crossvet's own code), five of six reviewers caught all twelve, GPT-6 Luna for $0.002; Claude Opus described the other two without the required severity, so the checks dropped them ($0.16 in all). Not tested live yet: the Hermes, Cursor, Claude Code and Codex apps themselves (and the plugin and skills inside them), scoring over weeks of real traffic, Langfuse sync, handoffs, Google, xAI, OpenRouter and local models.
+The live runs found five problems before release, all fixed and covered by tests ([3.0.0](docs/live-runs/2026-11-26-v3.0.0.md), [3.2.0](docs/live-runs/2026-11-26-v3.2.0.md)): "ZIP code" counted as program code; a short fact plus a question was not counted as quick; "answer in one sentence" made a question count as a summary; parallel calls could collide on the log's one SQLite connection; and a lab file could end up next to the wrong log. The full chat benchmark (28 cases, six models, $0.48) is in [docs/benchmarks/2026-11-25](docs/benchmarks/2026-11-25/README.md). In the [review benchmark](docs/benchmarks/2026-11-26-review/README.md) (twelve planted bugs in Crossvet's own code), five of six reviewers caught all twelve, GPT-6 Luna for $0.002; Claude Opus described the other two without the required severity, so the checks dropped them ($0.16 in all). Not tested live yet: the Hermes, Cursor, Claude Code and Codex apps themselves (and the plugin and skills inside them), scoring over weeks of real traffic, a launchd agent loaded on macOS, the container image, Langfuse sync, handoffs, Google, xAI, OpenRouter and local models.
 
 ## Project layout
 
-About 5,700 lines of Python in 21 modules, with 212 offline tests (some built from replies recorded from the real APIs) and 24 live ones.
+About 5,800 lines of Python in 22 modules, with 218 offline tests (some built from replies recorded from the real APIs) and 25 live ones.
 
 | File | What it does |
 |---|---|
@@ -117,11 +118,12 @@ About 5,700 lines of Python in 21 modules, with 212 offline tests (some built fr
 | `integrations/` | The Claude Code plugin, and skills for Codex and Hermes |
 | `src/crossvet/multi.py`, `bench.py`, `tuning.py` | Compare, challenge, blind replay; the Sarasota benchmark; route proposals from ratings |
 | `src/crossvet/lab.py`, `store.py`, `care.py`, `langfuse.py`, `handoff.py` | The lab file and the log; report, dashboard, export, backup; Langfuse sync; Claude Code and Codex handoffs |
+| `src/crossvet/service.py`, `Dockerfile`, `compose.yaml` | The server at login (launchd, systemd) with an optional weekly job; a container for a server or Komodo |
 | `src/crossvet/config.py`, `cli.py` | Settings (names, slots, routes, prices, limits); the `crossvet` command |
 
 ## Documentation
 
-[Using Crossvet](docs/CHAT.md) · [Setup](docs/SETUP.md) · [Architecture](docs/ARCHITECTURE.md) · [Design decisions](docs/DESIGN-DECISIONS.md) · [Security model](docs/SECURITY-MODEL.md) · [What stays stable](docs/STABILITY.md) · [Moving to 3.0](docs/MIGRATING.md) · [Changelog](CHANGELOG.md)
+[Using Crossvet](docs/CHAT.md) · [Setup](docs/SETUP.md) · [Architecture](docs/ARCHITECTURE.md) · [Design decisions](docs/DESIGN-DECISIONS.md) · [Security model](docs/SECURITY-MODEL.md) · [What stays stable](docs/STABILITY.md) · [Running it every day](docs/DEPLOY.md) · [Moving to 3.x](docs/MIGRATING.md) · [Changelog](CHANGELOG.md)
 
 ## License
 

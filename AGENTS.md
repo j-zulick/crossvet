@@ -18,6 +18,7 @@ Crossvet is one chat, any model: you use Claude, ChatGPT, Gemini, Grok or a loca
 - `src/crossvet/review.py`: second-vendor review, findings checked against the diff, fix rounds; `src/crossvet/review_bench.py`: planted-bug cases
 - `integrations/`: the Claude Code plugin (`.claude-plugin/marketplace.json` at the root lists it), Codex and Hermes skills
 - `src/crossvet/score.py`: the opt-in judge, shadow answers, calibration against ratings, the leaderboard
+- `src/crossvet/service.py`: launchd agents and systemd units for the server and the weekly job; `Dockerfile`, `compose.yaml`, `docs/DEPLOY.md`
 - `src/crossvet/tuning.py`: proposals from ratings and scores, `tune auto` with rollback; `integrations/n8n/`, `integrations/windmill/`: the weekly job; `src/crossvet/langfuse.py`: sync; `src/crossvet/care.py`: export, report, dashboard, backup, restore, prune; `src/crossvet/handoff.py`: Claude Code and Codex
 - `src/crossvet/config.py`: default model, short names, menu, slots, routes, router settings, prices (a dated built-in table), limits, `.env` loading
 - `src/crossvet/store.py`: the local log (SQLite, append-only)
