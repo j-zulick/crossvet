@@ -1,6 +1,7 @@
 # Crossvet settings. Copy to ~/.config/crossvet/crossvet.toml (or ./crossvet.toml), or run `crossvet init`.
 # API keys are NOT stored here: they come from the environment or a .env file (.env.example).
-# Crossvet never picks a model for you: a request names one, or gets default_model.
+# A request names its model, or gets default_model. Name `auto` (or crossvet/strong, crossvet/cheapest...) to let
+# Crossvet choose from the slots below; `crossvet route TEXT` shows what it would pick, and why.
 
 default_model = "sonnet"
 
@@ -32,6 +33,35 @@ max_request_bytes = 2000000 # the largest request `crossvet serve` accepts
 # input = 1.0
 # output = 5.0
 
+# The slots `auto` picks from. The first model in a slot that your keys can call goes first; the rest are the
+# ladder it climbs after an error, an empty answer or invalid JSON.
+[slots]
+quick = ["anthropic:claude-haiku-5-5", "openai:gpt-6-luna"]
+balanced = ["anthropic:claude-sonnet-5-5", "openai:gpt-6.1-terra"]
+strong = ["anthropic:claude-opus-5-5", "openai:gpt-6.1-sol"]
+long = ["anthropic:claude-sonnet-5-5", "openai:gpt-6.1-sol"]
+vision = ["anthropic:claude-opus-5-5", "openai:gpt-6.1-sol"]
+reviewer = ["openai:gpt-6.1-sol", "anthropic:claude-opus-5-5"]
+# Requests that look private (a key, an ID or card number, "confidential", [private]) only go here; empty = refused.
+private = []
+
+# Which slot each kind of task starts in (kinds: code, review, writing, summarize, extract, translate, reasoning,
+# fresh, quick, general). Hard tasks move up to strong. These are the defaults:
+[routes]
+code = "strong"
+writing = "balanced"
+summarize = "quick"
+
+[router]
+goal = "auto"          # auto (your slot order) | best | cheapest | fastest
+escalate = true        # try the next model after an error, an empty answer or invalid JSON
+max_steps = 2          # extra models tried at most
+private_auto = true    # keep requests that look private in the private slot
+long_chars = 60000     # a request this long goes to the long slot
+
 # Where the log is kept ("" = CROSSVET_DB, else ~/.local/share/crossvet/chat.db)
 # [store]
+# path = ""
+# Where decisions, ratings, notes and routes are kept ("" = CROSSVET_LAB_DB, else lab.db next to the log)
+# [lab]
 # path = ""

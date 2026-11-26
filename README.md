@@ -1,6 +1,6 @@
 # Crossvet
 
-**One chat, any model.** Talk to Claude, ChatGPT, Gemini, Grok or a model on your own machine from the chat you already use (Hermes, Cursor, Claude Code, Codex or a terminal), and switch models mid-conversation. You pick the model; Crossvet never picks it for you. Every answer shows which model gave it and what it cost, and spend caps stop a call before it is made.
+**One chat, any model.** Use Claude, ChatGPT, Gemini, Grok or a model on your own machine from the chat you already use (Hermes, Cursor, Claude Code, Codex or a terminal). Name the model yourself, or name `auto` and Crossvet chooses one, says why, and tries the next model when an answer fails a check. Every answer shows which model gave it and what it cost, and spend caps stop a call before it is made.
 
 [![CI](https://github.com/j-zulick/crossvet/actions/workflows/ci.yml/badge.svg)](https://github.com/j-zulick/crossvet/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/j-zulick/crossvet/actions/workflows/codeql.yml/badge.svg)](https://github.com/j-zulick/crossvet/actions/workflows/codeql.yml)
@@ -9,32 +9,25 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 ```
-$ crossvet chat --model opus
-you> Write a Python function parse_listing(s) that turns "2021 Toyota Tacoma SR5 - 34,210 mi - $31,995"
-     into a dict with year, make, model, trim, miles and price. Code only.
-anthropic:claude-opus-5-5> import re
-     def parse_listing(s): ...                                  (43 lines; returns the right dict when run)
-[anthropic:claude-opus-5-5 · 79 in / 763 out · $0.0156 · 6.4 s]
+$ crossvet route "Write a Python function parse_listing(s) that turns '2021 Toyota Tacoma SR5 - 34,210 mi - $31,995' into a dict"
+anthropic:claude-opus-5-5 answers. Kind of task: code (difficulty 2): it is about code ("Python"). Slot: strong;
+goal: auto. If it fails, Crossvet tries openai:gpt-6.1-sol.
 
-you> /model luna
-now talking to openai:gpt-6-luna
+$ crossvet ask -m auto "Sarasota Ford is at 707 S Washington Blvd., Sarasota, FL 34236. What is its ZIP code? Number only."
+34236
+[anthropic:claude-haiku-5-5 · 55 in / 106 out · $0.0001 · 1.0 s · auto: quick slot, /why explains]
 
-you> Is a 2019 Honda CR-V with 48,000 miles low or high mileage for its age? Answer in one sentence.
-openai:gpt-6-luna> At about 6,900 miles per year, a 2019 Honda CR-V with 48,000 miles has low mileage for its age.
-[openai:gpt-6-luna · 490 in / 75 out · $0.0001 · 1.1 s]
-
-you> /cost
-This conversation:
-  anthropic:claude-opus-5-5             1 answer  $0.0156
-  openai:gpt-6-luna                     1 answer  $0.0001
+$ crossvet route "[private] Draft the deposit receipt for card 4111 1111 1111 1111"
+crossvet: this request looks private ([private]), and no private model is set, so it was not sent anywhere. Add
+[slots] private = ["ollama:..."] (a model on this computer), remove the private details, or name a model yourself.
 ```
 
-A real session with the released build, from the [live run of 2026-11-26](docs/live-runs/2026-11-26.md), on tasks from used-car dealer work in Sarasota, Florida.
+From the released build: the `route` lines are its output (it calls no model), and the answer and its footer are from the [live run of 2026-11-26](docs/live-runs/2026-11-26-v3.0.0.md), on tasks from used-car dealer work in Sarasota, Florida.
 
 ## Quick start
 
 ```bash
-uv tool install "git+https://github.com/j-zulick/crossvet@v2.0.1"
+uv tool install "git+https://github.com/j-zulick/crossvet@v3.0.0"
 mkdir -p ~/.config/crossvet && cp .env.example ~/.config/crossvet/.env   # then fill in the keys you have
 crossvet start
 ```
@@ -45,63 +38,73 @@ crossvet start
 
 | Your chat | Connect once | Pick the model |
 |---|---|---|
-| **Hermes**, or any app that takes an OpenAI-style URL | Custom provider at `http://127.0.0.1:8787/v1` (keep `crossvet start` running) | The app's model menu (Crossvet lists your models at `/v1/models`), or type `/model NAME` |
-| **Claude Code** | `claude mcp add --scope user crossvet -- crossvet mcp` | Ask it to use `ask_model` with the model you want |
+| **Hermes**, or any app that takes an OpenAI-style URL | Custom provider at `http://127.0.0.1:8787/v1` (keep `crossvet start` running) | The app's model menu (Crossvet lists your models and `auto` at `/v1/models`), or type `/model NAME` |
+| **Claude Code** | `claude mcp add --scope user crossvet -- crossvet mcp` | Ask it to use `ask_model` with the model you want, or `ask` to let Crossvet choose |
 | **Codex** | `codex mcp add crossvet -- crossvet mcp` | The same |
 | **Cursor** | `crossvet start --no-serve` prints the `~/.cursor/mcp.json` entry | The same |
-| A terminal | `crossvet chat --model opus` or `crossvet ask -m sol "..."` | `/model NAME` |
+| A terminal | `crossvet chat --model opus`, `crossvet chat --model auto` or `crossvet ask -m sol "..."` | `/model NAME` |
 
-A model is named `provider:model` (`anthropic:claude-opus-5-5`, `openai:gpt-6.1-sol`, `google:...`, `xai:...`, `openrouter:vendor/model`, `ollama:...`) or by a short name you set (`opus`, `sonnet`, `sol`, `luna`). A request that names no model goes to your one `default_model`. `crossvet models` lists what you can name.
+A model is named `provider:model` (`anthropic:claude-opus-5-5`, `openai:gpt-6.1-sol`, `google:...`, `xai:...`, `openrouter:vendor/model`, `ollama:...`) or by a short name you set (`opus`, `sonnet`, `sol`, `luna`). A request that names no model goes to your `default_model`. `auto`, `crossvet/<slot>` (`crossvet/strong`) and `crossvet/<goal>` (`crossvet/cheapest`) let Crossvet choose.
 
-In any of them, typed as a whole message: `/model NAME` (switch), `/model` (show), `/models` (list), `/cost` (spend in this conversation and today).
+In any of them, typed as a whole message: `/model NAME`, `/models`, `/cost`, `/why` (why auto chose), `/good` and `/bad` (rate the last answer), `/retry stronger` (ask again one slot up).
 
 ## How it works
 
 ```mermaid
 flowchart LR
-    A["Your chat<br/>Hermes · Cursor · Claude Code · Codex · terminal"] --> B["The model you named<br/>(or your default)"]
-    B --> C{"Spend caps,<br/>refused keys"}
-    C -- "allowed" --> D["That vendor's API"]
+    A["Your chat<br/>Hermes · Cursor · Claude Code · Codex · terminal"] --> B{"Model named?"}
+    B -- "a model" --> D["That model"]
+    B -- "auto / slot / goal" --> R["Rules: private? image? long?<br/>kind of task → slot → model"]
+    R --> D
+    D --> C{"Spend caps,<br/>refused keys"}
+    C -- "allowed" --> V["That vendor's API"]
     C -- "stopped" --> X["Refused before any call"]
-    D --> E["Answer + model + cost"]
-    E --> F["Local log (SQLite)"]
+    V --> K{"auto: error, empty,<br/>bad JSON?"}
+    K -- "yes, nothing shown yet" --> N["Next model on the ladder"]
+    K -- "no" --> E["Answer + model + cost + why"]
+    E --> F["Local log + lab file (SQLite)"]
 ```
 
-- **You choose, every time.** No routing, no fallback, no silent retries. If a call fails, the error names the model and you pick another.
-- **Agents keep their tools.** Hermes and other agents send tools and tool results, and Crossvet passes them to the model you named, streamed when the app streams. Anthropic models get them through Anthropic's OpenAI-compatible endpoint. OpenAI models get them through OpenAI's Responses API, because OpenAI's current models refuse tools on chat completions; their encrypted reasoning is kept and sent back with the tool results, so they keep their train of thought across tool steps. A request field a vendor's API has no place for is reported in the response, never dropped silently.
+- **A named model is never switched.** No routing, no fallback, no silent retries for it. If a call fails, the error names the model and you pick another.
+- **`auto` explains itself.** The choice is made in code from the request alone: private-looking text stays on your machine or is refused; images go to a vision model; otherwise the kind of task (code, review, writing, summarize, extract, translate, reasoning, quick, general) picks a slot. `/why` shows the reason and every attempt. Escalation happens only after an error, an empty answer or invalid JSON, and only before anything is shown.
+- **It learns only when you say so.** `/good` and `/bad` record ratings. `crossvet tune` proposes a better model for a kind of task from them, and nothing changes until you accept; every change rolls back.
+- **Several vendors when you want them.** `compare` asks several models at once; `challenge` has another vendor check an answer, with its verdict read in code; `replay` runs your past questions on another model and a blind judge picks the better answer.
+- **Agents keep their tools.** Hermes and other agents send tools and tool results, and Crossvet passes them to the model, streamed when the app streams. OpenAI models get them through the Responses API (their current models refuse tools on chat completions), with their encrypted reasoning kept and sent back across tool steps; Anthropic models through Anthropic's OpenAI-compatible endpoint. A request field a vendor has no place for is reported, never dropped silently.
 - **Costs are visible and capped.** Each answer is priced from the vendor's list price (or OpenRouter's reported cost). A daily cap and a per-call worst-case cap stop a call before it is made. A provider that rejects your key or reports a billing problem is not called again until restart.
-- **One local log.** Every question and answer, with model, tokens and cost, goes to one SQLite file (append-only), shared by every app: `crossvet log` and the `recent_turns` tool read it.
+- **Two local files.** Every question and answer goes to one append-only SQLite log shared by every app; decisions, ratings, notes and accepted routes go to a second file next to it. `report`, `dashboard`, `export`, `sync` (Langfuse), `backup` and `restore` work on both.
 
 ## Tested with real API calls
 
-`tests/live/` calls the real APIs (`CROSSVET_LIVE=1 uv run pytest tests/live`). The [run of 2026-11-26](docs/live-runs/2026-11-26.md) passed all 13 checks with OpenAI and Anthropic keys, for **$0.023**:
+`tests/live/` calls the real APIs (`CROSSVET_LIVE=1 uv run pytest tests/live`). The [run of 2026-11-26](docs/live-runs/2026-11-26-v3.0.0.md) passed all 21 checks with OpenAI and Anthropic keys, for **$0.054**:
 
-- each of six models answered when named (Claude Opus, Sonnet and Haiku 5.5; GPT-6.1 Sol and Terra, GPT-6 Luna);
-- through the server, the named model answered, `/model` switched the conversation to another vendor, the answer streamed, and `/cost` showed both;
-- an agent's tool call went out and came back the way Hermes uses it (call `lookup_vin`, send the result, get the price) with Claude Sonnet, GPT-6.1 Sol and GPT-6 Luna;
-- a per-call cap stopped a request before any model was called, and a rejected key was not called again;
-- the MCP server, started the way Claude Code and Cursor start it, listed its three tools and answered.
+- each of six models answered when named; through the server, `/model` switched vendors mid-conversation, the answer streamed, and `/cost` showed both;
+- agents' tool calls round-tripped (call `lookup_vin`, send the result, get the price) with Claude Sonnet, GPT-6.1 Sol and GPT-6 Luna, including streamed loops with two tool calls at once and OpenAI reasoning kept across tool steps;
+- `auto` sent the ZIP-code question to the quick slot (Claude Haiku, right answer) and the parsing function to the strong slot (Claude Opus);
+- a model that doesn't exist failed with HTTP 404 and `auto` moved to the next model on the ladder, recording both attempts;
+- `compare` got answers from both vendors; `challenge` had Claude Sonnet check a wrong answer from the other vendor and return `wrong` with the reasons;
+- on four benchmark cases, Claude Haiku scored 1.0 on all four and GPT-6 Luna on three (0.5 on a 40-word summary); a per-call cap and a rejected key stopped calls before they were made; the MCP server listed its 14 tools, answered, and explained a route.
 
-The run found and fixed one real problem before release: OpenAI's current models refuse tools on chat completions. The [2.0.1 run](docs/live-runs/2026-11-26-v2.0.1.md) added 4 more checks: streamed agent loops with two tool calls at once for Claude Sonnet and GPT-6.1 Sol, OpenAI reasoning kept across tool steps, and dropped request fields reported (17 of 17 passed, $0.043). Not tested live yet: the Hermes and Cursor apps themselves (next release), Google, xAI, OpenRouter and local models.
+The live runs found four problems before release, all fixed and covered by tests: "ZIP code" counted as program code; a short fact plus a question was not counted as quick; parallel calls could collide on the log's one SQLite connection; and a lab file could end up next to the wrong log. The full benchmark (28 cases, six models, $0.48) is in [docs/benchmarks/2026-11-25](docs/benchmarks/2026-11-25/README.md). Not tested live yet: the Hermes, Cursor, Claude Code and Codex apps themselves, Langfuse sync, handoffs, Google, xAI, OpenRouter and local models.
 
 ## Project layout
 
-About 2,100 lines of Python in eight modules, with 105 offline tests (some built from replies recorded from the real APIs) and 17 live ones.
+About 4,600 lines of Python in 18 modules, with 171 offline tests (some built from replies recorded from the real APIs) and 21 live ones.
 
 | File | What it does |
 |---|---|
-| `src/crossvet/core.py` | The one path every request takes: resolve the name, check the caps, call, log |
+| `src/crossvet/core.py` | The one path every request takes: resolve or choose, check the caps, call, escalate (auto only), log |
+| `src/crossvet/routing.py`, `classify.py` | `auto`: private requests, inputs, the kind of task, slots, goals, the ladder, and the explanation |
 | `src/crossvet/providers.py` | OpenAI, Anthropic, Google, xAI, OpenRouter, Ollama and any OpenAI-compatible server through one function |
 | `src/crossvet/relay.py` | Agents' requests with tools: streamed, translated for OpenAI's Responses API, reasoning kept across tool steps |
 | `src/crossvet/server.py` | The OpenAI-compatible server for Hermes and other chat apps |
-| `src/crossvet/mcp_server.py` | Three MCP tools: `list_models`, `ask_model`, `recent_turns` |
-| `src/crossvet/config.py` | Default model, short names, the model menu, prices, limits |
-| `src/crossvet/store.py` | The local log |
-| `src/crossvet/cli.py` | `crossvet start`, `chat`, `ask`, `models`, `cost`, `log`, `serve`, `mcp`, `init`, `doctor` |
+| `src/crossvet/mcp_server.py` | 14 MCP tools: `list_models`, `ask_model`, `recent_turns`, `ask`, `explain_route`, `compare_models`, `challenge`, `rate_answer`, notes and handoffs |
+| `src/crossvet/multi.py`, `bench.py`, `tuning.py` | Compare, challenge, blind replay; the Sarasota benchmark; route proposals from ratings |
+| `src/crossvet/lab.py`, `store.py`, `care.py`, `langfuse.py`, `handoff.py` | The lab file and the log; report, dashboard, export, backup; Langfuse sync; Claude Code and Codex handoffs |
+| `src/crossvet/config.py`, `cli.py` | Settings (names, slots, routes, prices, limits); the `crossvet` command |
 
 ## Documentation
 
-[Using Crossvet](docs/CHAT.md) · [Setup](docs/SETUP.md) · [Architecture](docs/ARCHITECTURE.md) · [Design decisions](docs/DESIGN-DECISIONS.md) · [Security model](docs/SECURITY-MODEL.md) · [What stays stable](docs/STABILITY.md) · [Moving from 1.x](docs/MIGRATING.md) · [Changelog](CHANGELOG.md)
+[Using Crossvet](docs/CHAT.md) · [Setup](docs/SETUP.md) · [Architecture](docs/ARCHITECTURE.md) · [Design decisions](docs/DESIGN-DECISIONS.md) · [Security model](docs/SECURITY-MODEL.md) · [What stays stable](docs/STABILITY.md) · [Moving to 3.0](docs/MIGRATING.md) · [Changelog](CHANGELOG.md)
 
 ## License
 

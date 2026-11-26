@@ -1,17 +1,22 @@
-"""crossvet: one chat, any model. You pick the model; Crossvet never picks it for you.
+"""crossvet: one chat, any model. Pick the model yourself, or name `auto` and let Crossvet choose.
 
     crossvet start              check your keys, print the settings for Hermes, Cursor, Claude Code and Codex, serve
-    crossvet chat [--model M]   chat in this terminal (/model NAME switches; /models, /cost, /help)
-    crossvet ask -m M "..."     one question to one model
+    crossvet chat [--model M]   chat in this terminal (/model NAME switches; /why, /good, /bad, /retry, /cost, /help)
+    crossvet ask -m M "..."     one question to one model (-m auto lets Crossvet choose)
     crossvet models             the models you can name, with short names and prices
-    crossvet cost [--days N]    spend per model
-    crossvet log [-n N]         the latest turns from every app
-    crossvet serve              the OpenAI-compatible server only (http://127.0.0.1:8787/v1)
-    crossvet mcp [--http]       the MCP server (list_models, ask_model, recent_turns)
-    crossvet init               write a settings file from the keys you have
-    crossvet doctor             check keys, settings and the local log
+    crossvet route "..."        which model auto would choose, and why (calls nothing)
+    crossvet compare -m A -m B "..."   the same question to several models; challenge: another vendor checks an answer
+    crossvet rate good|bad      rate the last answer; tune: proposals from your ratings, accept or roll back
+    crossvet bench              the Sarasota used-car benchmark, scored in code
+    crossvet replay -m M        past questions on another model, judged blind
+    crossvet note / notes       notes every app shares;  handoff: a task to Claude Code or Codex
+    crossvet report / dashboard / export / sync    your numbers, as Markdown, HTML, JSON lines or in Langfuse
+    crossvet backup / restore / prune             look after the local files
+    crossvet cost / log / why   spend, the latest turns, the last auto decision
+    crossvet serve / mcp        the OpenAI-compatible server, the MCP server
+    crossvet init / doctor      write a settings file; check keys, settings and the local files
 
-`crossvet chat start`, `crossvet chat mcp` and the other 1.x spellings still work.
+`crossvet chat start`, `crossvet chat route` and the other 1.x spellings still work.
 """
 
 from __future__ import annotations
@@ -36,9 +41,7 @@ from crossvet.config import (
     render,
 )
 
-KEPT = ("start", "serve", "mcp", "chat", "ask", "models", "cost", "log", "init", "doctor")
-REMOVED = ("route", "routes", "compare", "challenge", "feedback", "note", "bench", "tune", "sync", "report", "dashboard",
-           "learn", "replay", "export", "handoff", "backup", "restore", "prune")
+RENAMED = {"routes": "tune", "feedback": "rate", "learn": "tune"}  # 1.x names that moved
 HISTORY_MESSAGES = 40  # the terminal chat sends at most this many earlier messages
 
 
@@ -149,7 +152,7 @@ def cmd_chat(args: argparse.Namespace) -> int:
     from crossvet.store import new_thread
 
     cv = Crossvet()
-    model = cv.config.resolve(args.model)
+    model = cv.label(args.model)
     thread, messages = new_thread(), []
     print(f"Crossvet {__version__}: talking to {model}. /model NAME switches, /models lists, /cost, /new, /quit.")
     while True:
@@ -167,7 +170,7 @@ def cmd_chat(args: argparse.Namespace) -> int:
         if name == "/model":
             if len(words) > 1:
                 try:
-                    model = cv.config.resolve(words[1])
+                    model = cv.label(words[1])
                 except (ValueError, providers.ProviderError) as exc:
                     print(exc)
                     continue
@@ -186,7 +189,44 @@ def cmd_chat(args: argparse.Namespace) -> int:
             print("new conversation")
             continue
         if name == "/help":
-            print("/model NAME, /model, /models, /cost, /new, /quit")
+            print("/model NAME (auto lets Crossvet choose), /model, /models, /cost, /why, /good, /bad [note], "
+                  "/retry [stronger], /new, /quit")
+            continue
+        if name == "/why":
+            decision = cv.lab.decision(thread=thread)
+            print("no answer here was chosen by auto" if decision is None else
+                  f"{decision['model']} (kind {decision['kind']}, slot {decision['slot']}): {decision['reason']}")
+            continue
+        if name in ("/good", "/bad"):
+            last = next((t for t in reversed(cv.store.turns(thread, 200)) if t.role == "assistant"), None)
+            if last is None:
+                print("nothing to rate yet")
+            else:
+                cv.lab.rate(last.id, 1 if name == "/good" else -1, " ".join(words[1:]), source="terminal")
+                print(f"rated #{last.id} ({last.model}) {name[1:]}")
+            continue
+        if name == "/retry":
+            if not messages or messages[-1]["role"] != "assistant":
+                print("nothing to ask again")
+                continue
+            messages.pop()
+            if len(words) > 1 and words[1].lower() == "stronger":
+                from crossvet import routing
+
+                decision = cv.lab.decision(thread=thread)
+                retry_model = "crossvet/best" if (decision or {}).get("slot") == "strong" else \
+                    f"crossvet/{routing.stronger(cv.config, decision)}"
+            else:
+                retry_model = model
+            print(f"{retry_model}> ", end="", flush=True)
+            pieces = []
+            for item in cv.ask_stream(retry_model, messages[-HISTORY_MESSAGES:], thread=thread, app="terminal"):
+                if isinstance(item, Answer):
+                    print(f"\n[{item.footer()}]")
+                else:
+                    pieces.append(item)
+                    print(item, end="", flush=True)
+            messages.append({"role": "assistant", "content": "".join(pieces)})
             continue
         messages.append({"role": "user", "content": line})
         print(f"{model}> ", end="", flush=True)
@@ -263,6 +303,210 @@ def cmd_doctor(_: argparse.Namespace) -> int:
     return 0 if not problems else 1
 
 
+def _cv():  # noqa: ANN202 - imported late so --version and doctor stay light
+    from crossvet.core import Crossvet
+
+    return Crossvet()
+
+
+def cmd_route(args: argparse.Namespace) -> int:
+    """Show which model auto would choose for a request, and why; nothing is called."""
+    from crossvet.config import load as load_config
+    from crossvet.routing import decide
+
+    text = " ".join(args.text) if args.text else sys.stdin.read()
+    print(decide(load_config(), [{"role": "user", "content": text}], args.model).explain())
+    return 0
+
+
+def cmd_why(_: argparse.Namespace) -> int:
+    """Show the latest decision auto made, in any app."""
+    decision = _cv().lab.decision()
+    if decision is None:
+        print("auto has not chosen a model yet")
+        return 0
+    print(f"turn #{decision['turn_id']}: {decision['model']} (kind {decision['kind']}, slot {decision['slot']}, "
+          f"goal {decision['goal']}): {decision['reason']}")
+    for step in decision["steps"]:
+        print(f"  {step['model']}: {step['outcome']}")
+    return 0
+
+
+def cmd_rate(args: argparse.Namespace) -> int:
+    """Rate an answer good or bad (the latest one unless --turn is given)."""
+    cv = _cv()
+    turn = args.turn or next((t.id for t in cv.store.recent(50) if t.role == "assistant"), 0)
+    if not turn:
+        print("there is no answer to rate yet", file=sys.stderr)
+        return 1
+    cv.lab.rate(turn, 1 if args.rating == "good" else -1, " ".join(args.note), source="terminal")
+    print(f"rated #{turn} {args.rating}")
+    return 0
+
+
+def cmd_compare(args: argparse.Namespace) -> int:
+    """Ask several models the same question."""
+    from crossvet import multi
+
+    text = " ".join(args.text) if args.text else sys.stdin.read()
+    print(multi.compare_text(multi.compare(_cv(), args.model, text, app="terminal")))
+    return 0
+
+
+def cmd_challenge(args: argparse.Namespace) -> int:
+    """Have another vendor's model try to break an answer (the latest one unless --turn is given)."""
+    from crossvet import multi
+
+    cv = _cv()
+    rows = cv.store.db.execute("SELECT a.id, a.content, a.model, q.content question FROM turns a JOIN turns q ON "
+                               "q.thread = a.thread AND q.id = a.id - 1 WHERE a.role = 'assistant'"
+                               + (" AND a.id = ?" if args.turn else "") + " ORDER BY a.id DESC LIMIT 1",
+                               (args.turn,) if args.turn else ()).fetchall()
+    if not rows:
+        print("there is no answer to challenge", file=sys.stderr)
+        return 1
+    row = rows[0]
+    result = multi.challenge(cv, row["question"], row["content"], row["model"], args.model or "")
+    print(f"challenging #{row['id']} ({row['model']})\n" + multi.challenge_text(result))
+    return 0
+
+
+def cmd_note(args: argparse.Namespace) -> int:
+    """Save a note."""
+    print(f"saved note #{_cv().lab.save_note(' '.join(args.text), args.tags)}")
+    return 0
+
+
+def cmd_notes(args: argparse.Namespace) -> int:
+    """Search the notes (the latest ones without words)."""
+    found = _cv().lab.search_notes(" ".join(args.query), limit=args.n)
+    print("\n".join(f"#{n['id']} {time.strftime('%Y-%m-%d', time.localtime(n['ts']))} {n['text']}" for n in found) or "no notes")
+    return 0
+
+
+def cmd_bench(args: argparse.Namespace) -> int:
+    """Run the chat benchmark and write its results page."""
+    from crossvet import bench
+
+    cases = bench.SUITES[args.suite][: args.limit or None]
+    cv = _cv()
+    models = [cv.config.resolve(m) for m in (args.model or cv.config.models)]
+    if not models:
+        print("no models to benchmark: pass -m MODEL (or set models in crossvet.toml)", file=sys.stderr)
+        return 2
+    rows = bench.run(cv, models, cases, run_code=args.run_code,
+                     on_result=lambda r: print(f"{r['model']:<32} {r['case']:<20} {r['score']:.2f} {r['error'][:60]}", flush=True))
+    out = Path(args.out or f"docs/benchmarks/{time.strftime('%Y-%m-%d')}")
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "results.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
+    command = "crossvet bench " + " ".join(f"-m {m}" for m in models) + f" --suite {args.suite}" + (" --run-code" if args.run_code else "")
+    (out / "README.md").write_text(bench.results_page(rows, date=time.strftime("%Y-%m-%d"), suite=args.suite, command=command,
+                                                      run_code=args.run_code))
+    print(f"\n{bench.table(rows)}\n\nwrote {out}/README.md and results.jsonl")
+    return 0
+
+
+def cmd_tune(args: argparse.Namespace) -> int:
+    """Show ratings and proposals; accept, reject or roll back a route."""
+    from crossvet import tuning
+
+    cv = _cv()
+    if args.action == "show":
+        print(tuning.text(cv))
+        return 0
+    if not args.id:
+        print(f"`crossvet tune {args.action}` needs a route number (`crossvet tune` lists them)", file=sys.stderr)
+        return 2
+    status = {"accept": "accepted", "reject": "rejected", "rollback": "rolled_back"}[args.action]
+    row = cv.lab.set_route_status(args.id, status)
+    print(f"route #{row['id']} ({row['kind']} -> {row['model']}) is now {status.replace('_', ' ')}")
+    return 0
+
+
+def cmd_replay(args: argparse.Namespace) -> int:
+    """Re-ask past questions on another model; a blind judge compares."""
+    from crossvet import multi
+
+    result = multi.replay(_cv(), args.model, args.judge or "", limit=args.n)
+    print(f"{result['candidate']}: {result['candidate_wins']} wins, {result['ties']} ties, {result['logged_wins']} losses "
+          f"on {result['judged']} judged of {result['questions']} past questions (${result['cost']:.4f})")
+    for row in result["rows"]:
+        print(f"  #{row['turn']}: {row.get('verdict', 'error')} {row.get('why') or row.get('error', '')}")
+    return 0
+
+
+def cmd_handoff(args: argparse.Namespace) -> int:
+    """Hand a task to Claude Code or Codex, or show a handoff."""
+    from crossvet import handoff
+
+    cv = _cv()
+    if args.agent in ("status", "result"):
+        print(handoff.describe(cv.lab, int(args.task[0]) if args.task else 0, with_result=args.agent == "result"))
+        return 0
+    handoff_id = handoff.submit(cv.lab, args.agent, " ".join(args.task), args.cwd, wait=True)
+    print(handoff.describe(cv.lab, handoff_id, with_result=True))
+    return 0
+
+
+def cmd_report(args: argparse.Namespace) -> int:
+    """Print the report in Markdown."""
+    from crossvet import care
+
+    print(care.report(_cv(), args.days), end="")
+    return 0
+
+
+def cmd_dashboard(args: argparse.Namespace) -> int:
+    """Write the dashboard page."""
+    from crossvet import care
+
+    out = Path(args.out)
+    out.write_text(care.dashboard(_cv(), args.days))
+    print(f"wrote {out}")
+    return 0
+
+
+def cmd_export(args: argparse.Namespace) -> int:
+    """Export every answer as JSON lines."""
+    from crossvet import care
+
+    text = care.export(_cv(), Path(args.out) if args.out else None)
+    print(text, end="" if text.endswith("\n") or not text else "\n")
+    return 0
+
+
+def cmd_sync(_: argparse.Namespace) -> int:
+    """Copy new turns and ratings to Langfuse."""
+    from crossvet import langfuse
+
+    print(langfuse.sync(_cv()))
+    return 0
+
+
+def cmd_backup(args: argparse.Namespace) -> int:
+    """Back up the log and the lab file."""
+    from crossvet import care
+
+    print(care.backup(_cv(), Path(args.folder).expanduser()))
+    return 0
+
+
+def cmd_restore(args: argparse.Namespace) -> int:
+    """Restore the log and the lab file from a backup."""
+    from crossvet import care
+
+    print(care.restore(_cv(), Path(args.folder).expanduser(), force=args.force))
+    return 0
+
+
+def cmd_prune(args: argparse.Namespace) -> int:
+    """Drop old side data; turns are never removed."""
+    from crossvet import care
+
+    print(care.prune(_cv(), args.days))
+    return 0
+
+
 # --- parsing ---
 
 def build_parser() -> argparse.ArgumentParser:
@@ -307,20 +551,88 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--force", action="store_true")
     p.set_defaults(func=cmd_init)
     sub.add_parser("doctor", help="check keys, settings and the local log").set_defaults(func=cmd_doctor)
+
+    p = sub.add_parser("route", help="which model auto would choose, and why (calls nothing)")
+    p.add_argument("-m", "--model", default="auto", help="auto, crossvet/<slot> or crossvet/<goal>")
+    p.add_argument("text", nargs="*")
+    p.set_defaults(func=cmd_route)
+    sub.add_parser("why", help="the latest decision auto made").set_defaults(func=cmd_why)
+    p = sub.add_parser("rate", help="rate an answer good or bad")
+    p.add_argument("rating", choices=("good", "bad"))
+    p.add_argument("note", nargs="*")
+    p.add_argument("--turn", type=int, default=0, help="the turn number (default: the latest answer)")
+    p.set_defaults(func=cmd_rate)
+    p = sub.add_parser("compare", help="the same question to several models")
+    p.add_argument("-m", "--model", action="append", required=True, help="repeat for each model (2 to 6)")
+    p.add_argument("text", nargs="*")
+    p.set_defaults(func=cmd_compare)
+    p = sub.add_parser("challenge", help="another vendor's model tries to break an answer")
+    p.add_argument("--turn", type=int, default=0, help="the answer's turn number (default: the latest)")
+    p.add_argument("-m", "--model", default="", help="the challenger (default: the strongest model from another vendor)")
+    p.set_defaults(func=cmd_challenge)
+    p = sub.add_parser("note", help="save a note every app can find")
+    p.add_argument("text", nargs="+")
+    p.add_argument("--tags", default="")
+    p.set_defaults(func=cmd_note)
+    p = sub.add_parser("notes", help="search the notes")
+    p.add_argument("query", nargs="*")
+    p.add_argument("-n", type=int, default=10)
+    p.set_defaults(func=cmd_notes)
+    p = sub.add_parser("bench", help="the Sarasota used-car benchmark, scored in code")
+    p.add_argument("-m", "--model", action="append", help="repeat for each model (default: the model list)")
+    p.add_argument("--suite", choices=("standard", "hard", "all"), default="standard")
+    p.add_argument("--limit", type=int, default=0, help="only the first N cases")
+    p.add_argument("--run-code", action="store_true", help="run code answers in a separate process to check them")
+    p.add_argument("--out", default="", help="results folder (default docs/benchmarks/<date>)")
+    p.set_defaults(func=cmd_bench)
+    p = sub.add_parser("tune", help="routes from your ratings: show, accept, reject, rollback")
+    p.add_argument("action", nargs="?", default="show", choices=("show", "accept", "reject", "rollback"))
+    p.add_argument("id", nargs="?", type=int, default=0)
+    p.set_defaults(func=cmd_tune)
+    p = sub.add_parser("replay", help="past questions on another model, judged blind")
+    p.add_argument("-m", "--model", required=True)
+    p.add_argument("--judge", default="", help="default: the strongest model from another vendor")
+    p.add_argument("-n", type=int, default=10)
+    p.set_defaults(func=cmd_replay)
+    p = sub.add_parser("handoff", help="a task to Claude Code or Codex (or: handoff status ID, handoff result ID)")
+    p.add_argument("agent", choices=("claude-code", "codex", "status", "result"))
+    p.add_argument("task", nargs="*")
+    p.add_argument("--cwd", default=".")
+    p.set_defaults(func=cmd_handoff)
+    for name, func, text in (("report", cmd_report, "your numbers in Markdown"), ("dashboard", cmd_dashboard, "your numbers as an HTML page")):
+        p = sub.add_parser(name, help=text)
+        p.add_argument("--days", type=float, default=7, help="0 = all time")
+        if name == "dashboard":
+            p.add_argument("--out", default="crossvet-dashboard.html")
+        p.set_defaults(func=func)
+    p = sub.add_parser("export", help="every answer as JSON lines")
+    p.add_argument("--out", default="")
+    p.set_defaults(func=cmd_export)
+    sub.add_parser("sync", help="copy new turns and ratings to Langfuse").set_defaults(func=cmd_sync)
+    p = sub.add_parser("backup", help="copies of the log and the lab file, with SHA-256 sums")
+    p.add_argument("folder")
+    p.set_defaults(func=cmd_backup)
+    p = sub.add_parser("restore", help="put a backup back (checks the sums first)")
+    p.add_argument("folder")
+    p.add_argument("--force", action="store_true", help="replace a log that has turns")
+    p.set_defaults(func=cmd_restore)
+    p = sub.add_parser("prune", help="drop old kept reasoning and finished handoffs (never turns)")
+    p.add_argument("--days", type=float, default=30)
+    p.set_defaults(func=cmd_prune)
     return parser
 
 
 def normalize(argv: list[str]) -> list[str] | str:
-    """Map 1.x spellings (``crossvet chat start``) to 2.x; return a message for a removed command."""
+    """Map 1.x spellings (``crossvet chat route``) to today's commands."""
     if argv[:1] != ["chat"] or len(argv) < 2:
         return argv
     second = argv[1]
     if second in ("--version", "-V"):
         return ["--version"]
-    if second in REMOVED:
-        return (f"`crossvet chat {second}` was removed in Crossvet 2.0: Crossvet no longer chooses, rates or compares "
-                "models. Name the model yourself (`crossvet models` lists them). See docs/MIGRATING.md.")
-    if second in KEPT and second != "chat":
+    if second in RENAMED:
+        return f"`crossvet chat {second}` is now `crossvet {RENAMED[second]}` (see docs/MIGRATING.md)."
+    sub = next(a for a in build_parser()._actions if a.dest == "command")
+    if second in sub.choices and second != "chat":
         return argv[1:]
     return argv
 

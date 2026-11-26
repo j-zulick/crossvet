@@ -11,11 +11,11 @@ Thanks for your interest. Crossvet is a small project; issues and focused pull r
 uv sync --all-extras
 uv run pytest tests/unit -q      # offline: no API keys, no network
 uvx ruff@0.17.4 check src tests
-CROSSVET_LIVE=1 uv run pytest tests/live -q -rs   # real API calls with your keys (about $0.02)
+CROSSVET_LIVE=1 uv run pytest tests/live -q -rs   # real API calls with your keys (about $0.05)
 ```
 
 ## Rules that keep Crossvet honest
-- **You name the model.** Crossvet never chooses, routes or scores; changes that would are out of scope here.
+- **A named model is never switched.** Crossvet chooses only when a request names `auto`, a slot or a goal, and every choice is explained (`/why`) and recorded.
 - **Guards stay in code:** spend caps, refused accounts, limits.
 - **Claims match the code.** README text, release notes and docs change in the same pull request as the behavior they describe.
 - **Results come only from real runs,** with the date, model ids and cost ([docs/live-runs/](docs/live-runs/)).

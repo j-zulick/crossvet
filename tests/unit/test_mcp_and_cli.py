@@ -11,9 +11,13 @@ from crossvet.providers import ProviderError
 Q = "Summarize this listing in one line: 2020 Ford F-150 XLT, 41,000 mi, $34,500, Sarasota."
 
 
-def test_the_three_mcp_tools(cv, fake):
+TOOLS = sorted(["ask", "ask_model", "challenge", "compare_models", "explain_route", "handoff_result", "handoff_status",
+                "handoff_submit", "list_models", "load_context", "rate_answer", "recent_turns", "save_note", "search_memory"])
+
+
+def test_the_named_model_mcp_tools(cv, fake):
     tools = mcp_server.tools(cv)
-    assert sorted(tools) == ["ask_model", "list_models", "recent_turns"]
+    assert sorted(tools) == TOOLS
     assert "anthropic:claude-opus-5-5 (claude)" in tools["list_models"]()
     fake.on("openai:gpt-6-luna", "2020 F-150 XLT, 41k mi, $34,500.")
     text = tools["ask_model"](Q, model="luna", system="Be brief.")
@@ -32,22 +36,28 @@ def test_mcp_ask_reports_problems_as_text(cv, fake):
     assert mcp_server.tools(Crossvet(cv.config, type(cv.store)()))["recent_turns"]() == "No turns yet."
 
 
-def test_the_mcp_server_registers_exactly_three_tools(cv):
+def test_the_mcp_server_registers_every_tool(cv):
     import asyncio
 
     server = mcp_server.build_server(cv)
     names = sorted(t.name for t in asyncio.run(server.list_tools()))
-    assert names == ["ask_model", "list_models", "recent_turns"]
+    assert names == TOOLS
 
 
 def test_mcp_http_stays_on_this_computer(capsys):
     assert mcp_server.main(http=True, host="0.0.0.0") == 2
 
 
-@pytest.mark.parametrize("old", ["route", "bench", "compare", "backup", "routes"])
-def test_removed_1x_commands_say_why_and_exit_1(old, capsys):
-    assert cli.main(["chat", old, "Fix the race condition"]) == 1
-    assert "removed in Crossvet 2.0" in capsys.readouterr().err
+@pytest.mark.parametrize(("old", "new"), [("routes", "tune"), ("feedback", "rate"), ("learn", "tune")])
+def test_renamed_1x_commands_point_to_the_new_name(old, new, capsys):
+    assert cli.main(["chat", old]) == 1
+    assert f"crossvet {new}" in capsys.readouterr().err
+
+
+def test_1x_spellings_of_route_bench_and_compare_work_again():
+    assert cli.normalize(["chat", "route", "Fix it"]) == ["route", "Fix it"]
+    assert cli.normalize(["chat", "bench", "--limit", "1"]) == ["bench", "--limit", "1"]
+    assert cli.normalize(["chat", "backup", "x"]) == ["backup", "x"]
 
 
 def test_1x_spellings_of_kept_commands_still_work():
@@ -61,7 +71,7 @@ def test_1x_spellings_of_kept_commands_still_work():
 def test_version_and_help(capsys):
     with pytest.raises(SystemExit) as done:
         cli.main(["chat", "--version"])
-    assert done.value.code == 0 and capsys.readouterr().out.startswith("crossvet 2")
+    assert done.value.code == 0 and capsys.readouterr().out.startswith(f"crossvet {cli.__version__}")
     assert cli.main([]) == 0 and "crossvet start" in capsys.readouterr().out
 
 

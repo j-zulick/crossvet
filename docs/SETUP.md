@@ -5,10 +5,10 @@
 Crossvet installs from GitHub (there is no PyPI package). With [uv](https://docs.astral.sh/uv/):
 
 ```bash
-uv tool install "git+https://github.com/j-zulick/crossvet@v2.0.1"
+uv tool install "git+https://github.com/j-zulick/crossvet@v3.0.0"
 ```
 
-`pip install "git+https://github.com/j-zulick/crossvet@v2.0.1"` works in a virtual environment too. Python 3.11 to 3.13. Three dependencies: httpx, the MCP Python SDK (1.x or 2.x) and python-dotenv.
+`pip install "git+https://github.com/j-zulick/crossvet@v3.0.0"` works in a virtual environment too. Python 3.11 to 3.13. Three dependencies: httpx, the MCP Python SDK (1.x or 2.x) and python-dotenv.
 
 ## Keys
 
@@ -32,7 +32,7 @@ See [Using Crossvet](CHAT.md): Hermes and other OpenAI-style apps, then Claude C
 git clone https://github.com/j-zulick/crossvet && cd crossvet
 uv sync --all-extras
 uv run pytest tests/unit -q                       # offline: no keys, no network
-CROSSVET_LIVE=1 uv run pytest tests/live -q -rs   # real API calls with your keys (about $0.02)
+CROSSVET_LIVE=1 uv run pytest tests/live -q -rs   # real API calls with your keys (about $0.05)
 ```
 
 ## If something doesn't work
@@ -41,4 +41,5 @@ CROSSVET_LIVE=1 uv run pytest tests/live -q -rs   # real API calls with your key
 - "unknown model": write `provider:model`, or a short name from `crossvet models`.
 - A provider that rejected your key or reported a billing or quota problem is not called again until you restart Crossvet.
 - The server listens on this computer only. Another address needs `CROSSVET_TOKEN` (at least 16 characters), sent as `Authorization: Bearer <token>`.
-- Coming from 1.x: [MIGRATING.md](MIGRATING.md).
+- `auto` refuses a request that looks private when no `private` slot is set: add a local model to `[slots] private`, remove the private details, or name a model.
+- Coming from 2.x or 1.x: [MIGRATING.md](MIGRATING.md).

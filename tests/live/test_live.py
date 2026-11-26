@@ -269,11 +269,81 @@ def test_mcp_server_over_stdio(tmp_path):
             answer = await session.call_tool("ask_model", {"request": "In one sentence, what should a used-car listing "
                                                                       "title include?", "model": model[0]})
             recent = await session.call_tool("recent_turns", {"limit": 2})
-            return names, answer, recent
+            route = await session.call_tool("explain_route", {"request": "Fix the race condition in this Go worker pool"})
+            return names, answer, recent, route
 
-    names, answer, recent = asyncio.run(run())
+    names, answer, recent, route = asyncio.run(run())
     text = "".join(getattr(c, "text", "") for c in answer.content)
     log("mcp_stdio", None, model=model[0], tools=names, answer_start=text[:300])
-    assert names == ["ask_model", "list_models", "recent_turns"]
+    from crossvet.mcp_server import tools
+
+    assert names == sorted(tools(Crossvet(settings(), Store())))
+    assert "Kind of task: code" in "".join(getattr(c, "text", "") for c in route.content)
     assert not getattr(answer, "is_error", getattr(answer, "isError", False)) and f"[crossvet: {model[0]}" in text
     assert model[0] in "".join(getattr(c, "text", "") for c in recent.content)
+
+
+# --- 3.0: auto, escalation, compare, challenge, the benchmark ------------------------------------------
+
+def auto_settings(**slots: list[str]) -> Config:
+    from crossvet.config import DEFAULT_SLOTS
+
+    cfg = settings()
+    cfg.slots = {k: ready(*v) for k, v in DEFAULT_SLOTS.items() if ready(*v)}
+    cfg.slots.update(slots)
+    return cfg
+
+
+def test_auto_picks_a_slot_by_kind_and_explains(tmp_path):
+    if not ready(*KNOWN):
+        pytest.skip("needs a key")
+    cv = Crossvet(auto_settings(), Store(str(tmp_path / "auto.db")))
+    quick = cv.ask("auto", [{"role": "user", "content": "Sarasota Ford is at 707 S Washington Blvd., Sarasota, FL 34236. "
+                                                         "What is its ZIP code? Number only."}])
+    assert quick.decision["slot"] == "quick" and "34236" in quick.text
+    log("auto_quick", quick, slot=quick.decision["slot"], reason=quick.decision["reason"])
+    code = cv.ask("auto", [{"role": "user", "content": PARSE}])
+    assert code.decision["slot"] == "strong" and "def parse_listing" in code.text
+    log("auto_code", code, slot=code.decision["slot"], reason=code.decision["reason"])
+
+
+def test_auto_escalates_past_a_model_that_fails(tmp_path):
+    first = ready("openai:gpt-6-luna", "anthropic:claude-haiku-5-5")
+    if not first:
+        pytest.skip("needs a key")
+    broken = ("openai:" if first[0].startswith("openai") else "anthropic:") + "no-such-model-crossvet"
+    cv = Crossvet(auto_settings(quick=[broken, first[0]]), Store(str(tmp_path / "esc.db")))
+    answer = cv.ask("auto", [{"role": "user", "content": MILEAGE}])
+    steps = answer.decision["steps"]
+    assert steps[0]["model"] == broken and steps[0]["outcome"].startswith("error") and answer.model == first[0]
+    log("auto_escalation", answer, steps=steps)
+
+
+def test_compare_and_a_cross_vendor_challenge(tmp_path):
+    pair = ready("openai:gpt-6-luna", "anthropic:claude-haiku-5-5")
+    if len(pair) < 2:
+        pytest.skip("needs both OpenAI and Anthropic keys")
+    from crossvet import multi
+
+    cv = Crossvet(auto_settings(reviewer=ready("anthropic:claude-sonnet-5-5", "openai:gpt-6.1-terra")),
+                  Store(str(tmp_path / "multi.db")))
+    rows = multi.compare(cv, pair, MILEAGE)
+    assert all(r.answer and r.answer.text for r in rows)
+    for row in rows:
+        log("compare", row.answer)
+    result = multi.challenge(cv, MILEAGE, "48,000 miles is very high for a 2019 CR-V; most have under 20,000.",
+                             author="openai:gpt-6-luna")
+    assert result.verdict in ("wrong", "unsure") and result.challenger.startswith("anthropic:")
+    log("challenge", result.answer, verdict=result.verdict, problems=result.problems)
+
+
+def test_the_benchmark_scores_real_answers(tmp_path):
+    models = ready("openai:gpt-6-luna", "anthropic:claude-haiku-5-5")
+    if not models:
+        pytest.skip("needs a key")
+    from crossvet import bench
+
+    cv = Crossvet(settings(), Store(str(tmp_path / "bench.db")))
+    rows = bench.run(cv, models, bench.CASES[:4])
+    assert all(not r["error"] for r in rows) and sum(r["score"] for r in rows) / len(rows) >= 0.5
+    log("bench", None, rows=[{k: r[k] for k in ("model", "case", "score", "cost")} for r in rows])

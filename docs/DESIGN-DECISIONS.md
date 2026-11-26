@@ -1,11 +1,11 @@
 # Design decisions
 
-Each entry: the context, the decision, and what it costs. Entries for 1.x features that moved out of Crossvet in 2.0 are in the 1.x history (tag `v1.1.1`).
+Each entry: the context, the decision, and what it costs.
 
-## 1. You name the model; Crossvet never chooses (2.0)
-**Context.** Crossvet 1.x classified each request and routed it to a model it judged suitable. People who use several models usually already know which one they want, and a router that guesses adds a layer to understand and distrust.
-**Decision.** Every request names its model, or gets the one `default_model` you set. No routing, no fallback to another model, no silent retry. Short names (`opus`, `sol`) make naming quick.
-**Cost.** When a model fails, you pick another yourself. Routing and scoring are left to separate tools built on top.
+## 1. You name the model, unless you ask Crossvet to choose (3.0)
+**Context.** People who use several models usually know which one they want, and a router that guesses silently is hard to trust. But for routine work ("summarize this", "fix this bug") naming a model every time is friction, and the right choice can be learned from your own ratings.
+**Decision.** A request names its model, or gets `default_model`, and a named model is never switched. Choosing is opt-in per request: the name `auto` (or `crossvet/<slot>`, `crossvet/<goal>`). Every choice is made in code from the request alone, is explained in words (`/why`, `crossvet route`), and is recorded with each attempt.
+**Cost.** Two ways of working in one tool. The rules are simple text patterns: they err upward (an unclear request is "general", never "quick") and they can be wrong, which is why the explanation is always one command away.
 
 ## 2. Meet each chat where it is: an OpenAI-compatible server, MCP tools, and a terminal
 **Context.** Hermes and most chat apps take an OpenAI base URL; Claude Code, Codex and Cursor take MCP servers.
@@ -14,7 +14,7 @@ Each entry: the context, the decision, and what it costs. Entries for 1.x featur
 
 ## 3. Pass agents' tools through; translate only where a vendor requires it
 **Context.** Agents such as Hermes send tools and tool results on every request. On 2026-11-26, OpenAI's gpt-6.1-sol, gpt-6.1-terra and gpt-6-luna all refused tools on chat completions (Sol refused them with any reasoning setting); Anthropic's native API uses a different tool format.
-**Decision.** Requests with tools go through whole, streamed when the app streams (`relay.py`): OpenAI-style providers as they are, Anthropic through its OpenAI-compatible endpoint, OpenAI through the Responses API with a translation in each direction and `store: false`. Since 2.0.1:
+**Decision.** Requests with tools go through whole, streamed when the app streams (`relay.py`): OpenAI-style providers as they are, Anthropic through its OpenAI-compatible endpoint, OpenAI through the Responses API with a translation in each direction and `store: false`. In addition:
 - OpenAI's encrypted reasoning is requested (`include: reasoning.encrypted_content`), kept per tool-call id for 7 days, and sent back with the tool results, which is how a stateless client keeps a reasoning model's chain of thought across tool steps. Checked live on 2026-11-26: Sol at high effort reasoned before its tool call, and the kept reasoning was accepted on the next step.
 - A field the Responses API has no place for is dropped and reported (`crossvet.dropped`), never silently.
 - The translation is tested against replies recorded from the real APIs (`tests/unit/fixtures/`).
@@ -25,10 +25,10 @@ Each entry: the context, the decision, and what it costs. Entries for 1.x featur
 **Decision.** A daily cap, a per-call worst-case cap at list price, and a per-process block on a provider that refused the account (401, 402, or a quota or billing refusal, decided from the HTTP status and the error text). All three raise before the request leaves.
 **Cost.** The caps are only as good as the prices: a model with no price counts as $0 (`doctor` lists them). The per-call estimate assumes the full output limit, so it is deliberately pessimistic.
 
-## 5. One local, append-only log shared by every app
-**Context.** Knowing what was asked, of which model, at what cost, matters more when several apps share one set of keys.
-**Decision.** One SQLite file in WAL mode, with triggers that refuse updates and deletes. It keeps the 1.x table, so history carries over.
-**Cost.** No search, export or retention tools in Crossvet itself; the file is plain SQLite for anything else.
+## 5. One local, append-only log shared by every app, and a separate lab file
+**Context.** Knowing what was asked, of which model, at what cost, matters more when several apps share one set of keys. Decisions, ratings and notes change over time; the record of what was asked must not.
+**Decision.** One SQLite file in WAL mode, with triggers that refuse updates and deletes, for turns. Decisions, ratings, notes, accepted routes and handoffs go to a second SQLite file keyed by turn id (`lab.py`), so the log keeps its schema and older releases can still open it. `backup` copies both with SHA-256 sums; `prune` frees side tables and never removes a turn.
+**Cost.** Two files to look after instead of one; `backup` and `restore` handle both together.
 
 ## 6. A dated built-in model table; names and the default are yours
 **Context.** A new user should get a working setup from their keys alone, and model ids and prices go stale.
@@ -40,7 +40,27 @@ Each entry: the context, the decision, and what it costs. Entries for 1.x featur
 **Decision.** Keys come from the environment, then `./.env`, then `~/.config/crossvet/.env` (python-dotenv, never overriding the environment). Releases install from tags on GitHub.
 **Cost.** No PyPI package; `uv tool install` takes the GitHub URL.
 
-## 8. Removing features is a major version
-**Context.** 2.0 removes commands, MCP tools, settings and the `crossvet-chat` program that 1.x documented as stable.
-**Decision.** A major version, a [migration guide](MIGRATING.md), and a clear message for every removed command (`crossvet chat route` says it was removed and why, with exit code 1). Kept 1.x spellings (`crossvet chat start`, `crossvet chat mcp`) still work, and the log opens unchanged.
-**Cost.** 1.x settings files are refused with a pointer to `crossvet init` rather than half-read.
+## 8. A major version for a change of model, with every earlier spelling kept working
+**Context.** 3.0 changes the promise of the tool (it can now choose) and adds settings and MCP tools.
+**Decision.** A major version and a [migration guide](MIGRATING.md). Nothing a 2.x user relies on changes: named models behave as before, every 2.x command, tool and setting works, and `crossvet chat <command>` spellings still work. 1.x names that moved (`routes`, `feedback`, `learn`) say where they went.
+**Cost.** The command line is larger. `crossvet` with no arguments groups the commands by job.
+
+## 9. Escalation is narrow and decided in code
+**Context.** Trying another model after a failure is useful; silently replacing an answer the user has started reading is not, and a model's own "I'm not sure" is not a failure signal anyone can check.
+**Decision.** Only an error, an empty answer, or invalid JSON (when the request asked for JSON) counts as a failure, and only before anything has been streamed. JSON answers are held back until they have been checked. Each attempt is recorded with its outcome. A model you named is never switched.
+**Cost.** A weak but well-formed answer is not escalated: that is what `/retry stronger` and ratings are for.
+
+## 10. Private requests never fall back to the cloud
+**Context.** A request with an API key, a card or ID number, or marked confidential should not reach a cloud vendor because a router picked one.
+**Decision.** With `auto`, such a request only goes to the `private` slot (a model on your machine), and is refused with an explanation when that slot is empty. The check is a pattern match, done before anything is sent. `private_auto = false` turns it off.
+**Cost.** Patterns miss some private text and flag some harmless text (a 16-digit order number). Naming a model yourself bypasses the check, as it should.
+
+## 11. Verdicts from models are read in code, and judges are blind
+**Context.** `challenge`, `replay` and the benchmark use a model's output to judge another's. A judge that can be talked into a verdict, or that knows which answer is whose, measures little.
+**Decision.** Verdicts are JSON with a fixed set of values; anything else counts as no verdict. Judges and challengers come from another vendor than the answer they check where possible; replay shuffles the order and hides which model wrote which answer. The benchmark uses answer keys checked in code, not a judge.
+**Cost.** A judge that answers in prose is wasted. The benchmark's cases are small and synthetic: they show which models fail a job, not a general ranking.
+
+## 12. Tuning proposes; only you change the routes
+**Context.** Ratings show which model you were happy with for which kind of task. Changing routes automatically on a handful of ratings would chase noise.
+**Decision.** `crossvet tune` proposes a change only with at least 5 ratings for each model and a 15-point lead, records the evidence, and changes nothing until you accept it. Every accepted route can be rolled back.
+**Cost.** Routes improve only as fast as you rate and accept.

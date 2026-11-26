@@ -1,7 +1,8 @@
-"""Settings: your default model, short names, the model menu, prices and limits.
+"""Settings: your default model, short names, the model menu, prices, limits, and the slots ``auto`` uses.
 
-Crossvet never chooses a model for you. A request names its model (``anthropic:claude-opus-5-5``,
-or a short name such as ``opus``); a request that names none goes to ``default_model``.
+A request names its model (``anthropic:claude-opus-5-5``, or a short name such as ``opus``); a request
+that names none goes to ``default_model``. Crossvet chooses a model only when the request asks it to,
+by naming ``auto`` (or ``crossvet/strong``, ``crossvet/cheapest``...): see ``routing.py``.
 
 Settings live in one TOML file: the path in ``CROSSVET_CONFIG``, else ``./crossvet.toml``, else
 ``~/.config/crossvet/crossvet.toml``. Without a file, the built-in table below is used for the
@@ -35,7 +36,22 @@ KNOWN: dict[str, tuple[float, float, tuple[str, ...]]] = {
 # The built-in default: the first of these your keys can call.
 DEFAULT_ORDER = ("anthropic:claude-sonnet-5-5", "openai:gpt-6.1-terra")
 DEFAULT_ALIASES = ("", "default", "crossvet")
-TOP_KEYS = {"default_model", "models", "names", "prices", "limits", "store"}
+TOP_KEYS = {"default_model", "models", "names", "prices", "limits", "store", "slots", "routes", "router", "lab"}
+SLOTS = ("quick", "balanced", "strong", "long", "vision", "reviewer", "private")
+GOALS = ("auto", "best", "cheapest", "fastest")
+# Which slot each kind of task starts in (classify.py names the kinds).
+DEFAULT_ROUTES = {"quick": "quick", "summarize": "quick", "extract": "quick", "translate": "quick", "writing": "balanced",
+                  "general": "balanced", "fresh": "balanced", "code": "strong", "reasoning": "strong", "review": "reviewer"}
+# The built-in slots: the first model in each list that your keys can call goes first.
+DEFAULT_SLOTS = {
+    "quick": ("anthropic:claude-haiku-5-5", "openai:gpt-6-luna"),
+    "balanced": ("anthropic:claude-sonnet-5-5", "openai:gpt-6.1-terra"),
+    "strong": ("anthropic:claude-opus-5-5", "openai:gpt-6.1-sol"),
+    "long": ("anthropic:claude-sonnet-5-5", "openai:gpt-6.1-sol"),
+    "vision": ("anthropic:claude-opus-5-5", "openai:gpt-6.1-sol"),
+    "reviewer": ("openai:gpt-6.1-sol", "anthropic:claude-opus-5-5"),
+}
+ROUTER_KEYS = {"goal", "escalate", "max_steps", "private_auto", "long_chars"}
 LIMIT_KEYS = {"max_usd_per_day", "max_usd_per_call", "max_output_tokens", "timeout_seconds", "max_request_bytes"}
 
 
@@ -53,6 +69,14 @@ class Config:
     timeout_seconds: float = 120.0     # one model call, start to finish
     max_request_bytes: int = 2_000_000  # the largest request the server accepts
     store: str = ""                    # "" = CROSSVET_DB, else ~/.local/share/crossvet/chat.db
+    lab: str = ""                      # "" = CROSSVET_LAB_DB, else lab.db next to the log
+    slots: dict[str, list[str]] = field(default_factory=dict)  # [slots]: slot -> models, first callable goes first
+    routes: dict[str, str] = field(default_factory=lambda: dict(DEFAULT_ROUTES))  # [routes]: kind of task -> slot
+    goal: str = "auto"                 # [router] goal: auto (slot order) | best | cheapest | fastest
+    escalate: bool = True              # [router] escalate: try the next model after an error, an empty answer or bad JSON
+    max_steps: int = 2                 # [router] max_steps: extra models tried after the first
+    private_auto: bool = True          # [router] private_auto: requests that look private only go to the private slot
+    long_chars: int = 60_000           # [router] long_chars: a request this long goes to the long slot
     source: str = ""                   # the file this was read from; "" for the built-in table
 
     def resolve(self, name: str | None) -> str:
@@ -96,6 +120,25 @@ class Config:
                 seen.append(model)
         return seen
 
+    def slot_models(self, slot: str) -> list[str]:
+        """Models in a slot, in order; an empty slot falls back to the next one up (quick -> balanced -> strong)."""
+        if self.slots.get(slot):
+            return list(self.slots[slot])
+        if slot == "private":
+            return []  # never falls back: private requests stay where you said they may go
+        for other in ("balanced", "strong", "quick"):
+            if self.slots.get(other):
+                return list(self.slots[other])
+        return [m for m in self.menu()]
+
+    def lab_path(self, store: str = "") -> str:
+        """Where decisions, ratings, notes, reviews and scores are kept: next to the log in use, unless set."""
+        explicit = os.environ.get("CROSSVET_LAB_DB") or self.lab
+        if explicit:
+            return explicit
+        store = store or self.store_path()
+        return ":memory:" if store == ":memory:" else str(Path(store).with_name("lab.db"))
+
     def store_path(self) -> str:
         """Where the local log of turns is kept."""
         return os.environ.get("CROSSVET_DB") or self.store or str(Path.home() / ".local" / "share" / "crossvet" / "chat.db")
@@ -114,7 +157,8 @@ def builtin() -> Config:
     usable = [m for m in KNOWN if callable_now(m)]
     names = {short: m for m in usable for short in KNOWN[m][2]}
     default = next((m for m in DEFAULT_ORDER if m in usable), usable[0] if usable else "")
-    return Config(default_model=default, models=usable, names=names)
+    slots = {slot: [m for m in models if m in usable] for slot, models in DEFAULT_SLOTS.items()}
+    return Config(default_model=default, models=usable, names=names, slots={k: v for k, v in slots.items() if v})
 
 
 def config_path() -> Path | None:
@@ -138,9 +182,6 @@ def _number(value: object, name: str, source: str) -> float:
 
 def parse(data: dict, source: str = "settings") -> Config:
     """Build a ``Config`` from parsed TOML; reject unknown keys and names that point nowhere."""
-    if "slots" in data or "routes" in data:
-        raise ValueError(f"{source} is a Crossvet 1.x settings file (it has slots or routes). Crossvet 2 does not choose "
-                         "models; run `crossvet init` to write a 2.x file")
     unknown = set(data) - TOP_KEYS
     if unknown:
         raise ValueError(f"unknown setting(s) in {source}: {', '.join(sorted(unknown))}")
@@ -155,8 +196,34 @@ def parse(data: dict, source: str = "settings") -> Config:
     for model, value in (data.get("prices") or {}).items():
         prices[str(model)] = (_number(value.get("input"), f"prices.{model}.input", source),
                               _number(value.get("output"), f"prices.{model}.output", source))
+    from crossvet.classify import KINDS
+
+    slots: dict[str, list[str]] = {}
+    for slot, value in (data.get("slots") or {}).items():
+        if slot not in SLOTS:
+            raise ValueError(f"unknown slot {slot!r} in {source}: the slots are {', '.join(SLOTS)}")
+        listed = [value] if isinstance(value, str) else [str(v) for v in value or []]
+        for model in listed:
+            providers.split(model)
+        slots[slot] = listed
+    routes = dict(DEFAULT_ROUTES)
+    for kind, slot in (data.get("routes") or {}).items():
+        if kind not in KINDS or slot not in SLOTS:
+            raise ValueError(f"[routes] {kind} = {slot!r} in {source}: kinds are {', '.join(KINDS)}; slots are {', '.join(SLOTS)}")
+        routes[kind] = str(slot)
+    router = data.get("router") or {}
+    if set(router) - ROUTER_KEYS:
+        raise ValueError(f"unknown [router] setting(s) in {source}: {', '.join(sorted(set(router) - ROUTER_KEYS))}")
+    if router.get("goal", "auto") not in GOALS:
+        raise ValueError(f"[router] goal in {source} must be one of {', '.join(GOALS)}")
     cfg = Config(default_model=str(data.get("default_model", "")), models=models, names=names, prices=prices,
-                 store=str((data.get("store") or {}).get("path", "")), source=source)
+                 store=str((data.get("store") or {}).get("path", "")), lab=str((data.get("lab") or {}).get("path", "")),
+                 slots=slots, routes=routes, goal=str(router.get("goal", "auto")),
+                 escalate=bool(router.get("escalate", True)),
+                 max_steps=int(_number(router.get("max_steps", 2), "[router] max_steps", source)),
+                 private_auto=bool(router.get("private_auto", True)),
+                 long_chars=int(_number(router.get("long_chars", 60_000), "[router] long_chars", source)) or 60_000,
+                 source=source)
     if "max_usd_per_day" in limits:
         cfg.max_usd_per_day = _number(limits["max_usd_per_day"], "max_usd_per_day", source)
     if "max_usd_per_call" in limits:
@@ -190,7 +257,7 @@ def render(cfg: Config) -> str:
     """Return a settings file for ``cfg``, with comments, as ``crossvet init`` writes it."""
     lines = [
         "# Crossvet settings. API keys are NOT stored here: they come from the environment or a .env file.",
-        "# Crossvet never picks a model for you: a request names one, or gets default_model.",
+        "# A request names its model, or gets default_model. Name `auto` and Crossvet picks from the slots below.",
         "",
         f'default_model = "{cfg.default_model}"',
         "",
@@ -207,6 +274,16 @@ def render(cfg: Config) -> str:
         f"max_output_tokens = {cfg.max_output_tokens}",
         f"timeout_seconds = {cfg.timeout_seconds:g}       # one model call, start to finish",
         f"max_request_bytes = {cfg.max_request_bytes}  # the largest request `crossvet serve` accepts",
+        "",
+        "# The slots `auto` picks from (first callable model goes first). `crossvet route TEXT` shows a decision.",
+        "[slots]",
+        *(f'{slot} = [' + ", ".join(f'"{m}"' for m in models) + "]" for slot, models in cfg.slots.items()),
+        '# private = ["ollama:gemma3"]   # where requests that look private may go; empty = they are refused',
+        "",
+        "[router]",
+        f'goal = "{cfg.goal}"          # auto (slot order) | best | cheapest | fastest',
+        f"escalate = {str(cfg.escalate).lower()}        # after an error, an empty answer or bad JSON, try the next model",
+        f"max_steps = {cfg.max_steps}",
         "",
         f"# Prices in USD per million tokens. Built in for {', '.join(KNOWN)} (list prices, {KNOWN_DATE});",
         "# add one for any other model so /cost and the per-call cap can count it:",

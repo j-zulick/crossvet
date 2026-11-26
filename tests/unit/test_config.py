@@ -37,13 +37,23 @@ def test_without_a_default_a_request_must_name_its_model():
     assert cfg.menu() == ["openai:gpt-6-luna"]
 
 
-def test_a_1x_settings_file_is_refused_with_the_way_forward():
-    with pytest.raises(ValueError, match="Crossvet 1.x settings file.*crossvet init"):
-        parse({"slots": {"quick": ["openai:gpt-6-luna"]}})
+def test_slots_routes_and_router_settings_parse_and_are_checked():
+    cfg = parse({"slots": {"quick": ["openai:gpt-6-luna"], "strong": "anthropic:claude-opus-5-5"},
+                 "routes": {"writing": "strong"}, "router": {"goal": "cheapest", "max_steps": 1}})
+    assert cfg.slots["strong"] == ["anthropic:claude-opus-5-5"] and cfg.routes["writing"] == "strong"
+    assert cfg.goal == "cheapest" and cfg.max_steps == 1 and cfg.routes["code"] == "strong"
+    with pytest.raises(ValueError, match="unknown slot"):
+        parse({"slots": {"turbo": ["openai:gpt-6-luna"]}})
+    with pytest.raises(ValueError, match=r"\[routes\]"):
+        parse({"routes": {"poetry": "quick"}})
+    with pytest.raises(ValueError, match="goal"):
+        parse({"router": {"goal": "smartest"}})
 
 
 def test_unknown_settings_and_bad_names_are_refused():
     with pytest.raises(ValueError, match="unknown setting"):
+        parse({"memory": {"turns": 4}})
+    with pytest.raises(ValueError, match=r"unknown \[router\]"):
         parse({"router": {"use": "rules"}})
     with pytest.raises(ValueError, match=r"unknown \[limits\]"):
         parse({"limits": {"max_usd_per_week": 1}})

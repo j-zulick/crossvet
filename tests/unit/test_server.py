@@ -162,3 +162,42 @@ def test_serving_beyond_this_computer_needs_a_long_token(monkeypatch, capsys):
     monkeypatch.setenv("CROSSVET_TOKEN", "short")
     assert server.serve("0.0.0.0", 8787) == 2
     assert "at least 16 characters" in capsys.readouterr().err
+
+
+def test_auto_from_the_model_menu_answers_and_explains(make, fake, monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "x")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "x")
+    cv = make(slots={"strong": ["openai:gpt-6.1-sol"], "quick": ["openai:gpt-6-luna"]})
+    client = TestClient(server.create_app(cv, token=""))
+    assert "auto" in [m["id"] for m in client.get("/v1/models").json()["data"]]
+    fake.on("openai:gpt-6.1-sol", "def parse(s): ...")
+    data = post(client, [user(Q1)], model="auto").json()
+    assert data["model"] == "openai:gpt-6.1-sol" and data["crossvet"]["decision"]["slot"] == "strong"
+    history = [user(Q1), {"role": "assistant", "content": "def parse(s): ..."}]
+    why = post(client, [*history, user("/why")]).json()["choices"][0]["message"]["content"]
+    assert "openai:gpt-6.1-sol answered (kind: code, slot: strong)" in why
+    rated = post(client, [*history, user("/bad wrong regex")]).json()["choices"][0]["message"]["content"]
+    assert "rated the last answer (openai:gpt-6.1-sol" in rated
+    assert cv.lab.ratings()[-1]["note"] == "wrong regex"
+    stream = client.post("/v1/chat/completions", json={"model": "auto", "stream": True, "messages": [user(Q1)]})
+    assert '"model": "auto"' in stream.text and "decision" in stream.text
+
+
+def test_retry_stronger_moves_up_a_slot(make, fake, monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "x")
+    cv = make(slots={"quick": ["openai:gpt-6-luna"], "balanced": ["openai:gpt-6.1-terra"], "strong": ["openai:gpt-6.1-sol"]})
+    client = TestClient(server.create_app(cv, token=""))
+    fake.on("openai:gpt-6-luna", "Low.")
+    question = user("Is 48,000 miles high for a 2019 CR-V?")
+    post(client, [question], model="auto")
+    fake.on("openai:gpt-6.1-terra", "It is low for a five-year-old SUV.")
+    text = post(client, [question, {"role": "assistant", "content": "Low."}, user("/retry stronger")], model="auto").json()
+    assert text["choices"][0]["message"]["content"].startswith("It is low") and "openai:gpt-6.1-terra" in text["choices"][0]["message"]["content"]
+    assert fake.calls[-1][1] == [question]
+
+
+def test_a_private_request_with_nowhere_private_is_a_400(make, monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "x")
+    client = TestClient(server.create_app(make(slots={"balanced": ["openai:gpt-6.1-terra"]}), token=""))
+    reply = post(client, [user("Confidential: my card is 4111 1111 1111 1111, pay the deposit")], model="auto")
+    assert reply.status_code == 400 and reply.json()["error"]["type"] == "private_request"

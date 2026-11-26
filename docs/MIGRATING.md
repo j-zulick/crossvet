@@ -1,30 +1,29 @@
-# Moving from Crossvet 1.x to 2.0
+# Moving to Crossvet 3
 
-Crossvet 2.0 does one thing: you name a model, from any chat, and it answers. It no longer chooses, rates or compares models. Your log of past turns opens unchanged.
+## From 2.x
 
-## What to do
+Nothing you use changes. A model you name answers exactly as before, every command, MCP tool, setting and environment variable keeps working, and your log opens unchanged. What 3.0 adds is opt-in:
 
-1. Install 2.0: `uv tool install --force "git+https://github.com/j-zulick/crossvet@v2.0.1"`.
-2. Write new settings: `crossvet init` (2.0 refuses a 1.x `crossvet-chat.toml` rather than half-read it). Move your keys to `~/.config/crossvet/.env` if you want `crossvet mcp` to find them from any folder; a `.env` in the folder you run from still works.
-3. Rename environment variables: `CROSSVET_CHAT_CONFIG` → `CROSSVET_CONFIG`, `CROSSVET_CHAT_DB` → `CROSSVET_DB`, `CROSSVET_CHAT_TOKEN` → `CROSSVET_TOKEN`. `crossvet doctor` lists any 1.x names still set.
-4. In Hermes or another OpenAI-style app, change the model from `auto` (or `crossvet/<slot>`) to a model name or `default`.
-5. In Claude Code, Codex or Cursor: if the MCP entry runs `crossvet chat mcp`, it keeps working; `crossvet mcp` is the 2.0 spelling.
-6. Run `crossvet doctor`.
+1. Install: `uv tool install --force "git+https://github.com/j-zulick/crossvet@v3.0.0"`.
+2. Optional: name `auto` (or `crossvet/strong`, `crossvet/cheapest`...) where you want Crossvet to choose. `crossvet route "your request"` shows what it would pick, and why.
+3. Optional: run `crossvet init --force` to write a settings file with the new `[slots]` and `[router]` sections, or copy them from [crossvet.example.toml](../crossvet.example.toml). Without them, the slots are filled from the built-in table with the models your keys can call.
+4. Optional: add a model on your machine to `[slots] private` so requests that look private can go to `auto` too. Without one, such requests are refused under `auto` (never sent to a cloud model).
 
-## What changed
+New next to your log: `lab.db` (decisions, ratings, notes, accepted routes, handoffs). `crossvet backup` copies both files.
 
-| 1.x | 2.0 |
+| 2.x | 3.0 |
 |---|---|
-| `model: auto`, `crossvet/<slot>`, `crossvet/<goal>` | A model name, a short name, or `default` |
-| `crossvet chat start`, `serve`, `mcp`, `ask`, `log`, `init`, `doctor` | `crossvet start`, `serve`, `mcp`, `ask`, `log`, `init`, `doctor` (the 1.x spellings still work) |
-| `crossvet chat` (terminal) | `crossvet chat`, with `--model` |
-| `crossvet-chat` program | `crossvet` |
-| 13 MCP tools | `list_models`, `ask_model`, `recent_turns` |
-| `[slots]`, `[routes]`, `[router]`, `[kinds]`, `[inputs]`, `[privacy]`, `[memory]`, `[record]`, `[tuning]`, `[retention]` | `default_model`, `models`, `[names]`, `[prices]`, `[limits]`, `[store]` |
-| A failed answer tried the next model in the slot | A failed call returns an error naming the model; you pick another |
+| A model name, a short name, or `default` | The same, plus `auto`, `crossvet/<slot>`, `crossvet/<goal>` |
+| `/model`, `/models`, `/cost`, `/help` | The same, plus `/why`, `/good`, `/bad`, `/retry [stronger]` |
+| 3 MCP tools | The same 3, plus `ask`, `explain_route`, `compare_models`, `challenge`, `rate_answer`, `save_note`, `search_memory`, `load_context`, `handoff_submit`, `handoff_status`, `handoff_result` |
+| `default_model`, `models`, `[names]`, `[prices]`, `[limits]`, `[store]` | The same, plus `[slots]`, `[routes]`, `[router]`, `[lab]` |
+| `crossvet chat route` etc. printed "removed" | `route`, `bench`, `compare`, `challenge`, `note`, `tune`, `replay`, `report`, `dashboard`, `export`, `sync`, `handoff`, `backup`, `restore` and `prune` work, as `crossvet <command>` or `crossvet chat <command>` |
 
-## Removed
+## From 1.x
 
-Routing of every kind (`auto`, kinds and difficulty, slots, goals, the routing table, input-based routing, private-to-local, cascade, escalation), `/why`, `/retry stronger`, `/good`, `/bad`, `/private`, answer checks, ratings and Langfuse recording, OpenTelemetry, the benchmark (`bench`), `route`, `routes`, `tune`, `learn`, `replay`, `export`, `report`, `dashboard`, `sync`, `compare`, `challenge`, `feedback`, `note`, `handoff`, `backup`, `restore`, `prune`, shared notes, the activity page (`/`, `/api/turns`, `/api/feedback`), prompt-cache markers, and the `langfuse`, `otel` extras. Each removed command prints what happened and exits with code 1.
-
-The 1.x code and its benchmark results stay in the repository's history at tag `v1.1.1`.
+1. Install 3.0 as above.
+2. Settings: 1.x `[slots]` (lists of models) and `[routes]` read as before. Remove the 1.x sections 3.0 does not have (`[kinds]`, `[inputs]`, `[privacy]`, `[memory]`, `[record]`, `[tuning]`, `[retention]`) or run `crossvet init` for a fresh file; an unknown section is refused with its name. Move 1.x `[privacy] models` to `[slots] private`, and `[router] goal` stays `[router] goal`.
+3. Rename environment variables: `CROSSVET_CHAT_CONFIG` → `CROSSVET_CONFIG`, `CROSSVET_CHAT_DB` → `CROSSVET_DB`, `CROSSVET_CHAT_TOKEN` → `CROSSVET_TOKEN`. `crossvet doctor` lists any 1.x names still set.
+4. The `crossvet-chat` program is `crossvet`. `crossvet chat routes` is now `crossvet tune`, `feedback` is `rate`.
+5. Ratings and notes from 1.x were kept in the 1.x tables of the log; 3.0 starts its lab file empty. Your turns carry over.
+6. Run `crossvet doctor`.

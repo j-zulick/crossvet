@@ -4,16 +4,19 @@
     model      any provider:model, a short name (opus, sol...), or "default"
 
 ``GET /v1/models`` lists your models, so the app's model menu shows them. Which model answers is
-decided by the request, never by Crossvet:
+decided by the request:
 
 1. the latest ``/model NAME`` typed in the conversation, if any;
 2. else the request's ``model`` field;
-3. ``default`` (or ``crossvet``) means your ``default_model``.
+3. ``default`` (or ``crossvet``) means your ``default_model``;
+4. ``auto``, ``crossvet/<slot>`` or ``crossvet/<goal>`` lets Crossvet choose (routing.py).
 
-Commands typed as the whole message (no model is called, and they are left out of what models see):
+Commands typed as the whole message (left out of what models see):
 
     /model NAME   use NAME for the rest of this conversation      /models   list your models
     /model        show the model in use                           /cost     spend in this conversation and today
+    /why          why auto chose the last answer's model          /good, /bad [note]   rate the last answer
+    /retry        ask the last question again; /retry stronger moves one slot up
     /help         this list
 
 Agents keep their tools: a request with ``tools`` or tool results is passed through to the named
@@ -36,16 +39,17 @@ import time
 from collections.abc import Iterator
 from typing import Any
 
-from crossvet import __version__
+from crossvet import __version__, routing
 from crossvet.core import Answer, BudgetExceeded, Crossvet
 from crossvet.providers import AccountError, ProviderError, text_of
 
 LOCAL_HOSTS = ("127.0.0.1", "localhost", "::1")
 MIN_TOKEN_CHARS = 16
 FAIL_DELAY_SECONDS = 1.0  # pause before answering a wrong or missing token
-COMMANDS = ("/model", "/models", "/cost", "/help")
-HELP = ("Crossvet commands: /model NAME (use NAME in this conversation), /model (show it), /models (list them), "
-        "/cost (spend here and today), /help.")
+COMMANDS = ("/model", "/models", "/cost", "/help", "/why", "/good", "/bad", "/retry")
+HELP = ("Crossvet commands: /model NAME (use NAME in this conversation; auto lets Crossvet choose), /model (show it), "
+        "/models (list them), /cost (spend here and today), /why (why auto chose), /good or /bad [note] (rate the last "
+        "answer), /retry (ask again; /retry stronger moves up a slot), /help.")
 
 
 def is_command(message: dict[str, Any]) -> bool:
@@ -103,20 +107,55 @@ def command(cv: Crossvet, messages: list[dict[str, Any]], requested: str, thread
     name = words[0].lower()
     if name == "/model":
         if len(words) > 1:
-            return f"Crossvet: {cv.config.resolve(words[1])} answers the rest of this conversation."
-        return f"Crossvet: this conversation uses {cv.config.resolve(chosen_model(messages[:-1], requested))}."
+            if routing.is_auto(words[1]):
+                return f"Crossvet: Crossvet chooses the model ({words[1]}) for the rest of this conversation; /why explains each choice."
+            return f"Crossvet: {cv.label(words[1])} answers the rest of this conversation."
+        return f"Crossvet: this conversation uses {cv.label(chosen_model(messages[:-1], requested))}."
     if name == "/models":
         return cv.models_text()
     if name == "/cost":
         midnight = time.mktime(time.localtime()[:3] + (0, 0, 0, 0, 0, -1))
         return cv.cost_text(thread=thread, title="This conversation") + "\n\n" + cv.cost_text(since=midnight, title="Today")
+    if name == "/why":
+        decision = cv.lab.decision(thread=thread)
+        if decision is None:
+            return "Crossvet: no answer in this conversation was chosen by auto; you named the model."
+        steps = "; ".join(f"{s['model']}: {s['outcome']}" for s in decision["steps"])
+        return f"Crossvet: {decision['model']} answered (kind: {decision['kind']}, slot: {decision['slot']}). {decision['reason']}. Attempts: {steps}."
+    if name in ("/good", "/bad"):
+        last = next((t for t in reversed(cv.store.turns(thread, 200)) if t.role == "assistant"), None)
+        if last is None:
+            return "Crossvet: there is no answer in this conversation to rate yet."
+        cv.lab.rate(last.id, 1 if name == "/good" else -1, " ".join(words[1:]), source="chat")
+        return f"Crossvet: rated the last answer ({last.model}, #{last.id}) {name[1:]}."
+    if name == "/retry":
+        return retry(cv, messages, requested, thread, stronger=len(words) > 1 and words[1].lower() == "stronger")
     return HELP
+
+
+def retry(cv: Crossvet, messages: list[dict[str, Any]], requested: str, thread: str, stronger: bool) -> str:
+    """Ask the last question again: with the same model, or with auto one slot up."""
+    earlier = without_commands(messages[:-1])
+    while earlier and earlier[-1].get("role") == "assistant":
+        earlier = earlier[:-1]
+    if not earlier:
+        return "Crossvet: there is no question to ask again."
+    if stronger:
+        decision = cv.lab.decision(thread=thread)
+        slot = routing.stronger(cv.config, decision)
+        name = "crossvet/best" if (decision or {}).get("slot") == "strong" else f"crossvet/{slot}"
+    else:
+        name = chosen_model(messages[:-1], requested)
+    answer = cv.ask(name, earlier, thread=thread, app="retry")
+    return f"{answer.text}\n\n[crossvet: {answer.footer()}]"
 
 
 def info(answer: Answer) -> dict[str, Any]:
     """Return what the response adds under ``crossvet``: the model, cost, conversation and turn."""
-    extra = {"model": answer.model, "served_by": answer.served_by, "cost": answer.cost, "thread": answer.thread,
-             "turn": answer.turn_id}
+    extra: dict[str, Any] = {"model": answer.model, "served_by": answer.served_by, "cost": answer.cost,
+                             "thread": answer.thread, "turn": answer.turn_id}
+    if answer.decision:
+        extra["decision"] = {k: answer.decision[k] for k in ("slot", "kind", "reason", "steps")}
     if answer.dropped:
         extra["dropped"] = answer.dropped  # request fields the vendor's API had no place for
     return extra
@@ -155,7 +194,7 @@ def create_app(cv: Crossvet | None = None, token: str | None = None):
     async def models(request: Request) -> JSONResponse:
         if not allowed(request):
             return await denied()
-        ids = ["default", *cv.config.menu(), *cv.config.names]
+        ids = ["default", *cv.config.menu(), *cv.config.names, *routing.menu_names()]
         return JSONResponse({"object": "list", "data": [{"id": i, "object": "model", "owned_by": "crossvet"} for i in ids]})
 
     def whole(text: str, model: str, extra: dict[str, Any], usage: dict[str, int], stream: bool,
@@ -258,7 +297,7 @@ def create_app(cv: Crossvet | None = None, token: str | None = None):
             if wants_relay(body) and stream:
                 deltas = cv.relay_stream(model_name, {**body, "messages": sent}, thread=thread, app=app)
                 first = await run_in_threadpool(next, deltas, None)  # errors before any output become HTTP errors
-                return StreamingResponse(relayed(first, deltas, cv.config.resolve(model_name)), media_type="text/event-stream")
+                return StreamingResponse(relayed(first, deltas, cv.label(model_name)), media_type="text/event-stream")
             if wants_relay(body):
                 raw, answer = await run_in_threadpool(cv.relay, model_name, {**body, "messages": sent}, thread=thread, app=app)
                 choice = (raw.get("choices") or [{}])[0]
@@ -267,12 +306,14 @@ def create_app(cv: Crossvet | None = None, token: str | None = None):
             if stream:
                 pieces = cv.ask_stream(model_name, sent, thread=thread, app=app)
                 first = await run_in_threadpool(next, pieces, None)  # errors before any text become HTTP errors
-                return StreamingResponse(streamed(first, pieces, cv.config.resolve(model_name)), media_type="text/event-stream")
+                return StreamingResponse(streamed(first, pieces, cv.label(model_name)), media_type="text/event-stream")
             answer = await run_in_threadpool(cv.ask, model_name, sent, thread=thread, app=app)
         except BudgetExceeded as exc:
             return error(429, str(exc), "budget_exceeded")
         except AccountError as exc:
             return error(402, str(exc), "account_refused")
+        except routing.PrivateRequest as exc:
+            return error(400, str(exc), "private_request")
         except ValueError as exc:  # an unknown model name
             return error(400, str(exc), "unknown_model")
         except ProviderError as exc:

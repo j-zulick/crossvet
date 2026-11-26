@@ -1,27 +1,33 @@
 """The one place every request goes through: name the model, guard the call, log the turn.
 
 The terminal chat, the OpenAI-compatible server and the MCP server all call :class:`Crossvet`.
-It never chooses a model: the request names one (or gets ``default_model``). The guards are code:
+The request names its model (or gets ``default_model``). Only a request that names ``auto``, a slot
+(``crossvet/strong``) or a goal (``crossvet/cheapest``) lets Crossvet choose (routing.py); then the
+decision is recorded and the next model on the ladder is tried after an error, an empty answer or
+invalid JSON (at most ``[router] max_steps`` times). The guards are code:
 
 - a daily spend cap and a per-call worst-case estimate (``[limits]``), checked before the call;
 - a provider that refuses your key, credit or billing is not called again until restart;
 - one time limit and one output limit for every call.
 
-A failed call raises an error that names the model, so you can pick another. Nothing is retried
-and nothing switches models behind your back.
+A failed call to a model you named raises an error that names the model, so you can pick another:
+nothing is retried and nothing switches models behind your back.
 """
 
 from __future__ import annotations
 
+import itertools
 import json
 import threading
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from typing import Any
 
-from crossvet import providers, relay
+from crossvet import providers, relay, routing
+from crossvet.bench import strip_fences
 from crossvet.config import Config, load
-from crossvet.providers import AccountError, Reply, text_of
+from crossvet.lab import Lab
+from crossvet.providers import AccountError, ProviderError, Reply, text_of
 from crossvet.store import Store, new_thread
 
 CHARS_PER_TOKEN = 4  # a rough count, used only for the per-call cap
@@ -48,12 +54,14 @@ class Answer:
     served_by: str = ""
     tool_calls: list[dict[str, Any]] = field(default_factory=list)
     dropped: list[str] = field(default_factory=list)
+    decision: dict[str, Any] | None = None  # set when Crossvet chose the model (auto, a slot or a goal)
 
     def footer(self) -> str:
-        """One line: model, tokens, cost and time."""
+        """One line: model, tokens, cost and time (and the slot, when Crossvet chose)."""
         cost = "price unknown" if self.cost is None else f"${self.cost:.4f}"
         note = " · stopped at the output limit" if self.truncated else " · the answer was cut off" if self.stop == "error" else ""
-        return f"{self.model} · {self.input_tokens} in / {self.output_tokens} out · {cost} · {self.seconds:.1f} s{note}"
+        chose = f" · auto: {self.decision['slot']} slot, /why explains" if self.decision else ""
+        return f"{self.model} · {self.input_tokens} in / {self.output_tokens} out · {cost} · {self.seconds:.1f} s{note}{chose}"
 
 
 Streamer = Callable[[str, list[dict[str, Any]], int], Iterator["str | Reply"]]
@@ -66,6 +74,20 @@ def estimate_tokens(text: str) -> int:
     return len(text) // CHARS_PER_TOKEN + 1
 
 
+def problem(answer: Answer, wants_json: bool) -> str:
+    """Return what is wrong with an answer, in words ("" when nothing is): decides escalation, in code."""
+    if not answer.text.strip() and not answer.tool_calls:
+        return "empty answer"
+    if wants_json and not answer.tool_calls:
+        try:
+            json.loads(strip_fences(answer.text))
+        except ValueError:
+            return "invalid JSON"
+    if answer.truncated:
+        return "cut off at the output limit"
+    return ""
+
+
 def last_user_text(messages: list[dict[str, Any]]) -> str:
     """Return the text of the latest user message ("" when there is none)."""
     return next((text_of(m.get("content")) for m in reversed(messages) if m.get("role") == "user"), "")
@@ -76,10 +98,11 @@ class Crossvet:
 
     def __init__(self, config: Config | None = None, store: Store | None = None, *,  # noqa: D107
                  streamer: Streamer | None = None, relayer: Relayer | None = None,
-                 relay_streamer: RelayStreamer | None = None) -> None:
+                 relay_streamer: RelayStreamer | None = None, lab: Lab | None = None) -> None:
         self.config = config or load()
         providers.set_timeout(self.config.timeout_seconds)
         self.store = store or Store(self.config.store_path())
+        self.lab = lab or Lab(":memory:" if self.store.path == ":memory:" else self.config.lab_path(self.store.path))
         self.streamer: Streamer = streamer or (lambda m, msgs, n: providers.stream(m, msgs, n))
         self.relayer: Relayer = relayer or (lambda m, body, state: relay.send(m, body, state))
         self.relay_streamer: RelayStreamer = relay_streamer or (lambda m, body, state: relay.send_stream(m, body, state))
@@ -109,11 +132,63 @@ class Crossvet:
     def _refusal(self, model: str) -> None:
         self.refused.add(providers.split(model)[0])
 
+    # --- choosing (only when the request asks for it) ---
+
+    def decide(self, name: str | None, messages: list[dict[str, Any]], author: str = "") -> routing.Decision:
+        """Choose a model for a request that named auto, a slot or a goal (nothing is called)."""
+        return routing.decide(self.config, messages, name or "auto", pinned=self.lab.pinned(), store=self.store, author=author)
+
+    def label(self, name: str | None) -> str:
+        """Return the model a name means, or the name itself when Crossvet will choose."""
+        return (name or "auto") if routing.is_auto(name) else self.config.resolve(name)
+
+    def _tries(self, decision: routing.Decision) -> list[str]:
+        return list(decision.ladder)  # routing.decide already keeps only the models escalation may try
+
+    def _auto_stream(self, name: str, messages: list[dict[str, Any]], thread: str, app: str) -> Iterator[str | Answer]:
+        decision = self.decide(name, messages)
+        tries, steps = self._tries(decision), []
+        for i, model in enumerate(tries):
+            last = i == len(tries) - 1
+            held: list[str] = []  # JSON answers are held back until they are checked
+            started, answer = False, None
+            try:
+                for item in self.ask_stream(model, messages, thread=thread, app=app):
+                    if isinstance(item, Answer):
+                        answer = item
+                    elif decision.wants_json:
+                        held.append(item)
+                    else:
+                        started = True
+                        yield item
+            except ProviderError as exc:  # an account refusal is one too: the next vendor may still answer
+                steps.append({"model": model, "outcome": f"error: {str(exc)[:200]}"})
+                if started or last:
+                    raise
+                continue
+            assert answer is not None  # noqa: S101 - ask_stream always ends with an Answer
+            wrong = problem(answer, decision.wants_json)
+            if wrong and not started and not last and wrong != "cut off at the output limit":
+                steps.append({"model": model, "outcome": wrong, "turn": answer.turn_id})
+                continue
+            yield from held
+            steps.append({"model": model, "outcome": wrong or "ok", "turn": answer.turn_id})
+            answer.decision = {**decision.as_dict(), "model": model, "steps": steps}
+            self.lab.record_decision(answer.turn_id, thread, name, {**decision.as_dict(), "model": model}, steps)
+            yield answer
+            return
+
     # --- asking ---
 
     def ask_stream(self, model_name: str | None, messages: list[dict[str, Any]], *, thread: str | None = None,
                    app: str = "api") -> Iterator[str | Answer]:
-        """Stream the named model's answer: each piece of text, then the logged :class:`Answer`."""
+        """Stream the answer: each piece of text, then the logged :class:`Answer`.
+
+        A named model answers, or Crossvet chooses when the name is auto, a slot or a goal.
+        """
+        if routing.is_auto(model_name):
+            yield from self._auto_stream(str(model_name), messages, thread or new_thread(), app)
+            return
         model = self.config.resolve(model_name)
         self.check(model, "".join(text_of(m.get("content")) for m in messages))
         thread = thread or new_thread()
@@ -154,20 +229,67 @@ class Crossvet:
             state = self.store.load_state(model, call_ids)
         return model, sent, state
 
+    def _candidates(self, model_name: str | None, body: dict[str, Any]) -> tuple[list[str | None], routing.Decision | None]:
+        if not routing.is_auto(model_name):
+            return [model_name], None
+        decision = self.decide(model_name, list(body.get("messages") or []))
+        return list(self._tries(decision)), decision
+
+    def _note(self, answer: Answer, decision: routing.Decision | None, name: str | None, steps: list[dict[str, Any]]) -> Answer:
+        if decision is not None:
+            steps.append({"model": answer.model, "outcome": "ok", "turn": answer.turn_id})
+            answer.decision = {**decision.as_dict(), "model": answer.model, "steps": steps}
+            self.lab.record_decision(answer.turn_id, answer.thread, str(name), {**decision.as_dict(), "model": answer.model}, steps)
+        return answer
+
     def relay(self, model_name: str | None, body: dict[str, Any], *, thread: str | None = None,
               app: str = "api") -> tuple[dict[str, Any], Answer]:
-        """Pass an agent's whole request (tools and tool results included) to the named model; log the turn."""
-        model, sent, state = self._relay_prepare(model_name, body)
-        try:
-            raw, reply = self.relayer(model, sent, state)
-        except AccountError:
-            self._refusal(model)
-            raise
-        return raw, self._log(model, last_user_text(sent["messages"]), reply, thread or new_thread(), app)
+        """Pass an agent's whole request (tools and tool results included) to the model; log the turn.
+
+        With auto, a slot or a goal, an error moves to the next model on the ladder.
+        """
+        candidates, decision = self._candidates(model_name, body)
+        steps: list[dict[str, Any]] = []
+        for i, name in enumerate(candidates):
+            model, sent, state = self._relay_prepare(name, body)
+            try:
+                raw, reply = self.relayer(model, sent, state)
+            except ProviderError as exc:
+                if isinstance(exc, AccountError):
+                    self._refusal(model)
+                steps.append({"model": model, "outcome": f"error: {str(exc)[:200]}"})
+                if i == len(candidates) - 1:
+                    raise
+                continue
+            answer = self._log(model, last_user_text(sent["messages"]), reply, thread or new_thread(), app)
+            return raw, self._note(answer, decision, model_name, steps)
+        raise ProviderError("no model answered")  # pragma: no cover - the loop returns or raises
 
     def relay_stream(self, model_name: str | None, body: dict[str, Any], *, thread: str | None = None,
                      app: str = "api") -> Iterator[dict[str, Any] | Answer]:
-        """Stream an agent's request: chat-completions deltas as they arrive, then the logged :class:`Answer`."""
+        """Stream an agent's request: chat-completions deltas as they arrive, then the logged :class:`Answer`.
+
+        With auto, a slot or a goal, an error before anything was streamed moves to the next model.
+        """
+        candidates, decision = self._candidates(model_name, body)
+        steps: list[dict[str, Any]] = []
+        for i, name in enumerate(candidates):
+            stream = self._relay_stream_one(name, body, thread=thread, app=app)
+            try:
+                first = next(stream)
+            except ProviderError as exc:
+                steps.append({"model": self.label(name), "outcome": f"error: {str(exc)[:200]}"})
+                if i == len(candidates) - 1:
+                    raise
+                continue
+            for item in itertools.chain([first], stream):
+                if isinstance(item, Answer):
+                    item = self._note(item, decision, model_name, steps)
+                yield item
+            return
+
+    def _relay_stream_one(self, model_name: str | None, body: dict[str, Any], *, thread: str | None,
+                          app: str) -> Iterator[dict[str, Any] | Answer]:
         model, sent, state = self._relay_prepare(model_name, body)
         reply: Reply | None = None
         try:

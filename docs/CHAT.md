@@ -1,14 +1,18 @@
 # Using Crossvet
 
-One chat, any model. You name the model; Crossvet calls that vendor's API, shows what it cost, and logs the turn. It never chooses a model for you.
+One chat, any model. You name the model, or name `auto` and Crossvet chooses one and tells you why. Either way it calls that vendor's API, shows what it cost, and logs the turn.
 
 - [Naming a model](#naming-a-model)
+- [Letting Crossvet choose: auto](#letting-crossvet-choose-auto)
 - [Hermes and other OpenAI-style apps](#hermes-and-other-openai-style-apps)
 - [Claude Code, Codex and Cursor (MCP)](#claude-code-codex-and-cursor-mcp)
 - [The terminal](#the-terminal)
 - [Agents and tools](#agents-and-tools)
 - [Costs and caps](#costs-and-caps)
 - [The local log](#the-local-log)
+- [Ratings and tuning](#ratings-and-tuning)
+- [Several vendors at once](#several-vendors-at-once)
+- [Notes, handoffs, reports and backups](#notes-handoffs-reports-and-backups)
 - [Settings](#settings)
 - [Commands](#commands)
 
@@ -22,8 +26,29 @@ One chat, any model. You name the model; Crossvet calls that vendor's API, shows
 | `ollama:<model>`, `local:<model>` | a model on your own machine (`OLLAMA_BASE_URL`, `LOCAL_BASE_URL`) |
 | a short name (`opus`, `sonnet`, `haiku`, `sol`, `terra`, `luna`, `claude`, `gpt`) | the model it stands for in your settings |
 | nothing, `default` or `crossvet` | your `default_model` |
+| `auto`, `crossvet/<slot>`, `crossvet/<goal>` | a model Crossvet chooses ([below](#letting-crossvet-choose-auto)) |
 
 `crossvet models` lists your models, their short names, their prices and the default. Any `provider:model` works even if it is not listed. An unknown name is refused with the list of short names; nothing is guessed.
+
+## Letting Crossvet choose: auto
+
+Name `auto` instead of a model (in the app's model menu, with `/model auto`, `ask -m auto`, or the MCP tool `ask`) and Crossvet picks one. The choice is made in code from the request alone (no model is asked), and every choice is explained:
+
+```
+$ crossvet route "Fix the race condition in this Go worker pool"
+anthropic:claude-opus-5-5 answers. Kind of task: code (difficulty 3): it is about code ("race condition"); it mentions
+"race condition". Slot: strong; goal: auto. If it fails, Crossvet tries openai:gpt-6.1-sol.
+```
+
+1. **Private first.** A request that looks private (an API key, a card or ID number, "confidential", `[private]`) only goes to the `private` slot, a model on your own machine. With no private slot it is refused and sent nowhere.
+2. **Inputs.** Images go to the `vision` slot; a request longer than `[router] long_chars` goes to `long`.
+3. **Kind of task.** The rules name one of: code, review, writing, summarize, extract, translate, reasoning, fresh, quick, general, with a difficulty from 1 to 3. `[routes]` maps each kind to a slot (code and reasoning to `strong`; writing and general to `balanced`; quick, summarize, extract and translate to `quick`; review to `reviewer`, which prefers another vendor than the one being reviewed). Hard tasks move up to `strong`.
+4. **Your accepted routes.** A route you accepted with `crossvet tune` puts its model first for that kind.
+5. **Goal.** `auto` keeps your slot order; `crossvet/cheapest` and `crossvet/best` sort the slot by list price; `crossvet/fastest` by the median time each model took in your own log.
+
+The models after the first are the ladder. After an error, an empty answer or, when JSON was asked for, invalid JSON, Crossvet tries the next one, at most `[router] max_steps` times (`escalate = false` turns this off). A JSON answer is held back until it has been checked, so you never see the one that failed. An answer that has already started streaming is never replaced. A model you named yourself is never switched.
+
+`/why` (or `crossvet why`) shows the last decision: kind, slot, reason, and each attempt with its outcome. `/retry stronger` asks the last question again one slot up (quick → balanced → strong → best). Slots: `quick`, `balanced`, `strong`, `long`, `vision`, `reviewer`, `private`. Without a settings file they are filled from the built-in table with the models your keys can call.
 
 ## Hermes and other OpenAI-style apps
 
@@ -50,7 +75,8 @@ Which model answers is decided by the request:
 
 1. the latest `/model NAME` typed in the conversation;
 2. else the request's `model` field (the app's model menu, filled from Crossvet's `/v1/models`);
-3. `default` means your `default_model`.
+3. `default` means your `default_model`;
+4. `auto`, `crossvet/<slot>` or `crossvet/<goal>` lets Crossvet choose.
 
 Typed as the whole message, these work in any app and call no model. Crossvet leaves them, and its replies to them, out of what models see:
 
@@ -60,9 +86,12 @@ Typed as the whole message, these work in any app and call no model. Crossvet le
 | `/model` | Show the model in use |
 | `/models` | List your models |
 | `/cost` | Spend in this conversation, per model, and today |
+| `/why` | Why auto chose the last answer's model |
+| `/good`, `/bad [note]` | Rate the last answer |
+| `/retry`, `/retry stronger` | Ask the last question again (with the same model, or one slot up) |
 | `/help` | This list |
 
-Each response carries a `crossvet` block with the model, the cost, the conversation id, the turn id and any `dropped` request fields. Send `x-crossvet-thread` to set the conversation id yourself, and `x-crossvet-app` to name the app in the log.
+Each response carries a `crossvet` block with the model, the cost, the conversation id, the turn id, any `dropped` request fields, and the `decision` when Crossvet chose. Send `x-crossvet-thread` to set the conversation id yourself, and `x-crossvet-app` to name the app in the log.
 
 ## Claude Code, Codex and Cursor (MCP)
 
@@ -78,13 +107,21 @@ Cursor: `crossvet start --no-serve` prints the entry for `~/.cursor/mcp.json`, w
 | `list_models` | Your models, short names, prices and the default |
 | `ask_model(request, model="default", system="")` | Ask one model. The answer ends with a line naming the model, tokens and cost |
 | `recent_turns(limit=10)` | The latest questions and answers from every app |
+| `ask(request, system="")` | Let Crossvet choose the model (auto); the answer says which and why |
+| `explain_route(request)` | Which model auto would choose, and why, without calling one |
+| `compare_models(request, models)` | The same request to two to six models (`"opus, sol"`), side by side |
+| `challenge(question, answer, author_model="", challenger="")` | A model from another vendor tries to break an answer |
+| `rate_answer(turn, rating, note="")` | Rate an answer `good` or `bad` |
+| `save_note`, `search_memory`, `load_context` | Notes every app shares, and what Crossvet knows about a topic |
+| `handoff_submit(agent, task, cwd)`, `handoff_status`, `handoff_result` | Hand a task to Claude Code or Codex on this computer |
 
 Ask in plain words: "use ask_model with sol to review this function", "ask opus and luna the same question and show both answers". The model you ask does not see your conversation, so include what it needs in `request`. `crossvet mcp --http` serves the same tools over Streamable HTTP on 127.0.0.1:8788.
 
 ## The terminal
 
 ```bash
-crossvet chat --model opus          # chat; /model NAME switches, /models, /cost, /new, /quit
+crossvet chat --model opus          # chat; /model NAME switches, /why, /good, /bad, /retry, /models, /cost, /new, /quit
+crossvet chat --model auto          # let Crossvet choose each time
 crossvet ask -m sol "Is 48,000 miles high for a 2019 CR-V?"
 git diff | crossvet ask -m sonnet -s "Review this diff for bugs."
 ```
@@ -109,11 +146,33 @@ Hermes and other agents send `tools` and tool results. Crossvet passes the whole
 - **Refused keys:** a provider that answers 401, 402, or a quota or billing refusal is not called again until you restart Crossvet.
 - **Limits:** `max_output_tokens` (4,000), `timeout_seconds` (120) for every call, and `max_request_bytes` (2 MB) for the server.
 
-Nothing is retried and no other model is tried. A failed call returns an error that names the model, so you can pick another.
+For a model you named, nothing is retried and no other model is tried: a failed call returns an error that names the model, so you can pick another. With `auto`, the ladder above applies.
 
 ## The local log
 
 Every question and answer goes to one SQLite file (`~/.local/share/crossvet/chat.db`, or `CROSSVET_DB`): app, model, tokens, cost, seconds. Turns can't be changed or deleted (SQLite triggers refuse it). The server, the MCP server and the terminal share it, so `crossvet log`, `crossvet cost` and the `recent_turns` tool see every app. It is the same file and table as Crossvet 1.x.
+
+## Ratings and tuning
+
+Rate any answer with `/good` or `/bad [note]` in a chat, `crossvet rate good|bad [--turn N]`, or the `rate_answer` tool. Ratings go to the lab file (below), and to Langfuse when you run `crossvet sync`.
+
+`crossvet tune` shows, per kind of task, how often each model that auto chose was rated good, and proposes putting another model first for a kind when it was rated good clearly more often (at least 5 ratings each and 15 points better). A proposal changes nothing until you run `crossvet tune accept ID`; `crossvet tune rollback ID` undoes an accepted route.
+
+## Several vendors at once
+
+- `crossvet compare -m opus -m sol "..."` (or `compare_models`): the same question to two to six models in parallel, each answer with its cost.
+- `crossvet challenge [--turn N]` (or `challenge`): a model from another vendor checks an answer and replies with a verdict, `holds`, `wrong` or `unsure`, and the problems it found. The verdict is read in code; a reply that is not one of those counts as no verdict.
+- `crossvet replay -m MODEL [-n 10]`: your recent questions go to another model, and a judge from a third vendor where possible picks the better answer without knowing which is which (the order is shuffled). It prints wins, ties and losses and the cost.
+- `crossvet bench [-m MODEL ...] [--suite standard|hard|all] [--run-code]`: 28 tasks from used-car dealer work in Sarasota, Florida, each with an answer key checked in code (no model grades another). It writes a results page and the raw rows to `docs/benchmarks/<date>/`. With `--run-code`, code answers run in a separate Python process with a time limit. The published run of 2026-11-25 is in [benchmarks/2026-11-25](benchmarks/2026-11-25/README.md).
+
+## Notes, handoffs, reports and backups
+
+- **Lab file.** Decisions, ratings, notes, accepted routes and handoffs are kept in a second SQLite file next to the log (`lab.db`, or `CROSSVET_LAB_DB`, or `[lab] path`). The log itself keeps its schema and stays append-only.
+- **Notes.** `crossvet note TEXT [--tags T]`, `crossvet notes WORDS`, and the `save_note`, `search_memory` and `load_context` tools: notes every app can find (full-text search).
+- **Handoffs.** `crossvet handoff claude-code "TASK" --cwd DIR` (or `codex`) runs that agent headless in the folder with its own defaults (Claude Code in print mode, Codex with a read-only sandbox), so it reads and proposes rather than edits unless you allow it. `handoff status ID` and `handoff result ID` show it; the MCP tools run it in the background.
+- **Reports.** `crossvet report [--days 7]` (Markdown), `crossvet dashboard [--out FILE]` (one HTML page, no scripts) and `crossvet export [--out FILE]` (JSON lines with each answer's decision and rating).
+- **Langfuse.** `crossvet sync` copies new answers (as traces with a generation), decisions and ratings to Langfuse, and reads back `user_rating` scores added there. Keys: `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_BASE_URL`.
+- **Backups.** `crossvet backup DIR` writes consistent copies of both files and their SHA-256 sums; `crossvet restore DIR [--force]` checks the sums before putting them back; `crossvet prune [--days 30]` drops old kept reasoning and finished handoffs. Turns are never removed.
 
 ## Settings
 
@@ -128,6 +187,20 @@ opus = "anthropic:claude-opus-5-5"
 sonnet = "anthropic:claude-sonnet-5-5"
 sol = "openai:gpt-6.1-sol"
 luna = "openai:gpt-6-luna"
+
+# The slots auto picks from (first callable model first); private requests only go to "private"
+[slots]
+quick = ["anthropic:claude-haiku-5-5", "openai:gpt-6-luna"]
+strong = ["anthropic:claude-opus-5-5", "openai:gpt-6.1-sol"]
+private = ["ollama:gemma3"]
+
+[routes]          # kind of task -> slot (these change the defaults)
+writing = "strong"
+
+[router]
+goal = "auto"     # auto | best | cheapest | fastest
+escalate = true
+max_steps = 2
 
 # A price (USD per million tokens) for a model that is not in the built-in table:
 # [prices."openrouter:vendor/model"]
@@ -158,5 +231,17 @@ Keys come from the environment, `./.env` or `~/.config/crossvet/.env` (the envir
 | `crossvet mcp [--http]` | The MCP server |
 | `crossvet init [--path P] [--force]` | Write a settings file from your keys |
 | `crossvet doctor` | Check keys, settings and the log; never calls a model |
+| `crossvet route [-m auto\|crossvet/SLOT\|crossvet/GOAL] TEXT` | Which model auto would choose, and why; calls nothing |
+| `crossvet why` | The latest decision auto made, with each attempt |
+| `crossvet rate good\|bad [NOTE] [--turn N]` | Rate an answer (the latest by default) |
+| `crossvet tune [accept\|reject\|rollback ID]` | Ratings per kind and model; proposals; accepted routes |
+| `crossvet compare -m A -m B TEXT` | The same question to several models |
+| `crossvet challenge [--turn N] [-m MODEL]` | Another vendor's model checks an answer |
+| `crossvet replay -m MODEL [--judge J] [-n N]` | Past questions on another model, judged blind |
+| `crossvet bench [-m M ...] [--suite S] [--limit N] [--run-code] [--out DIR]` | The Sarasota benchmark |
+| `crossvet note TEXT [--tags T]`, `crossvet notes [WORDS]` | Save and search notes |
+| `crossvet handoff claude-code\|codex TASK [--cwd DIR]`, `handoff status\|result ID` | Hand a task to a coding agent |
+| `crossvet report [--days N]`, `dashboard [--out F]`, `export [--out F]`, `sync` | Your numbers as Markdown, HTML, JSON lines, or in Langfuse |
+| `crossvet backup DIR`, `restore DIR [--force]`, `prune [--days N]` | Look after the local files |
 
 Exit codes: 0 success; 1 a failure or problems found; 2 a usage error; 3 a spend cap or a log written by a newer Crossvet.
