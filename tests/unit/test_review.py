@@ -164,3 +164,54 @@ def test_review_from_the_terminal_and_mcp(monkeypatch, tmp_path, fake, capsys, c
     assert cli.main(["review", "--task", TASK, "--json", "--no-record"]) == 0
     out = json.loads(capsys.readouterr().out)
     assert out["kept"][0]["line"] == 11 and out["reviewer"] != out["author"]
+
+
+def test_every_hard_case_is_cut_from_the_real_source():
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[2]
+    names = [c.name for c in review_bench.HARD]
+    assert len(names) == len(set(names)) and not set(names) & {c.name for c in review_bench.CASES}
+    assert sum(c.clean for c in review_bench.HARD) >= 6 and sum(not c.clean for c in review_bench.HARD) >= 12
+    for case in review_bench.HARD:
+        source = (root / case.path).read_text().splitlines()
+        old = [*case.before, *case.removed, *case.after]
+        assert source[case.start - 1: case.start - 1 + len(old)] == old, case.name
+        files = review.parse_diff(case.diff())
+        assert case.path in files, case.name
+        if not case.clean:
+            assert files[case.path].lines[case.line] == case.added[case.bug], case.name
+            assert case.added != case.removed, case.name
+
+
+def test_clean_changes_count_only_blocker_and_major_findings_as_false_alarms(make, fake):
+    cv = make()
+    clean = next(c for c in review_bench.HARD if c.clean)
+    line = clean.start + len(clean.before)
+    note = {"file": clean.path, "line": line, "severity": "nit", "quote": clean.added[0].strip()[:20], "problem": "Naming."}
+    alarm = dict(note, severity="blocker", problem="Breaks it.")
+    fake.on("openai:gpt-6.1-sol", json.dumps({"findings": [note]}))
+    fake.on("anthropic:claude-opus-5-5", json.dumps({"findings": [alarm]}))
+    rows = review_bench.run(cv, ["gpt", "claude"], (clean,))
+    assert [r["false_alarm"] for r in rows] == [False, True] and all(r["clean"] for r in rows)
+    stats = review_bench.summary(rows)
+    assert stats["openai:gpt-6.1-sol"]["false_alarms"] == 0 and stats["anthropic:claude-opus-5-5"]["false_alarms"] == 1
+    assert stats["openai:gpt-6.1-sol"]["cases"] == 0  # a clean change is not a bug to catch
+    page = review_bench.results_page(rows, "crossvet bench --review --set hard -m gpt -m claude", "hard")
+    assert "False alarms" in page and "| 1 of 1 |" in page and "1 note(s) | false alarm |" in page
+
+
+def test_the_hard_set_from_the_terminal(monkeypatch, tmp_path, fake, capsys):
+    from crossvet.core import Crossvet
+
+    fake.on("openai:gpt-6.1-sol", json.dumps({"findings": []}))
+    monkeypatch.setenv("CROSSVET_DB", str(tmp_path / "chat.db"))
+    real = Crossvet.__init__
+    monkeypatch.setattr(Crossvet, "__init__", lambda self, *a, **k: real(self, *a, streamer=fake.stream, **k))
+    out = tmp_path / "bench"
+    assert cli.main(["bench", "--review", "--set", "hard", "-m", "gpt", "--out", str(out)]) == 0
+    page = (out / "README.md").read_text()
+    assert "(hard set)" in page and "--set hard" in page
+    rows = [json.loads(x) for x in (out / "results.jsonl").read_text().splitlines()]
+    assert len(rows) == len(review_bench.HARD) and sum(r["clean"] for r in rows) == sum(c.clean for c in review_bench.HARD)
+    assert "false alarm(s) on" in capsys.readouterr().out

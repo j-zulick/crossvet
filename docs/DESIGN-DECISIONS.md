@@ -79,3 +79,8 @@ Each entry: the context, the decision, and what it costs.
 **Context.** Ratings show which model you were happy with for which kind of task. Changing routes automatically on a handful of ratings would chase noise.
 **Decision.** `crossvet tune` proposes a change only with at least 5 ratings for each model and a 15-point lead, records the evidence, and changes nothing until you accept it. Every accepted route can be rolled back.
 **Cost.** Routes improve only as fast as you rate and accept.
+
+## 16. A review benchmark counts false alarms, not only catches
+**Context.** The planted set showed five of six reviewers catching all twelve bugs, which says little: a reviewer that flags every line would score the same. A reviewer's cost to a team is its false alarms as much as its misses.
+**Decision.** The hard set adds clean changes with no bug. On a clean change, any kept finding marked blocker or major is a false alarm; minor and nit findings are counted as notes. Every change is cut from the real source, and a test checks each context line against the file, so a reviewer sees code that exists. The checks in `review.check` are not changed to suit the benchmark: a finding without a severity is still dropped.
+**Cost.** Six clean changes are a small sample, and refactors this small are easy to leave alone. A dropped finding counts as a miss even when it named the bug.

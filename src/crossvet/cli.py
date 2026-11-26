@@ -425,6 +425,14 @@ def cmd_review(args: argparse.Namespace) -> int:
     return 0
 
 
+def _bench_cell(row: dict) -> str:
+    if row["error"]:
+        return "error"
+    if row.get("clean"):
+        return "FALSE ALARM" if row["false_alarm"] else "quiet"
+    return "caught" if row["caught"] else "missed"
+
+
 def bench_review(cv, args: argparse.Namespace) -> int:  # noqa: ANN001 - a Crossvet
     """Run the review benchmark and write its results page."""
     from crossvet import review_bench
@@ -433,16 +441,20 @@ def bench_review(cv, args: argparse.Namespace) -> int:  # noqa: ANN001 - a Cross
     if not reviewers:
         print("no reviewers to benchmark: pass -m MODEL", file=sys.stderr)
         return 2
-    rows = review_bench.run(cv, reviewers, review_bench.CASES[: args.limit or None],
+    set_name = args.set or "planted"
+    rows = review_bench.run(cv, reviewers, review_bench.SETS[set_name][: args.limit or None],
                             on_result=lambda r: print(f"{r['reviewer']:<32} {r['case']:<20} "
-                                                      f"{'caught' if r['caught'] else 'missed'} {r['error'][:60]}", flush=True))
-    out = Path(args.out or f"docs/benchmarks/{time.strftime('%Y-%m-%d')}-review")
+                                                      f"{_bench_cell(r)} {r['error'][:60]}", flush=True))
+    suffix = "-review" if set_name == "planted" else f"-review-{set_name}"
+    out = Path(args.out or f"docs/benchmarks/{time.strftime('%Y-%m-%d')}{suffix}")
     out.mkdir(parents=True, exist_ok=True)
     (out / "results.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
-    command = "crossvet bench --review " + " ".join(f"-m {cv.config.resolve(m)}" for m in reviewers)
-    (out / "README.md").write_text(review_bench.results_page(rows, command))
+    command = ("crossvet bench --review " + (f"--set {set_name} " if set_name != "planted" else "")
+               + " ".join(f"-m {cv.config.resolve(m)}" for m in reviewers))
+    (out / "README.md").write_text(review_bench.results_page(rows, command, set_name))
     for model, stats in review_bench.summary(rows).items():
-        print(f"{model}: caught {int(stats['caught'])} of {int(stats['cases'])}, ${stats['cost']:.4f}")
+        alarms = f", {int(stats['false_alarms'])} false alarm(s) on {int(stats['clean'])} clean" if stats["clean"] else ""
+        print(f"{model}: caught {int(stats['caught'])} of {int(stats['cases'])}{alarms}, ${stats['cost']:.4f}")
     print(f"wrote {out}/README.md and results.jsonl")
     return 0
 
@@ -672,6 +684,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--run-code", action="store_true", help="run code answers in a separate process to check them")
     p.add_argument("--out", default="", help="results folder (default docs/benchmarks/<date>)")
     p.add_argument("--review", action="store_true", help="the review benchmark instead: planted bugs, -m picks the reviewers")
+    p.add_argument("--set", choices=("planted", "hard", "all"), default="",
+                   help="with --review: planted (12 easy bugs), hard (subtler bugs plus clean changes), or all")
     p.set_defaults(func=cmd_bench)
     p = sub.add_parser("service", help="run the server at login (launchd on macOS, systemd on Linux)")
     p.add_argument("action", nargs="?", default="status", choices=("install", "status", "uninstall"))

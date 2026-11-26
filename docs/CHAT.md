@@ -188,7 +188,7 @@ Findings that fail are dropped and counted, with the reason. With `--fix`, the a
 
 **Agent packaging.** In Claude Code: `/plugin marketplace add j-zulick/crossvet`, then `/plugin install crossvet@crossvet`, for the `/crossvet-review` command and the `crossvet-review` skill. Codex and Hermes skills are in `integrations/codex/` and `integrations/hermes/` (copy the folder into `~/.codex/skills/` or `~/.hermes/skills/`).
 
-**Review benchmark.** `crossvet bench --review -m MODEL ...` gives each reviewer twelve small changes to Crossvet's own code, each with one planted bug (off-by-one, wrong unit, SQL built from text, a key written to a log, an inverted check, a missing `await`, and others), and counts a catch when a checked finding points at the planted line. The published run is in [benchmarks/2026-11-26-review](benchmarks/2026-11-26-review/README.md).
+**Review benchmark.** `crossvet bench --review -m MODEL ...` gives each reviewer twelve small changes to Crossvet's own code, each with one planted bug (off-by-one, wrong unit, SQL built from text, a key written to a log, an inverted check, a missing `await`, and others), and counts a catch when a checked finding points at the planted line. The published run is in [benchmarks/2026-11-26-review](benchmarks/2026-11-26-review/README.md). `--set hard` gives twelve subtler bugs (a ladder cut one model short, a lock released before the rows are read, a week written in seconds, a hash that ignores its salt) and six clean changes with no bug; a blocker or major finding on a clean change counts as a false alarm. Its run is in [benchmarks/2026-11-26-review-hard](benchmarks/2026-11-26-review-hard/README.md). `--set all` runs both.
 
 ## Scores from your own use
 
@@ -300,7 +300,7 @@ Keys come from the environment, `./.env` or `~/.config/crossvet/.env` (the envir
 | `crossvet compare -m A -m B TEXT` | The same question to several models |
 | `crossvet challenge [--turn N] [-m MODEL]` | Another vendor's model checks an answer |
 | `crossvet replay -m MODEL [--judge J] [-n N]` | Past questions on another model, judged blind |
-| `crossvet bench [-m M ...] [--suite S] [--limit N] [--run-code] [--out DIR]` | The Sarasota benchmark (`--review`: the review benchmark) |
+| `crossvet bench [-m M ...] [--suite S] [--limit N] [--run-code] [--out DIR]` | The Sarasota benchmark (`--review [--set planted\|hard\|all]`: the review benchmark) |
 | `crossvet score [run\|shadow\|calibrate] [--limit N] [--all]`, `crossvet leaderboard [--days N]` | Judge a sample of answers (opt-in); score per model and kind |
 | `crossvet review --task T [--staged\|--base B] [--author A] [--reviewer R] [--fix [--apply] [--rounds N]] [--json]` | Another vendor reviews a change |
 | `crossvet note TEXT [--tags T]`, `crossvet notes [WORDS]` | Save and search notes |

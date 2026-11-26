@@ -4,6 +4,16 @@ All notable changes to Crossvet. Versions follow [Semantic Versioning](https://s
 
 ## [Unreleased]
 
+## [3.5.0] - 2026-11-26
+
+A harder review benchmark that also counts false alarms.
+
+### Added
+- `crossvet bench --review --set hard`: twelve subtler planted bugs and six clean changes, each cut from Crossvet's real source (a test checks every context line against the file). A blocker or major finding on a clean change counts as a false alarm; the results page has a false-alarm column. `--set all` runs both sets.
+- Benchmark rows record why each dropped finding was dropped (`why_dropped`).
+- The hard set's first run: [docs/benchmarks/2026-11-26-review-hard](docs/benchmarks/2026-11-26-review-hard/README.md).
+- The README shows a real `crossvet chat` session switching models mid-conversation.
+
 ## [3.4.0] - 2026-11-26
 
 The daily driver: run Crossvet in the background on your computer, or on a server.
