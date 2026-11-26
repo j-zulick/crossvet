@@ -1,21 +1,20 @@
 # Architecture
 
 ```
- Hermes / any OpenAI-style chat app ──HTTP──► server.py ─┐
- Cursor / Claude Code / Codex ──────MCP────► mcp_server.py ├─► hub.py ──► providers.py ──► OpenAI, Anthropic, Google, xAI,
- Terminal ─────────────────────────────────► cli.py ─────┘      │                          OpenRouter, Ollama, local servers
-                                                                 ├─ classify.py / inputs.py   what kind of task, what it carries
-                                                                 ├─ router.py / routing.py    which models to try, and why
-                                                                 ├─ guard (in hub.py)         answer checks, escalation, caps,
-                                                                 │                            refused accounts
-                                                                 └─ memory.py / record.py     the store; copies to Langfuse
+ Hermes / any OpenAI-style app ──HTTP──► server.py ──────┐
+ Claude Code / Codex / Cursor ───MCP───► mcp_server.py ──┼─► core.py ──► providers.py ──► OpenAI, Anthropic, Google, xAI,
+ Terminal ─────────────────────────────► cli.py ─────────┘     │                         OpenRouter, Ollama, local servers
+                                                                ├─ config.py   the name → provider:model, prices, limits
+                                                                └─ store.py    the local log (SQLite, append-only)
 ```
 
 One request, start to finish:
 
-1. **Classify.** Text rules (`classify.py`) name the kind of task (code, review, writing, summarize, extract, translate, reasoning, fresh, quick, general) and a difficulty from 1 to 3, with the reason in words. `inputs.py` notices images, audio, PDFs and pasted code. Optionally Jev, or a small model for "general" requests, names the kind instead; code accepts its answer only above a confidence.
-2. **Route.** The kind picks a slot (quick, balanced, strong, fresh, long, vision, audio, reviewer); difficulty and `--effort` move it along quick → balanced → strong; a long input moves it to `long`. The routing table you tune (`tuning.py`) puts preferred models first and drops avoided ones; a goal (best, cheapest, fastest) reorders; a private request stays on a local model. The result is an ordered list of models and the reason.
-3. **Call and guard.** `hub.py` calls the first model through `providers.py`. The next model is tried only after an error, an empty or cut-off answer, invalid JSON when JSON was asked for, or (optionally) a failed Jev answer check. Daily and per-call spend caps stop a call before it is made. A provider that refuses the account (401, 402, a quota or billing refusal) is skipped for the rest of the process.
-4. **Record.** The turn (model, kind, slot, reason, attempts, tokens, cost, seconds, escalation) goes to the local SQLite store first, which refuses updates and deletes, then to Langfuse if configured. `/good` and `/bad` add ratings; `tune` turns ratings into proposed table changes that only you accept; the chat benchmark (`bench.py`) scores models per kind of task with answer keys and can write the table.
+1. **Name.** The entry point passes the model name it was given: the request's `model` field or the latest `/model NAME` (server), the `model` argument (MCP), or `--model` and `/model` (terminal). `config.resolve` turns a short name or `default` into `provider:model`. It never chooses: an unknown name is an error.
+2. **Guard.** `core.Crossvet.check` runs before any call: a provider that refused the account earlier in this process is not called; today's logged spend must be under the daily cap; the worst-case cost of this call (request size plus the full output limit, at list price) must be under the per-call cap.
+3. **Call.** `providers.py` sends the request to that vendor, with one output limit and one timeout. Text streams. A request with tools goes through `providers.passthrough` whole: chat completions for OpenAI-style providers, Anthropic's OpenAI-compatible endpoint for Anthropic, and OpenAI's Responses API for OpenAI (translated both ways).
+4. **Log.** `core.Crossvet._log` prices the answer (provider-reported cost, else list price) and appends the question and the answer, with model, tokens, cost and seconds, to the log.
 
-Settings: keys in `.env`, routing in `crossvet-chat.toml` ([`crossvet-chat.example.toml`](../crossvet-chat.example.toml)). Design records: [DESIGN-DECISIONS.md](DESIGN-DECISIONS.md).
+A failure at any step returns an error naming the model. Nothing is retried or re-routed.
+
+Settings: keys in the environment or `.env`; everything else in `crossvet.toml` ([example](../crossvet.example.toml)). Design records: [DESIGN-DECISIONS.md](DESIGN-DECISIONS.md).

@@ -1,0 +1,37 @@
+# Crossvet settings. Copy to ~/.config/crossvet/crossvet.toml (or ./crossvet.toml), or run `crossvet init`.
+# API keys are NOT stored here: they come from the environment or a .env file (.env.example).
+# Crossvet never picks a model for you: a request names one, or gets default_model.
+
+default_model = "sonnet"
+
+# The model menu your chat app shows (GET /v1/models). Any provider:model works even if it is not listed.
+models = ["anthropic:claude-opus-5-5", "anthropic:claude-sonnet-5-5", "anthropic:claude-haiku-5-5",
+          "openai:gpt-6.1-sol", "openai:gpt-6.1-terra", "openai:gpt-6-luna"]
+
+# Short names you can type instead of provider:model (in /model, ask_model, --model).
+[names]
+claude = "anthropic:claude-opus-5-5"
+opus = "anthropic:claude-opus-5-5"
+sonnet = "anthropic:claude-sonnet-5-5"
+haiku = "anthropic:claude-haiku-5-5"
+gpt = "openai:gpt-6.1-sol"
+sol = "openai:gpt-6.1-sol"
+terra = "openai:gpt-6.1-terra"
+luna = "openai:gpt-6-luna"
+
+[limits]
+max_usd_per_day = 5.0       # 0 = no cap
+max_usd_per_call = 0.50     # worst case, estimated before the call; needs a price
+max_output_tokens = 4000
+timeout_seconds = 120       # one model call, start to finish
+max_request_bytes = 2000000 # the largest request `crossvet serve` accepts
+
+# Prices in USD per million tokens. The six models above are built in (list prices, checked 2026-11-26).
+# Add one for any other model so /cost and the per-call cap can count it:
+# [prices."openrouter:vendor/model"]
+# input = 1.0
+# output = 5.0
+
+# Where the log is kept ("" = CROSSVET_DB, else ~/.local/share/crossvet/chat.db)
+# [store]
+# path = ""

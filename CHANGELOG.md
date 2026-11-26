@@ -4,6 +4,29 @@ All notable changes to Crossvet. Versions follow [Semantic Versioning](https://s
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-11-26
+
+Crossvet now does one thing: you name a model, from any chat, and that model answers. It no longer chooses, rates or compares models. Moving from 1.x: [docs/MIGRATING.md](docs/MIGRATING.md).
+
+### Added
+- `default_model`, short names (`[names]`) and a model menu (`models`), served at `/v1/models` so chat apps list them.
+- `/model NAME`, `/model`, `/models`, `/cost` and `/help` in any OpenAI-style app; Crossvet leaves the commands and its replies out of what models see.
+- Tool requests to OpenAI go through the Responses API, translated both ways: OpenAI's current models refuse tools on chat completions (found by the live run). Tool requests to Anthropic go through its OpenAI-compatible endpoint, so agents keep their tools with Claude too.
+- Commands `crossvet start`, `chat --model`, `ask`, `models`, `cost`, `log`, `serve`, `mcp`, `init`, `doctor` (the 1.x `crossvet chat ...` spellings still work).
+- A built-in table of six tested models with list prices dated 2026-11-26, used when there is no settings file.
+- Keys are read from `~/.config/crossvet/.env` too, so `crossvet mcp` finds them from any folder.
+- `docs/MIGRATING.md`; a live run: [docs/live-runs/2026-11-26.md](docs/live-runs/2026-11-26.md).
+
+### Changed
+- MCP tools: `list_models`, `ask_model(request, model, system)`, `recent_turns`. The answer from `ask_model` ends with its model, tokens and cost.
+- A failed call returns an error that names the model; no other model is tried.
+- Settings: `crossvet.toml` with `default_model`, `models`, `[names]`, `[prices]`, `[limits]`, `[store]`. Environment: `CROSSVET_CONFIG`, `CROSSVET_DB`, `CROSSVET_TOKEN`.
+- The MCP Python SDK is locked at 2.3.0 (1.x still supported).
+
+### Removed
+- All routing (`auto`, kinds, difficulty, slots, goals, the routing table, input-based and private routing, cascade, escalation, answer checks), `/why`, `/retry`, `/good`, `/bad`, `/private`.
+- Ratings, Langfuse and OpenTelemetry recording, the benchmark, tuning, the learned router, replay, export, report, dashboard, compare, challenge, handoffs, shared notes, backup, restore and prune; 18 commands in all (each now says it was removed), 10 MCP tools, the activity page, the `crossvet-chat` program, and the `langfuse` and `otel` extras. They remain in the history at tag `v1.1.1`.
+
 ## [1.1.1] - 2026-11-25
 
 Repository presentation only; no change to how Crossvet behaves.
@@ -15,7 +38,7 @@ Repository presentation only; no change to how Crossvet behaves.
 ## [1.1.0] - 2026-11-25
 
 ### Tested live
-- The chat benchmark: six models (gpt-6-luna, claude-haiku-5-5, gpt-6.1-terra, claude-sonnet-5-5, gpt-6.1-sol, claude-opus-5-5), all 28 cases each, code answers run and checked, 168 calls, none failed, $0.48: [docs/benchmarks/2026-11-25/](docs/benchmarks/2026-11-25/README.md).
+- The chat benchmark: six models (gpt-6-luna, claude-haiku-5-5, gpt-6.1-terra, claude-sonnet-5-5, gpt-6.1-sol, claude-opus-5-5), all 28 cases each, code answers run and checked, 168 calls, none failed, $0.48: [docs/benchmarks/2026-11-25/](https://github.com/j-zulick/crossvet/blob/v1.1.0/docs/benchmarks/2026-11-25/README.md).
 
 ### Added
 - Benchmark rows keep the first 600 characters of each answer (`answer`), so a low score can be checked against what the model said.

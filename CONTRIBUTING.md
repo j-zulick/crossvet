@@ -11,11 +11,12 @@ Thanks for your interest. Crossvet is a small project; issues and focused pull r
 uv sync --all-extras
 uv run pytest tests/unit -q      # offline: no API keys, no network
 uvx ruff@0.17.4 check src tests
-uv run pytest tests/live -q      # real API calls; needs keys in .env and costs a few cents
+CROSSVET_LIVE=1 uv run pytest tests/live -q -rs   # real API calls with your keys (about $0.02)
 ```
 
 ## Rules that keep Crossvet honest
-- **Checks that decide outcomes stay in code:** routing rules, answer checks, spend caps. Don't replace them with a model's judgment.
+- **You name the model.** Crossvet never chooses, routes or scores; changes that would are out of scope here.
+- **Guards stay in code:** spend caps, refused accounts, limits.
 - **Claims match the code.** README text, release notes and docs change in the same pull request as the behavior they describe.
 - **Results come only from real runs,** with the date, model ids and cost ([docs/live-runs/](docs/live-runs/)).
 - **Design choices get an entry** in [docs/DESIGN-DECISIONS.md](docs/DESIGN-DECISIONS.md): context, decision, cost.

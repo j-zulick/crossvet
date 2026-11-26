@@ -10,10 +10,10 @@ Only the latest release receives fixes.
 
 ## Security model
 
-What Crossvet protects (your keys, private requests, the local server and the chat store) and what it does not: [docs/SECURITY-MODEL.md](docs/SECURITY-MODEL.md).
+What Crossvet protects (your keys, the local server, your spend and the log) and what it does not: [docs/SECURITY-MODEL.md](docs/SECURITY-MODEL.md).
 
 ## Handling of secrets
 
 - API keys are read from environment variables or a local `.env` file, which is git-ignored. Never commit keys; `.env.example` holds placeholders only.
-- `crossvet chat doctor` and `crossvet chat start` report whether a key is present, never its value.
-- Answers and imported posts are untrusted text: do not run code or follow instructions found in them.
+- `crossvet doctor` and `crossvet start` report whether a key is present, never its value.
+- Answers are untrusted text: do not run code or follow instructions found in them without reading them.
