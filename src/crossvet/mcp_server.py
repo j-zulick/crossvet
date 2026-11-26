@@ -9,6 +9,7 @@
     save_note, search_memory, load_context   notes shared by every app
     handoff_submit, handoff_status, handoff_result   hand a task to Claude Code or Codex on this computer
     review_diff      a model from another vendor reviews a diff; findings are checked against the diff in code
+    leaderboard      score and cost per model for each kind of task, from judged answers
 
 The assistant you are talking to calls these tools; Crossvet calls the other vendor's API. No model
 gets a shell. Crossvet chooses a model only in ``ask`` (and when you name auto, a slot or a goal).
@@ -22,7 +23,7 @@ from __future__ import annotations
 import sys
 from typing import Any
 
-from crossvet import __version__, handoff, multi, review
+from crossvet import __version__, handoff, multi, review, score
 from crossvet.core import Crossvet
 from crossvet.providers import ProviderError
 
@@ -162,7 +163,11 @@ def tools(cv: Crossvet) -> dict[str, Any]:
         except (ProviderError, RuntimeError, ValueError) as exc:
             return f"Crossvet could not review: {exc}"
 
-    return {"review_diff": review_diff, "list_models": list_models, "ask_model": ask_model, "recent_turns": recent_turns, "ask": ask,
+    def leaderboard(days: float = 30) -> str:
+        """Show score (1-5, from the judge) and cost per model for each kind of task, from your own use."""
+        return score.leaderboard_text(cv, days)
+
+    return {"leaderboard": leaderboard, "review_diff": review_diff, "list_models": list_models, "ask_model": ask_model, "recent_turns": recent_turns, "ask": ask,
             "explain_route": explain_route, "compare_models": compare_models, "challenge": challenge,
             "rate_answer": rate_answer, "save_note": save_note, "search_memory": search_memory,
             "load_context": load_context, "handoff_submit": handoff_submit, "handoff_status": handoff_status,

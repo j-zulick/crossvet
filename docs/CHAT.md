@@ -13,6 +13,7 @@ One chat, any model. You name the model, or name `auto` and Crossvet chooses one
 - [Ratings and tuning](#ratings-and-tuning)
 - [Several vendors at once](#several-vendors-at-once)
 - [Code review by another vendor](#code-review-by-another-vendor)
+- [Scores from your own use](#scores-from-your-own-use)
 - [Notes, handoffs, reports and backups](#notes-handoffs-reports-and-backups)
 - [Settings](#settings)
 - [Commands](#commands)
@@ -188,6 +189,25 @@ Findings that fail are dropped and counted, with the reason. With `--fix`, the a
 
 **Review benchmark.** `crossvet bench --review -m MODEL ...` gives each reviewer twelve small changes to Crossvet's own code, each with one planted bug (off-by-one, wrong unit, SQL built from text, a key written to a log, an inverted check, a missing `await`, and others), and counts a catch when a checked finding points at the planted line. The published run is in [benchmarks/2026-11-26-review](benchmarks/2026-11-26-review/README.md).
 
+## Scores from your own use
+
+Ratings tell you what you liked; a judge can score far more answers. Scoring is off until you turn it on, because the answers go to a second vendor:
+
+```toml
+[score]
+enabled = true
+sample = 0.1             # share of answers judged
+max_usd_per_day = 1.0    # the judge's own daily cap
+apps = ["terminal", "mcp"]   # only these apps; empty = all
+```
+
+- `crossvet score run [--limit 20]` judges a sample of recent answers. Run it on a schedule (launchd, cron, n8n). The judge is `[score] judge`, or the strongest model from another vendor than the answer's; it scores 1 to 5 against a rubric for the kind of task, and its reply is JSON read in code (anything else is kept as "no score"). Which answers are in the sample is decided from the turn id, the same way every time.
+- `crossvet score shadow` (with `[score] shadow = true`): for a sample of judged questions a cheaper model (`[score] shadow_model`, else the cheapest in the quick slot) answers too, in the background, and the judge scores it the same way. Nobody sees the shadow answer; it shows whether the cheaper model would have been good enough.
+- `crossvet score calibrate` compares the judge with your `/good` and `/bad` on the same answers: agreement and bias, overall and per kind of task. With at least 10 pairs and under 70% agreement, the judge is flagged and its scores are not used for routing.
+- `crossvet leaderboard [--days 30]` (or the MCP tool `leaderboard`): per kind of task, each model's mean score, a cautious score (the mean minus one standard error, so a model with few scores ranks lower), and the cost per answer. `crossvet sync` sends judge scores to Langfuse as `judge_score`.
+
+Requests that look private are never judged or shadowed.
+
 ## Notes, handoffs, reports and backups
 
 - **Lab file.** Decisions, ratings, notes, accepted routes and handoffs are kept in a second SQLite file next to the log (`lab.db`, or `CROSSVET_LAB_DB`, or `[lab] path`). The log itself keeps its schema and stays append-only.
@@ -262,6 +282,7 @@ Keys come from the environment, `./.env` or `~/.config/crossvet/.env` (the envir
 | `crossvet challenge [--turn N] [-m MODEL]` | Another vendor's model checks an answer |
 | `crossvet replay -m MODEL [--judge J] [-n N]` | Past questions on another model, judged blind |
 | `crossvet bench [-m M ...] [--suite S] [--limit N] [--run-code] [--out DIR]` | The Sarasota benchmark (`--review`: the review benchmark) |
+| `crossvet score [run\|shadow\|calibrate] [--limit N] [--all]`, `crossvet leaderboard [--days N]` | Judge a sample of answers (opt-in); score per model and kind |
 | `crossvet review --task T [--staged\|--base B] [--author A] [--reviewer R] [--fix [--apply] [--rounds N]] [--json]` | Another vendor reviews a change |
 | `crossvet note TEXT [--tags T]`, `crossvet notes [WORDS]` | Save and search notes |
 | `crossvet handoff claude-code\|codex TASK [--cwd DIR]`, `handoff status\|result ID` | Hand a task to a coding agent |

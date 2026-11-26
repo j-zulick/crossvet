@@ -10,6 +10,7 @@
     crossvet bench              the Sarasota used-car benchmark, scored in code
     crossvet replay -m M        past questions on another model, judged blind
     crossvet review --staged    another vendor reviews your change; findings checked in code; --fix, --apply
+    crossvet score run|shadow|calibrate, leaderboard   judge a sample of answers (opt-in); score per model and kind
     crossvet note / notes       notes every app shares;  handoff: a task to Claude Code or Codex
     crossvet report / dashboard / export / sync    your numbers, as Markdown, HTML, JSON lines or in Langfuse
     crossvet backup / restore / prune             look after the local files
@@ -445,6 +446,28 @@ def bench_review(cv, args: argparse.Namespace) -> int:  # noqa: ANN001 - a Cross
     return 0
 
 
+def cmd_score(args: argparse.Namespace) -> int:
+    """Judge a sample of answers, judge shadow answers, or compare the judge with your ratings."""
+    from crossvet import score
+
+    cv = _cv()
+    if args.action == "run":
+        print(score.run(cv, limit=args.limit, force_all=args.all))
+    elif args.action == "shadow":
+        print(score.shadow(cv, limit=args.limit))
+    else:
+        print(score.calibration_text(cv))
+    return 0
+
+
+def cmd_leaderboard(args: argparse.Namespace) -> int:
+    """Print score and cost per model for each kind of task."""
+    from crossvet import score
+
+    print(score.leaderboard_text(_cv(), args.days))
+    return 0
+
+
 def cmd_tune(args: argparse.Namespace) -> int:
     """Show ratings and proposals; accept, reject or roll back a route."""
     from crossvet import tuning
@@ -625,6 +648,14 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--out", default="", help="results folder (default docs/benchmarks/<date>)")
     p.add_argument("--review", action="store_true", help="the review benchmark instead: planted bugs, -m picks the reviewers")
     p.set_defaults(func=cmd_bench)
+    p = sub.add_parser("score", help="judge a sample of answers (opt-in: [score] enabled), shadow answers, calibration")
+    p.add_argument("action", nargs="?", default="run", choices=("run", "shadow", "calibrate"))
+    p.add_argument("--limit", type=int, default=20, help="judge at most this many answers")
+    p.add_argument("--all", action="store_true", help="judge every candidate, not a sample")
+    p.set_defaults(func=cmd_score)
+    p = sub.add_parser("leaderboard", help="score and cost per model for each kind of task, from judged answers")
+    p.add_argument("--days", type=float, default=30, help="0 = all time")
+    p.set_defaults(func=cmd_leaderboard)
     p = sub.add_parser("review", help="another vendor reviews a change; findings checked in code")
     p.add_argument("--task", required=True, help="what the change is meant to do")
     p.add_argument("--staged", action="store_true", help="review the staged change")

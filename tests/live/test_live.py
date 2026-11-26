@@ -364,3 +364,27 @@ def test_a_reviewer_from_another_vendor_catches_a_planted_bug(tmp_path):
         dropped=len(result.findings) - len(result.kept), caught=bool(near),
         answer_start="; ".join(f"{f.file}:{f.line} {f.severity} {f.problem}" for f in result.kept)[:300])
     assert result.reviewer == "anthropic:claude-sonnet-5-5" and near
+
+
+# --- 3.2: a judge from another vendor, a shadow answer -------------------------------------------------
+
+def test_a_judge_from_another_vendor_scores_real_answers(tmp_path):
+    if len(ready("openai:gpt-6-luna", "anthropic:claude-haiku-5-5", "anthropic:claude-sonnet-5-5")) < 3:
+        pytest.skip("needs both OpenAI and Anthropic keys")
+    from crossvet import score
+
+    cfg = auto_settings(quick=["openai:gpt-6-luna"])
+    cfg.score_enabled, cfg.score_sample, cfg.score_judge = True, 1.0, "anthropic:claude-sonnet-5-5"
+    cfg.score_shadow, cfg.score_shadow_sample, cfg.score_shadow_model = True, 1.0, "openai:gpt-6-luna"
+    cv = Crossvet(cfg, Store(str(tmp_path / "score.db")))
+    first = cv.ask("anthropic:claude-haiku-5-5", [{"role": "user", "content": MILEAGE}], app="terminal")
+    summary = score.run(cv, limit=5, force_all=True)
+    row = cv.lab.db.execute("SELECT * FROM scores WHERE turn_id = ?", (first.turn_id,)).fetchone()
+    assert "Judged 1" in summary and row["score"] in (1, 2, 3, 4, 5) and row["judge"] == "openai:gpt-6.1-sol"
+    log("judge", None, model=row["judge"], judged=first.model, score=row["score"], why=row["why"], cost_usd=row["cost"])
+    shadow = score.shadow(cv, limit=1)
+    cheap = cv.lab.db.execute("SELECT * FROM scores WHERE shadow_of = ?", (first.turn_id,)).fetchone()
+    assert "1 shadow answer(s) judged" in shadow and cheap["model"] == "openai:gpt-6-luna"
+    assert cheap["judge"] == "anthropic:claude-sonnet-5-5"
+    log("shadow", None, model=cheap["model"], judge=cheap["judge"], score=cheap["score"], original=row["score"],
+        why=cheap["why"], cost_usd=cheap["cost"])

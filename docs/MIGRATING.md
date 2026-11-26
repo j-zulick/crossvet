@@ -4,7 +4,7 @@
 
 Nothing you use changes. A model you name answers exactly as before, every command, MCP tool, setting and environment variable keeps working, and your log opens unchanged. What 3.0 adds is opt-in:
 
-1. Install: `uv tool install --force "git+https://github.com/j-zulick/crossvet@v3.1.0"`.
+1. Install: `uv tool install --force "git+https://github.com/j-zulick/crossvet@v3.2.0"`.
 2. Optional: name `auto` (or `crossvet/strong`, `crossvet/cheapest`...) where you want Crossvet to choose. `crossvet route "your request"` shows what it would pick, and why.
 3. Optional: run `crossvet init --force` to write a settings file with the new `[slots]` and `[router]` sections, or copy them from [crossvet.example.toml](../crossvet.example.toml). Without them, the slots are filled from the built-in table with the models your keys can call.
 4. Optional: add a model on your machine to `[slots] private` so requests that look private can go to `auto` too. Without one, such requests are refused under `auto` (never sent to a cloud model).
@@ -16,7 +16,7 @@ New next to your log: `lab.db` (decisions, ratings, notes, accepted routes, hand
 | A model name, a short name, or `default` | The same, plus `auto`, `crossvet/<slot>`, `crossvet/<goal>` |
 | `/model`, `/models`, `/cost`, `/help` | The same, plus `/why`, `/good`, `/bad`, `/retry [stronger]` |
 | 3 MCP tools | The same 3, plus `ask`, `explain_route`, `compare_models`, `challenge`, `rate_answer`, `save_note`, `search_memory`, `load_context`, `handoff_submit`, `handoff_status`, `handoff_result` |
-| `default_model`, `models`, `[names]`, `[prices]`, `[limits]`, `[store]` | The same, plus `[slots]`, `[routes]`, `[router]`, `[lab]` |
+| `default_model`, `models`, `[names]`, `[prices]`, `[limits]`, `[store]` | The same, plus `[slots]`, `[routes]`, `[router]`, `[lab]`, `[score]` (off by default) |
 | `crossvet chat route` etc. printed "removed" | `route`, `bench`, `compare`, `challenge`, `note`, `tune`, `replay`, `report`, `dashboard`, `export`, `sync`, `handoff`, `backup`, `restore` and `prune` work, as `crossvet <command>` or `crossvet chat <command>` |
 
 ## From 1.x

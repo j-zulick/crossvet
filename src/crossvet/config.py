@@ -36,7 +36,7 @@ KNOWN: dict[str, tuple[float, float, tuple[str, ...]]] = {
 # The built-in default: the first of these your keys can call.
 DEFAULT_ORDER = ("anthropic:claude-sonnet-5-5", "openai:gpt-6.1-terra")
 DEFAULT_ALIASES = ("", "default", "crossvet")
-TOP_KEYS = {"default_model", "models", "names", "prices", "limits", "store", "slots", "routes", "router", "lab"}
+TOP_KEYS = {"default_model", "models", "names", "prices", "limits", "store", "slots", "routes", "router", "lab", "score"}
 SLOTS = ("quick", "balanced", "strong", "long", "vision", "reviewer", "private")
 GOALS = ("auto", "best", "cheapest", "fastest")
 # Which slot each kind of task starts in (classify.py names the kinds).
@@ -52,6 +52,7 @@ DEFAULT_SLOTS = {
     "reviewer": ("openai:gpt-6.1-sol", "anthropic:claude-opus-5-5"),
 }
 ROUTER_KEYS = {"goal", "escalate", "max_steps", "private_auto", "long_chars"}
+SCORE_KEYS = {"enabled", "sample", "judge", "max_usd_per_day", "apps", "shadow", "shadow_sample", "shadow_model"}
 LIMIT_KEYS = {"max_usd_per_day", "max_usd_per_call", "max_output_tokens", "timeout_seconds", "max_request_bytes"}
 
 
@@ -77,6 +78,14 @@ class Config:
     max_steps: int = 2                 # [router] max_steps: extra models tried after the first
     private_auto: bool = True          # [router] private_auto: requests that look private only go to the private slot
     long_chars: int = 60_000           # [router] long_chars: a request this long goes to the long slot
+    score_enabled: bool = False        # [score] enabled: judge a sample of answers (they go to a second vendor)
+    score_sample: float = 0.1          # [score] sample: share of answers judged
+    score_judge: str = ""              # [score] judge: "" = the strongest model from another vendor than the answer's
+    score_max_usd_per_day: float = 1.0  # [score] max_usd_per_day: the judge's and shadow answers' own daily cap
+    score_apps: list[str] = field(default_factory=list)  # [score] apps: only answers from these apps; empty = all
+    score_shadow: bool = False         # [score] shadow: a cheaper model answers a sample of judged questions
+    score_shadow_sample: float = 0.05  # [score] shadow_sample
+    score_shadow_model: str = ""       # [score] shadow_model: "" = the cheapest model in the quick slot
     source: str = ""                   # the file this was read from; "" for the built-in table
 
     def resolve(self, name: str | None) -> str:
@@ -216,6 +225,15 @@ def parse(data: dict, source: str = "settings") -> Config:
         raise ValueError(f"unknown [router] setting(s) in {source}: {', '.join(sorted(set(router) - ROUTER_KEYS))}")
     if router.get("goal", "auto") not in GOALS:
         raise ValueError(f"[router] goal in {source} must be one of {', '.join(GOALS)}")
+    score = data.get("score") or {}
+    if set(score) - SCORE_KEYS:
+        raise ValueError(f"unknown [score] setting(s) in {source}: {', '.join(sorted(set(score) - SCORE_KEYS))}")
+    for key in ("sample", "shadow_sample"):
+        if key in score and not 0 <= _number(score[key], f"[score] {key}", source) <= 1:
+            raise ValueError(f"[score] {key} in {source} must be between 0 and 1")
+    for key in ("judge", "shadow_model"):
+        if score.get(key) and ":" in str(score[key]):
+            providers.split(str(score[key]))
     cfg = Config(default_model=str(data.get("default_model", "")), models=models, names=names, prices=prices,
                  store=str((data.get("store") or {}).get("path", "")), lab=str((data.get("lab") or {}).get("path", "")),
                  slots=slots, routes=routes, goal=str(router.get("goal", "auto")),
@@ -223,6 +241,11 @@ def parse(data: dict, source: str = "settings") -> Config:
                  max_steps=int(_number(router.get("max_steps", 2), "[router] max_steps", source)),
                  private_auto=bool(router.get("private_auto", True)),
                  long_chars=int(_number(router.get("long_chars", 60_000), "[router] long_chars", source)) or 60_000,
+                 score_enabled=bool(score.get("enabled", False)), score_sample=float(score.get("sample", 0.1)),
+                 score_judge=str(score.get("judge", "")),
+                 score_max_usd_per_day=_number(score.get("max_usd_per_day", 1.0), "[score] max_usd_per_day", source),
+                 score_apps=[str(a) for a in score.get("apps") or []], score_shadow=bool(score.get("shadow", False)),
+                 score_shadow_sample=float(score.get("shadow_sample", 0.05)), score_shadow_model=str(score.get("shadow_model", "")),
                  source=source)
     if "max_usd_per_day" in limits:
         cfg.max_usd_per_day = _number(limits["max_usd_per_day"], "max_usd_per_day", source)
@@ -279,6 +302,12 @@ def render(cfg: Config) -> str:
         "[slots]",
         *(f'{slot} = [' + ", ".join(f'"{m}"' for m in models) + "]" for slot, models in cfg.slots.items()),
         '# private = ["ollama:gemma3"]   # where requests that look private may go; empty = they are refused',
+        "",
+        "# Judging answers sends them to a second vendor, so it is off until you turn it on (`crossvet score run`).",
+        "[score]",
+        f"enabled = {str(cfg.score_enabled).lower()}",
+        f"sample = {cfg.score_sample}            # share of answers judged",
+        f"max_usd_per_day = {cfg.score_max_usd_per_day}   # the judge's own daily cap",
         "",
         "[router]",
         f'goal = "{cfg.goal}"          # auto (slot order) | best | cheapest | fastest',

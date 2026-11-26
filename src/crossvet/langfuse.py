@@ -4,7 +4,8 @@
 
 Keys come from ``LANGFUSE_PUBLIC_KEY``, ``LANGFUSE_SECRET_KEY`` and ``LANGFUSE_BASE_URL`` (default
 https://us.cloud.langfuse.com). Each answer becomes a trace (question, answer, model, tokens, cost,
-and Crossvet's decision when it chose); each rating a score named ``user_rating`` (+1 or -1).
+and Crossvet's decision when it chose); each rating a score named ``user_rating`` (+1 or -1); each
+judge's score (``crossvet score run``) a score named ``judge_score`` (1 to 5).
 Nothing is sent unless you run ``sync``, and the local files stay the record: Langfuse is a copy.
 """
 
@@ -75,6 +76,14 @@ def events(cv: Crossvet, after_turn: int, after_rating: int) -> tuple[list[dict[
                     "body": {"id": f"crossvet-rating-{rating['id']}", "traceId": trace_id(cv, rating["turn_id"]),
                              "name": "user_rating", "value": rating["rating"], "comment": rating["note"] or None}})
         last_rating = rating["id"]
+    after_score = int(cv.lab.get("langfuse_score", "0"))
+    for score in cv.lab.db.execute("SELECT * FROM scores WHERE id > ? AND score IS NOT NULL ORDER BY id LIMIT 500",
+                                   (after_score,)).fetchall():
+        stamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(score["ts"]))
+        out.append({"id": uuid.uuid4().hex, "type": "score-create", "timestamp": stamp,
+                    "body": {"id": f"crossvet-judge-{score['id']}", "traceId": trace_id(cv, score["turn_id"]),
+                             "name": "judge_score", "value": score["score"], "comment": f"{score['judge']}: {score['why']}"}})
+        cv.lab.put("langfuse_score_pending", str(score["id"]))
     return out, last_turn, last_rating
 
 
@@ -96,6 +105,7 @@ def sync(cv: Crossvet, transport: httpx.BaseTransport | None = None) -> str:
             sent += len(batch[start:start + BATCH])
         cv.lab.put("langfuse_turn", str(last_turn))
         cv.lab.put("langfuse_rating", str(last_rating))
+        cv.lab.put("langfuse_score", cv.lab.get("langfuse_score_pending", cv.lab.get("langfuse_score", "0")))
         pulled = pull_ratings(cv, client)
     return (f"Sent {sent} event(s) to Langfuse (answers up to turn #{last_turn}, ratings up to #{last_rating}); "
             f"read back {pulled} rating(s) added in Langfuse.")

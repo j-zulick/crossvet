@@ -65,6 +65,11 @@ Each entry: the context, the decision, and what it costs.
 **Decision.** The reviewer must answer in JSON; code keeps a finding only when its file is in the diff, its quote is word for word on a new-side line the diff shows (the stated line, or the one line within three of it that holds the quote, since reviewers miscount lines), and its severity is one of four. A finding without a severity is dropped, not guessed. Dropped findings are counted with the reason, so a noisy reviewer is visible. Fixes are patches that `git apply --check` must accept, applied only when asked, in at most three rounds. The benchmark plants bugs in real code from this repository and counts catches in code.
 **Cost.** A reviewer that describes a real problem on a line the diff does not show is dropped. Twelve planted bugs are a small sample.
 
+## 14. The judge is opt-in, capped, from another vendor, and checked against you
+**Context.** Scoring real answers is the only way to know which model is good enough for your own work, but it sends your answers to a second vendor, costs money every day, and a judge model can be biased or simply disagree with you.
+**Decision.** Off by default (`[score] enabled`), limited to the apps you list, never for private-looking requests, with its own daily cap. The judge comes from another vendor than the answer, scores against a rubric per kind of task, and its JSON is read in code. Calibration compares it with your ratings; a judge that agrees with you less than 70% of the time (on at least 10 pairs) is flagged and not used for routing. The leaderboard ranks by a cautious score so a handful of lucky answers can't top it.
+**Cost.** Two weeks of use before the leaderboard means much. A rubric of one sentence per kind is coarse.
+
 ## 12. Tuning proposes; only you change the routes
 **Context.** Ratings show which model you were happy with for which kind of task. Changing routes automatically on a handful of ratings would chase noise.
 **Decision.** `crossvet tune` proposes a change only with at least 5 ratings for each model and a 15-point lead, records the evidence, and changes nothing until you accept it. Every accepted route can be rolled back.

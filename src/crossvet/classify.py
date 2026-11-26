@@ -41,7 +41,9 @@ _CODE_WORDS = _rx(r"\b(code|function|bug|stack ?trace|traceback|exception|compil
                   r"debug|compile error|type error|database (query|migration|schema)|go (code|func|module|routine))\b")
 _REVIEW = _rx(r"\b(review|critique|second opinion|find (the )?(flaws|holes|problems|where .* fails)|what('s| is) wrong with|"
               r"poke holes|challenge (this|my)|sanity[- ]check|red[- ]team|list the assumptions)\b")
-_SUMMARIZE = _rx(r"\b(summari[sz]e|summary|tl;?dr|key (points|takeaways)|condense|shorten|recap|in (one|two|three|\d+) (sentences?|bullets?|lines?))\b")
+# "Answer in one sentence" sets a length; it does not make a question a summary.
+_SUMMARIZE = _rx(r"\b(summari[sz]e|summary|tl;?dr|key (points|takeaways)|condense|shorten|recap|"
+                 r"(sum up|boil down|put) [\w ]{0,40}in (one|two|three|\d+) (sentences?|bullets?|lines?))\b")
 _EXTRACT = _rx(r"\b(extract|pull out|list (all|every|the) [\w ]{0,30}(names|dates|emails|numbers|prices|urls|links)|parse|"
                r"convert .* (to|into) (json|csv|a table)|classify|categori[sz]e|label (each|these)|as json|in json)\b")
 _TRANSLATE = _rx(r"\b(translate|translation|in (spanish|french|german|italian|portuguese|dutch|japanese|chinese|korean)|"

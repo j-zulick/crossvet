@@ -165,6 +165,9 @@ def test_built_in_slots_follow_the_keys(monkeypatch):
     ("Fix the race condition in this Go worker pool", "code"),
     ("Write a Python function roman_to_int(text)", "code"),
     ("Draft a two-sentence reply declining a Thursday test drive", "writing"),
+    ("Is a 2019 Honda CR-V with 48,000 miles low or high mileage for its age? Answer in one sentence.", "quick"),
+    ("Summarize in at most 40 words: six searches were run.", "summarize"),
+    ("Sum up this listing in two sentences: 2020 F-150 XLT, 41,000 mi.", "summarize"),
 ])
 def test_the_rules_name_the_kind(text, kind):
     from crossvet.classify import classify

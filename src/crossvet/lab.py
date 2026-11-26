@@ -31,10 +31,14 @@ CREATE TABLE IF NOT EXISTS routes (id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL
 CREATE TABLE IF NOT EXISTS handoffs (id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL NOT NULL, agent TEXT NOT NULL,
   task TEXT NOT NULL, cwd TEXT NOT NULL, status TEXT NOT NULL, result TEXT NOT NULL DEFAULT '', seconds REAL);
 CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS scores (id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL NOT NULL, turn_id INTEGER NOT NULL,
+  model TEXT NOT NULL, kind TEXT NOT NULL, judge TEXT NOT NULL, score INTEGER, correct INTEGER NOT NULL DEFAULT 0,
+  why TEXT NOT NULL DEFAULT '', cost REAL NOT NULL DEFAULT 0, shadow_of INTEGER);
+CREATE INDEX IF NOT EXISTS scores_turn ON scores(turn_id);
 CREATE TABLE IF NOT EXISTS reviews (id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL NOT NULL, author TEXT NOT NULL,
   reviewer TEXT NOT NULL, task TEXT NOT NULL, record TEXT NOT NULL);
 """
-VERSION = 2
+VERSION = 3
 
 
 class Lab:
@@ -200,6 +204,17 @@ class Lab:
         with self.lock:
             row = self.db.execute("SELECT * FROM handoffs WHERE id=?", (handoff_id,)).fetchone()
             return dict(row) if row else None
+
+    # --- scores from the judge ---
+
+    def add_score(self, turn_id: int, model: str, kind: str, judge: str, score: int | None, correct: bool, why: str,
+                  cost: float, shadow_of: int | None = None) -> int:
+        """Keep a judge's score for an answer (``score`` None = the judge's reply could not be read)."""
+        cur = self.db.execute("INSERT INTO scores(ts, turn_id, model, kind, judge, score, correct, why, cost, shadow_of) "
+                              "VALUES (?,?,?,?,?,?,?,?,?,?)",
+                              (time.time(), turn_id, model, kind, judge, score, int(correct), why[:400], cost, shadow_of))
+        self.db.commit()
+        return int(cur.lastrowid or 0)
 
     # --- reviews ---
 

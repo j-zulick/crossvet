@@ -7,7 +7,7 @@ import tomllib
 from pathlib import Path
 
 from crossvet import cli, mcp_server, server
-from crossvet.config import LIMIT_KEYS, ROUTER_KEYS, SLOTS, TOP_KEYS
+from crossvet.config import LIMIT_KEYS, ROUTER_KEYS, SCORE_KEYS, SLOTS, TOP_KEYS
 
 ROOT = Path(__file__).resolve().parents[2]
 DOC = (ROOT / "docs" / "STABILITY.md").read_text()
@@ -38,7 +38,7 @@ def test_example_settings_use_every_key_and_parse():
     data = tomllib.loads((ROOT / "crossvet.example.toml").read_text())
     assert set(data) | {"prices", "store", "lab"} == TOP_KEYS
     assert set(data["limits"]) == LIMIT_KEYS
-    assert set(data["router"]) == ROUTER_KEYS and set(data["slots"]) == set(SLOTS)
+    assert set(data["router"]) == ROUTER_KEYS and set(data["slots"]) == set(SLOTS) and set(data["score"]) == SCORE_KEYS
     parse(data, "example")
 
 

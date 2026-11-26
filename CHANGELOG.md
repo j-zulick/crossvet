@@ -4,6 +4,20 @@ All notable changes to Crossvet. Versions follow [Semantic Versioning](https://s
 
 ## [Unreleased]
 
+## [3.2.0] - 2026-11-26
+
+Scores from your own use: an opt-in judge, shadow answers, calibration and a leaderboard.
+
+### Added
+- `crossvet score run`: a judge from another vendor scores a sample of recent answers 1 to 5 against a rubric for the kind of task; its JSON is read in code; its spend has its own daily cap (`score.py`).
+- `crossvet score shadow`: a cheaper model answers a sample of judged questions in the background and is judged the same way.
+- `crossvet score calibrate`: the judge's agreement and bias against your ratings, overall and per kind; a judge that agrees less than 70% (10+ pairs) is flagged and not used for routing.
+- `crossvet leaderboard` and the MCP tool `leaderboard`: mean and cautious score and cost per answer, per model and kind of task.
+- `[score]` settings (`enabled` off by default, `sample`, `judge`, `max_usd_per_day`, `apps`, `shadow`, `shadow_sample`, `shadow_model`); judge scores sync to Langfuse as `judge_score`.
+
+### Changed
+- "Answer in one sentence" no longer makes a question count as a summary (found by the live run: the judge graded a plain question against the summary rubric).
+
 ## [3.1.0] - 2026-11-26
 
 Another vendor reviews your change, and only findings that match the diff are shown.
