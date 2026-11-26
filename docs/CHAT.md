@@ -14,6 +14,7 @@ One chat, any model. You name the model, or name `auto` and Crossvet chooses one
 - [Several vendors at once](#several-vendors-at-once)
 - [Code review by another vendor](#code-review-by-another-vendor)
 - [Scores from your own use](#scores-from-your-own-use)
+- [Routing from scores](#routing-from-scores)
 - [Notes, handoffs, reports and backups](#notes-handoffs-reports-and-backups)
 - [Settings](#settings)
 - [Commands](#commands)
@@ -208,6 +209,24 @@ apps = ["terminal", "mcp"]   # only these apps; empty = all
 
 Requests that look private are never judged or shadowed.
 
+## Routing from scores
+
+Once the judge has scored enough of your answers, `auto` can route from those scores instead of the rules:
+
+```toml
+[router]
+use = "scores"      # rules (default) | scores
+margin = 0.3        # score points a cheaper model may trail the best by
+min_scores = 20     # judged answers a model needs for a kind before its scores count
+explore = 0.05      # share of these requests that try the second choice, so other models keep being scored
+```
+
+For each request, among the models with at least `min_scores` judged answers for its kind of task, the cheapest whose cautious score (mean minus one standard error) is within `margin` of the best goes first. About `explore` of the time the second choice goes first instead, and the reason says so. With too few scores, or a judge that `crossvet score calibrate` flagged, the rules decide and the reason says why. A route you accepted with `crossvet tune` still wins.
+
+- `crossvet tune scores` turns the leaderboard into proposals (kind → best-value model), with the evidence; `crossvet tune accept ID` applies one.
+- `crossvet tune auto`, for a weekly schedule, changes routes only when `[router] auto_tune = true`. It first rolls back any score route whose model has since scored clearly worse (by more than `margin`) than the model it replaced, then accepts at most one proposal per kind, never for a kind changed in the last seven days. Each change is logged with its evidence.
+- `crossvet report --week [--json]`: the last seven days: answers, spend, what the same tokens would have cost on the strongest model (the saving), the mean judged score against the week before, and route changes. `integrations/n8n/crossvet-weekly.json` (an n8n workflow) and `integrations/windmill/crossvet_weekly.py` run `score run`, `tune auto` and `report --week --json` every Monday.
+
 ## Notes, handoffs, reports and backups
 
 - **Lab file.** Decisions, ratings, notes, accepted routes and handoffs are kept in a second SQLite file next to the log (`lab.db`, or `CROSSVET_LAB_DB`, or `[lab] path`). The log itself keeps its schema and stays append-only.
@@ -277,7 +296,7 @@ Keys come from the environment, `./.env` or `~/.config/crossvet/.env` (the envir
 | `crossvet route [-m auto\|crossvet/SLOT\|crossvet/GOAL] TEXT` | Which model auto would choose, and why; calls nothing |
 | `crossvet why` | The latest decision auto made, with each attempt |
 | `crossvet rate good\|bad [NOTE] [--turn N]` | Rate an answer (the latest by default) |
-| `crossvet tune [accept\|reject\|rollback ID]` | Ratings per kind and model; proposals; accepted routes |
+| `crossvet tune [accept\|reject\|rollback ID]`, `tune scores`, `tune auto` | Ratings per kind and model; proposals from ratings or scores; accepted routes; weekly automatic changes (opt-in) |
 | `crossvet compare -m A -m B TEXT` | The same question to several models |
 | `crossvet challenge [--turn N] [-m MODEL]` | Another vendor's model checks an answer |
 | `crossvet replay -m MODEL [--judge J] [-n N]` | Past questions on another model, judged blind |
@@ -286,7 +305,7 @@ Keys come from the environment, `./.env` or `~/.config/crossvet/.env` (the envir
 | `crossvet review --task T [--staged\|--base B] [--author A] [--reviewer R] [--fix [--apply] [--rounds N]] [--json]` | Another vendor reviews a change |
 | `crossvet note TEXT [--tags T]`, `crossvet notes [WORDS]` | Save and search notes |
 | `crossvet handoff claude-code\|codex TASK [--cwd DIR]`, `handoff status\|result ID` | Hand a task to a coding agent |
-| `crossvet report [--days N]`, `dashboard [--out F]`, `export [--out F]`, `sync` | Your numbers as Markdown, HTML, JSON lines, or in Langfuse |
+| `crossvet report [--days N] [--week [--json]]`, `dashboard [--out F]`, `export [--out F]`, `sync` | Your numbers as Markdown, HTML, JSON lines, or in Langfuse |
 | `crossvet backup DIR`, `restore DIR [--force]`, `prune [--days N]` | Look after the local files |
 
 Exit codes: 0 success; 1 a failure or problems found; 2 a usage error; 3 a spend cap or a log written by a newer Crossvet.

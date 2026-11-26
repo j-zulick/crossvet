@@ -51,7 +51,7 @@ DEFAULT_SLOTS = {
     "vision": ("anthropic:claude-opus-5-5", "openai:gpt-6.1-sol"),
     "reviewer": ("openai:gpt-6.1-sol", "anthropic:claude-opus-5-5"),
 }
-ROUTER_KEYS = {"goal", "escalate", "max_steps", "private_auto", "long_chars"}
+ROUTER_KEYS = {"goal", "escalate", "max_steps", "private_auto", "long_chars", "use", "margin", "explore", "min_scores", "auto_tune"}
 SCORE_KEYS = {"enabled", "sample", "judge", "max_usd_per_day", "apps", "shadow", "shadow_sample", "shadow_model"}
 LIMIT_KEYS = {"max_usd_per_day", "max_usd_per_call", "max_output_tokens", "timeout_seconds", "max_request_bytes"}
 
@@ -78,6 +78,11 @@ class Config:
     max_steps: int = 2                 # [router] max_steps: extra models tried after the first
     private_auto: bool = True          # [router] private_auto: requests that look private only go to the private slot
     long_chars: int = 60_000           # [router] long_chars: a request this long goes to the long slot
+    router_use: str = "rules"          # [router] use: rules | scores (the cheapest model within margin of the best score)
+    margin: float = 0.3                # [router] margin: score points (1-5 scale) a cheaper model may trail the best by
+    explore: float = 0.05              # [router] explore: share of score-routed requests that try the second choice
+    min_scores: int = 20               # [router] min_scores: judged answers a model needs for a kind before scores count
+    auto_tune: bool = False            # [router] auto_tune: `crossvet tune auto` may accept one score route per kind a week
     score_enabled: bool = False        # [score] enabled: judge a sample of answers (they go to a second vendor)
     score_sample: float = 0.1          # [score] sample: share of answers judged
     score_judge: str = ""              # [score] judge: "" = the strongest model from another vendor than the answer's
@@ -223,6 +228,10 @@ def parse(data: dict, source: str = "settings") -> Config:
     router = data.get("router") or {}
     if set(router) - ROUTER_KEYS:
         raise ValueError(f"unknown [router] setting(s) in {source}: {', '.join(sorted(set(router) - ROUTER_KEYS))}")
+    if router.get("use", "rules") not in ("rules", "scores"):
+        raise ValueError(f"[router] use in {source} must be rules or scores")
+    if not 0 <= float(router.get("explore", 0.05)) <= 0.5:
+        raise ValueError(f"[router] explore in {source} must be between 0 and 0.5")
     if router.get("goal", "auto") not in GOALS:
         raise ValueError(f"[router] goal in {source} must be one of {', '.join(GOALS)}")
     score = data.get("score") or {}
@@ -241,6 +250,11 @@ def parse(data: dict, source: str = "settings") -> Config:
                  max_steps=int(_number(router.get("max_steps", 2), "[router] max_steps", source)),
                  private_auto=bool(router.get("private_auto", True)),
                  long_chars=int(_number(router.get("long_chars", 60_000), "[router] long_chars", source)) or 60_000,
+                 router_use=str(router.get("use", "rules")),
+                 margin=_number(router.get("margin", 0.3), "[router] margin", source),
+                 explore=float(router.get("explore", 0.05)),
+                 min_scores=int(_number(router.get("min_scores", 20), "[router] min_scores", source)) or 20,
+                 auto_tune=bool(router.get("auto_tune", False)),
                  score_enabled=bool(score.get("enabled", False)), score_sample=float(score.get("sample", 0.1)),
                  score_judge=str(score.get("judge", "")),
                  score_max_usd_per_day=_number(score.get("max_usd_per_day", 1.0), "[score] max_usd_per_day", source),
@@ -313,6 +327,8 @@ def render(cfg: Config) -> str:
         f'goal = "{cfg.goal}"          # auto (slot order) | best | cheapest | fastest',
         f"escalate = {str(cfg.escalate).lower()}        # after an error, an empty answer or bad JSON, try the next model",
         f"max_steps = {cfg.max_steps}",
+        f'use = "{cfg.router_use}"        # rules | scores: the cheapest model within margin of the best judged score',
+        f"min_scores = {cfg.min_scores}       # judged answers per model and kind before scores count",
         "",
         f"# Prices in USD per million tokens. Built in for {', '.join(KNOWN)} (list prices, {KNOWN_DATE});",
         "# add one for any other model so /cost and the per-call cap can count it:",

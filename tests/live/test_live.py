@@ -388,3 +388,30 @@ def test_a_judge_from_another_vendor_scores_real_answers(tmp_path):
     assert cheap["judge"] == "anthropic:claude-sonnet-5-5"
     log("shadow", None, model=cheap["model"], judge=cheap["judge"], score=cheap["score"], original=row["score"],
         why=cheap["why"], cost_usd=cheap["cost"])
+
+
+# --- 3.3: routing from judged scores ----------------------------------------------------------------
+
+def test_auto_routes_from_real_judged_answers(tmp_path):
+    pair = ready("openai:gpt-6-luna", "anthropic:claude-haiku-5-5")
+    if len(pair) < 2:
+        pytest.skip("needs both OpenAI and Anthropic keys")
+    from crossvet import score
+
+    cfg = auto_settings(quick=pair)
+    cfg.score_enabled, cfg.score_sample = True, 1.0
+    cfg.router_use, cfg.min_scores, cfg.explore = "scores", 2, 0.0
+    cv = Crossvet(cfg, Store(str(tmp_path / "routescore.db")))
+    questions = ["Sarasota Ford is at 707 S Washington Blvd., Sarasota, FL 34236. What is its ZIP code? Number only.",
+                 "Gulf Coast Auto Brokers is at 4343 Clark Rd, Sarasota, FL 34233. What is its ZIP code? Number only."]
+    for model in pair:
+        for question in questions:
+            cv.ask(model, [{"role": "user", "content": question}], app="terminal")
+    assert "Judged 4" in score.run(cv, limit=4, force_all=True)
+    board = score.leaderboard(cv, 1)["quick"]
+    decision = cv.decide("auto", [{"role": "user", "content": questions[0]}])
+    assert decision.reason.count("scores:") == 1 and decision.model in pair
+    answer = cv.ask("auto", [{"role": "user", "content": questions[1]}])
+    assert answer.model == decision.model and "34233" in answer.text
+    log("route_from_scores", answer, board={m: {k: c[k] for k in ("n", "score", "low")} for m, c in board.items()},
+        reason=decision.reason, judge_cost=sum(r["cost"] for r in cv.lab.db.execute("SELECT cost FROM scores").fetchall()))

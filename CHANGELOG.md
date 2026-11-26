@@ -4,6 +4,17 @@ All notable changes to Crossvet. Versions follow [Semantic Versioning](https://s
 
 ## [Unreleased]
 
+## [3.3.0] - 2026-11-26
+
+Route from scores: the cheapest model that your judged answers show is good enough.
+
+### Added
+- `[router] use = "scores"`: `auto` puts first, for each kind of task, the cheapest model whose cautious judged score is within `margin` of the best, among models with at least `min_scores` judged answers; `explore` (5%) of these requests try the second choice. Too few scores or an untrusted judge, and the rules decide; the reason says which. Accepted routes still win.
+- `crossvet tune scores`: proposals from the leaderboard, with evidence. `crossvet tune auto` (only with `[router] auto_tune = true`): rolls back score routes that did worse than the model they replaced, then accepts at most one proposal per kind a week.
+- `crossvet report --week [--json]`: answers, spend, the saving against the strongest model at list price, the mean judged score against the week before, and route changes.
+- A weekly n8n workflow and a Windmill script in `integrations/`.
+- `[router]` settings `use`, `margin`, `explore`, `min_scores`, `auto_tune`.
+
 ## [3.2.0] - 2026-11-26
 
 Scores from your own use: an opt-in judge, shadow answers, calibration and a leaderboard.

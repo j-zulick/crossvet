@@ -75,6 +75,52 @@ def summary(cv: Crossvet, days: float = 7) -> dict[str, Any]:
             "rated": sum(1 for r in data if r["rating"] is not None)}
 
 
+def weekly(cv: Crossvet, now: float | None = None) -> dict[str, Any]:
+    """Return the week's numbers: spend, what always using the strongest model would have cost, scores and route changes."""
+    from crossvet.config import callable_now
+
+    now = now or time.time()
+    since, before = now - 7 * 86400, now - 14 * 86400
+    data = [r for r in rows(cv, since) if r["ts"] <= now]
+    strongest = next((m for m in cv.config.slot_models("strong") if callable_now(m)), "")
+    spent = sum(r["cost"] or 0.0 for r in data)
+    if_strongest = None
+    if strongest and cv.config.price(strongest):
+        if_strongest = sum(cv.config.cost(strongest, int(r["meta"].get("input_tokens") or 0),
+                                          int(r["meta"].get("output_tokens") or 0)) or 0.0 for r in data)
+
+    def mean_score(start: float, end: float) -> float | None:
+        got = cv.lab.db.execute("SELECT AVG(score) a, COUNT(*) n FROM scores WHERE score IS NOT NULL AND shadow_of IS NULL "
+                                "AND ts >= ? AND ts < ?", (start, end)).fetchone()
+        return round(got["a"], 3) if got and got["n"] else None
+
+    changes = [{"id": r["id"], "kind": r["kind"], "model": r["model"], "status": r["status"], "origin": r["origin"]}
+               for r in cv.lab.routes() if r["decided"] and since <= r["decided"] <= now]
+    return {"from": time.strftime("%Y-%m-%d", time.localtime(since)), "to": time.strftime("%Y-%m-%d", time.localtime(now)),
+            "answers": len(data), "spend_usd": round(spent, 6), "strongest": strongest,
+            "spend_if_strongest_usd": None if if_strongest is None else round(if_strongest, 6),
+            "saved_usd": None if if_strongest is None else round(if_strongest - spent, 6),
+            "escalated": sum(1 for r in data if r["decision"] and len(r["decision"]["steps"]) > 1),
+            "judged_score": mean_score(since, now), "judged_score_week_before": mean_score(before, since),
+            "route_changes": changes}
+
+
+def weekly_text(cv: Crossvet, now: float | None = None) -> str:
+    """Return the weekly report in Markdown."""
+    w = weekly(cv, now)
+    saved = "no price for the strongest model" if w["saved_usd"] is None else (
+        f"${w['saved_usd']:.4f} less than always using {w['strongest']} (${w['spend_if_strongest_usd']:.4f}), same tokens at list price")
+    previous = w["judged_score_week_before"]
+    if w["judged_score"] is None:
+        score_line = "no judged answers"
+    else:
+        score_line = f"{w['judged_score']:.2f} (week before: {'none' if previous is None else format(previous, '.2f')})"
+    lines = [f"# Crossvet week, {w['from']} to {w['to']}", "", f"- Answers: {w['answers']} ({w['escalated']} needed a second model)",
+             f"- Spend: ${w['spend_usd']:.4f}; {saved}", f"- Mean judged score: {score_line}", "", "## Route changes", ""]
+    lines += [f"- #{c['id']} {c['kind']} -> {c['model']}: {c['status'].replace('_', ' ')} ({c['origin']})" for c in w["route_changes"]] or ["- none"]
+    return "\n".join(lines) + "\n"
+
+
 def report(cv: Crossvet, days: float = 7) -> str:
     """Return the report in Markdown, every number computed from the local files."""
     s = summary(cv, days)

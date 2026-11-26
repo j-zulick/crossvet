@@ -70,6 +70,11 @@ Each entry: the context, the decision, and what it costs.
 **Decision.** Off by default (`[score] enabled`), limited to the apps you list, never for private-looking requests, with its own daily cap. The judge comes from another vendor than the answer, scores against a rubric per kind of task, and its JSON is read in code. Calibration compares it with your ratings; a judge that agrees with you less than 70% of the time (on at least 10 pairs) is flagged and not used for routing. The leaderboard ranks by a cautious score so a handful of lucky answers can't top it.
 **Cost.** Two weeks of use before the leaderboard means much. A rubric of one sentence per kind is coarse.
 
+## 15. Routing from scores is cautious, explores a little, and rolls itself back
+**Context.** Scores make "the cheapest model that is good enough" measurable per kind of task. A router that follows them blindly would chase a few lucky answers, never rescore the models it stopped using, and keep a bad change.
+**Decision.** Off unless `[router] use = "scores"`. A model counts only with `min_scores` judged answers for the kind, ranked by a cautious score (mean minus one standard error); the cheapest within `margin` of the best goes first. About 5% of requests try the second choice. An untrusted judge (see 14) hands the decision back to the rules. Your accepted routes still win. Automatic changes are a separate switch: at most one per kind a week, each recorded with the score before, and rolled back by the next weekly run if the new model scores clearly worse.
+**Cost.** Weeks of judged traffic before it routes anything, and a judge bill while it learns. The weekly saving is measured against list prices for the same tokens, which is not exactly what the strongest model would have spent.
+
 ## 12. Tuning proposes; only you change the routes
 **Context.** Ratings show which model you were happy with for which kind of task. Changing routes automatically on a handful of ratings would chase noise.
 **Decision.** `crossvet tune` proposes a change only with at least 5 ratings for each model and a 15-point lead, records the evidence, and changes nothing until you accept it. Every accepted route can be rolled back.

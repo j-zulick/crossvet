@@ -54,7 +54,9 @@ def test_unknown_settings_and_bad_names_are_refused():
     with pytest.raises(ValueError, match="unknown setting"):
         parse({"memory": {"turns": 4}})
     with pytest.raises(ValueError, match=r"unknown \[router\]"):
-        parse({"router": {"use": "rules"}})
+        parse({"router": {"learned": True}})
+    with pytest.raises(ValueError, match="rules or scores"):
+        parse({"router": {"use": "vibes"}})
     with pytest.raises(ValueError, match=r"unknown \[limits\]"):
         parse({"limits": {"max_usd_per_week": 1}})
     with pytest.raises(ProviderError):

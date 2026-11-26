@@ -58,6 +58,11 @@ escalate = true        # try the next model after an error, an empty answer or i
 max_steps = 2          # extra models tried at most
 private_auto = true    # keep requests that look private in the private slot
 long_chars = 60000     # a request this long goes to the long slot
+use = "rules"          # rules | scores: from judged answers, the cheapest model within margin of the best ([score])
+margin = 0.3           # score points (1-5) a cheaper model may trail the best by
+explore = 0.05         # with use = "scores", this share of requests tries the second choice
+min_scores = 20        # judged answers a model needs for a kind before scores count for it
+auto_tune = false      # true: `crossvet tune auto` may accept one score route per kind a week, rolled back if scores drop
 
 # Judge a sample of answers to build a leaderboard from your own use (`crossvet score run`, `crossvet leaderboard`).
 # Off by default: the answers are sent to a second vendor. Requests that look private are never judged.

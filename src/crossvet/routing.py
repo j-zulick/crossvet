@@ -13,7 +13,12 @@ words: ``/why`` shows it, ``crossvet route TEXT`` shows it without calling anyth
 3. Otherwise ``classify.py`` names the kind of task and its difficulty; ``[routes]`` maps the kind
    to a slot; a hard task (difficulty 3) moves quick and balanced up to strong.
 4. A route you accepted with ``crossvet tune`` (tuning.py) puts its model first for that kind.
-5. The goal orders the slot: ``auto`` keeps your order; ``cheapest`` and ``best`` sort by list price;
+5. With ``[router] use = "scores"``, the judged scores from your own use decide (score.py): among the
+   models with at least ``min_scores`` judged answers for this kind, the cheapest whose cautious score
+   is within ``margin`` of the best goes first; about ``explore`` of these requests try the second
+   choice, so other models keep being scored. Too few scores, or a judge that disagrees with your
+   ratings, and the rules decide; the reason says which.
+6. The goal orders the slot: ``auto`` keeps your order; ``cheapest`` and ``best`` sort by list price;
    ``fastest`` by the median time each model took in your own log.
 
 The models after the first form the ladder that escalation climbs (core.py): after an error, an
@@ -23,6 +28,7 @@ models after the first (none with ``escalate = false``).
 
 from __future__ import annotations
 
+import random
 import re
 import statistics
 from dataclasses import dataclass, field
@@ -136,8 +142,29 @@ def _callable(models: list[str]) -> list[str]:
     return seen
 
 
+def from_scores(cfg: Config, kind: str, board: dict[str, dict[str, dict[str, float]]] | None, trusted: bool,
+                rng: random.Random | None = None) -> tuple[list[str], str]:
+    """Return the models scores rank for a kind (best value first) and why; ``[]`` and why not when scores can't decide."""
+    if not trusted:
+        return [], "the judge disagrees with your ratings too often, so scores are not used"
+    cells = {m: c for m, c in ((board or {}).get(kind) or {}).items() if c["n"] >= cfg.min_scores and callable_now(m)}
+    if not cells:
+        return [], f"no model has {cfg.min_scores} judged answers for {kind} yet"
+    best = max(c["low"] for c in cells.values())
+    close = [m for m, c in cells.items() if c["low"] >= best - cfg.margin]
+    ranked = order(cfg, close, "cheapest") + sorted((m for m in cells if m not in close), key=lambda m: -cells[m]["low"])
+    top = cells[ranked[0]]
+    why = (f"scores: {ranked[0]} is the cheapest within {cfg.margin:g} of the best cautious score for {kind} "
+           f"({top['low']:.2f}, n={int(top['n'])}; best {best:.2f})")
+    if len(ranked) > 1 and (rng or random).random() < cfg.explore:
+        ranked[0], ranked[1] = ranked[1], ranked[0]
+        why = f"exploring: {ranked[0]}, the second choice by score, goes first this time ({why})"
+    return ranked, why
+
+
 def decide(cfg: Config, messages: list[dict[str, Any]], name: str = "auto", *, pinned: dict[str, str] | None = None,
-           store: Any = None, author: str = "") -> Decision:
+           store: Any = None, author: str = "", board: dict[str, Any] | None = None, trusted: bool = True,
+           rng: random.Random | None = None) -> Decision:
     """Choose the model for a request that named ``auto``, a slot or a goal."""
     low = (name or "auto").strip().lower()
     forced = low.split("/", 1)[1] if low.startswith("crossvet/") else ""
@@ -166,7 +193,14 @@ def decide(cfg: Config, messages: list[dict[str, Any]], name: str = "auto", *, p
     if pin:
         models = [pin, *[m for m in models if m != pin]]
         why += f"; your accepted route for {task.kind} puts {pin} first"
-    ladder = _callable(order(cfg, models, goal, store) if not pin else [models[0], *order(cfg, models[1:], goal, store)])
+    scored: list[str] = []
+    if cfg.router_use == "scores" and not pin and not forced and slot not in ("private", "vision", "long", "reviewer"):
+        scored, scored_why = from_scores(cfg, task.kind, board, trusted, rng)
+        why += f"; {scored_why}" if scored else f"; rules decide ({scored_why})"
+    if scored:
+        ladder = _callable([*scored, *order(cfg, models, goal, store)])
+    else:
+        ladder = _callable(order(cfg, models, goal, store) if not pin else [models[0], *order(cfg, models[1:], goal, store)])
     if slot == "private":
         if not ladder:
             raise PrivateRequest(f"this request {why[3:] if why.startswith('it ') else why}, and no private model is set, so "

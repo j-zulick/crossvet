@@ -6,7 +6,7 @@
     crossvet models             the models you can name, with short names and prices
     crossvet route "..."        which model auto would choose, and why (calls nothing)
     crossvet compare -m A -m B "..."   the same question to several models; challenge: another vendor checks an answer
-    crossvet rate good|bad      rate the last answer; tune: proposals from your ratings, accept or roll back
+    crossvet rate good|bad      rate the last answer; tune: proposals from ratings or scores, accept, roll back, auto
     crossvet bench              the Sarasota used-car benchmark, scored in code
     crossvet replay -m M        past questions on another model, judged blind
     crossvet review --staged    another vendor reviews your change; findings checked in code; --fix, --apply
@@ -476,6 +476,14 @@ def cmd_tune(args: argparse.Namespace) -> int:
     if args.action == "show":
         print(tuning.text(cv))
         return 0
+    if args.action == "scores":
+        found = tuning.propose_from_scores(cv)
+        print("\n".join(f"#{r['id']} {r['kind']}: put {r['model']} first instead of {r['previous'] or 'the slot order'}. "
+                        f"{r['evidence']}" for r in found) or "No proposal from scores (too few judged answers, or the models in use are already the best value).")
+        return 0
+    if args.action == "auto":
+        print(tuning.auto(cv))
+        return 0
     if not args.id:
         print(f"`crossvet tune {args.action}` needs a route number (`crossvet tune` lists them)", file=sys.stderr)
         return 2
@@ -511,9 +519,12 @@ def cmd_handoff(args: argparse.Namespace) -> int:
 
 
 def cmd_report(args: argparse.Namespace) -> int:
-    """Print the report in Markdown."""
+    """Print the report in Markdown (or the weekly numbers, as Markdown or JSON)."""
     from crossvet import care
 
+    if args.week:
+        print(json.dumps(care.weekly(_cv()), indent=2) if args.json else care.weekly_text(_cv()), end="" if not args.json else "\n")
+        return 0
     print(care.report(_cv(), args.days), end="")
     return 0
 
@@ -669,7 +680,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--no-record", action="store_true", help="don't write .crossvet/reviews/")
     p.set_defaults(func=cmd_review)
     p = sub.add_parser("tune", help="routes from your ratings: show, accept, reject, rollback")
-    p.add_argument("action", nargs="?", default="show", choices=("show", "accept", "reject", "rollback"))
+    p.add_argument("action", nargs="?", default="show", choices=("show", "accept", "reject", "rollback", "scores", "auto"))
     p.add_argument("id", nargs="?", type=int, default=0)
     p.set_defaults(func=cmd_tune)
     p = sub.add_parser("replay", help="past questions on another model, judged blind")
@@ -687,6 +698,9 @@ def build_parser() -> argparse.ArgumentParser:
         p.add_argument("--days", type=float, default=7, help="0 = all time")
         if name == "dashboard":
             p.add_argument("--out", default="crossvet-dashboard.html")
+        else:
+            p.add_argument("--week", action="store_true", help="the last 7 days: spend, saving against the strongest model, scores, route changes")
+            p.add_argument("--json", action="store_true", help="with --week: as JSON (for n8n, Windmill or cron)")
         p.set_defaults(func=func)
     p = sub.add_parser("export", help="every answer as JSON lines")
     p.add_argument("--out", default="")

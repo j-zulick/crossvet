@@ -1,0 +1,28 @@
+{
+  "name": "Crossvet weekly: score, tune, report",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {"interval": [{"field": "weeks", "triggerAtDay": [1], "triggerAtHour": 8}]}
+      },
+      "name": "Every Monday 08:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "command": "crossvet score run --limit 50 && crossvet tune auto && crossvet report --week --json"
+      },
+      "name": "Crossvet: score, tune, report",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [260, 0]
+    }
+  ],
+  "connections": {
+    "Every Monday 08:00": {"main": [[{"node": "Crossvet: score, tune, report", "type": "main", "index": 0}]]}
+  },
+  "settings": {},
+  "meta": {"note": "Runs where n8n can run commands and `crossvet` is installed with its keys. The last line of stdout is the week as JSON; add a node after this one to send it where you want it."}
+}

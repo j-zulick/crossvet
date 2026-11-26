@@ -18,7 +18,9 @@ from __future__ import annotations
 
 import itertools
 import json
+import random
 import threading
+import time
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from typing import Any
@@ -31,6 +33,7 @@ from crossvet.providers import AccountError, ProviderError, Reply, text_of
 from crossvet.store import Store, new_thread
 
 CHARS_PER_TOKEN = 4  # a rough count, used only for the per-call cap
+SCORE_CACHE_SECONDS = 300  # how long routing reuses the leaderboard
 
 
 class BudgetExceeded(RuntimeError):
@@ -107,6 +110,8 @@ class Crossvet:
         self.relayer: Relayer = relayer or (lambda m, body, state: relay.send(m, body, state))
         self.relay_streamer: RelayStreamer = relay_streamer or (lambda m, body, state: relay.send_stream(m, body, state))
         self.refused: set[str] = set()  # providers that refused the account in this process
+        self.rng = random.Random()  # exploration under [router] use = "scores"; tests seed it
+        self._score_cache: tuple[float, dict[str, Any], bool] | None = None
         self.lock = threading.Lock()
 
     # --- guards ---
@@ -136,7 +141,18 @@ class Crossvet:
 
     def decide(self, name: str | None, messages: list[dict[str, Any]], author: str = "") -> routing.Decision:
         """Choose a model for a request that named auto, a slot or a goal (nothing is called)."""
-        return routing.decide(self.config, messages, name or "auto", pinned=self.lab.pinned(), store=self.store, author=author)
+        board, trusted = self._scores() if self.config.router_use == "scores" else (None, True)
+        return routing.decide(self.config, messages, name or "auto", pinned=self.lab.pinned(), store=self.store, author=author,
+                              board=board, trusted=trusted, rng=self.rng)
+
+    def _scores(self) -> tuple[dict[str, Any], bool]:
+        """Return the leaderboard and whether the judge is trusted, kept for five minutes."""
+        from crossvet import score
+
+        now = time.monotonic()
+        if self._score_cache is None or now - self._score_cache[0] > SCORE_CACHE_SECONDS:
+            self._score_cache = (now, score.leaderboard(self, 30), score.calibration(self)["trusted"])
+        return self._score_cache[1], self._score_cache[2]
 
     def label(self, name: str | None) -> str:
         """Return the model a name means, or the name itself when Crossvet will choose."""
