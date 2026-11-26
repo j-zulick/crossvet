@@ -12,6 +12,7 @@ One chat, any model. You name the model, or name `auto` and Crossvet chooses one
 - [The local log](#the-local-log)
 - [Ratings and tuning](#ratings-and-tuning)
 - [Several vendors at once](#several-vendors-at-once)
+- [Code review by another vendor](#code-review-by-another-vendor)
 - [Notes, handoffs, reports and backups](#notes-handoffs-reports-and-backups)
 - [Settings](#settings)
 - [Commands](#commands)
@@ -165,6 +166,28 @@ Rate any answer with `/good` or `/bad [note]` in a chat, `crossvet rate good|bad
 - `crossvet replay -m MODEL [-n 10]`: your recent questions go to another model, and a judge from a third vendor where possible picks the better answer without knowing which is which (the order is shuffled). It prints wins, ties and losses and the cost.
 - `crossvet bench [-m MODEL ...] [--suite standard|hard|all] [--run-code]`: 28 tasks from used-car dealer work in Sarasota, Florida, each with an answer key checked in code (no model grades another). It writes a results page and the raw rows to `docs/benchmarks/<date>/`. With `--run-code`, code answers run in a separate Python process with a time limit. The published run of 2026-11-25 is in [benchmarks/2026-11-25](benchmarks/2026-11-25/README.md).
 
+## Code review by another vendor
+
+```bash
+crossvet review --staged --task "Stop calls once spend reaches the cap"
+crossvet review --base main --task "..."            # this branch against main
+git diff | crossvet review --task "..." --json      # any diff
+crossvet review --staged --task "..." --fix          # the author model writes a patch; git apply --check must accept it
+crossvet review --staged --task "..." --fix --apply --rounds 2   # apply it and review again, at most 3 rounds
+```
+
+The reviewer comes from another vendor than the model that wrote the change (`--author`, default your `default_model`; `--reviewer` to name one; otherwise the `reviewer` slot). It gets the task and the diff, fenced as data, and must answer in JSON. Every finding is checked in code before you see it:
+
+- its file must be in the diff;
+- its quote must appear word for word on its line, a line the diff shows on the new side (reviewers often miscount by a line: when the quote is on exactly one line within three of the one given, the finding moves there and says so);
+- its severity must be `blocker`, `major`, `minor` or `nit`, and it must name a problem.
+
+Findings that fail are dropped and counted, with the reason. With `--fix`, the author model writes one unified diff for the kept findings; it is kept only if `git apply --check` accepts it, and applied only with `--apply`. Each review leaves a decision record in the lab file and in `.crossvet/reviews/` (findings, what was dropped and why, patches, rounds). The MCP tool `review_diff(diff, task, author_model, reviewer)` does the same from any agent.
+
+**Agent packaging.** In Claude Code: `/plugin marketplace add j-zulick/crossvet`, then `/plugin install crossvet@crossvet`, for the `/crossvet-review` command and the `crossvet-review` skill. Codex and Hermes skills are in `integrations/codex/` and `integrations/hermes/` (copy the folder into `~/.codex/skills/` or `~/.hermes/skills/`).
+
+**Review benchmark.** `crossvet bench --review -m MODEL ...` gives each reviewer twelve small changes to Crossvet's own code, each with one planted bug (off-by-one, wrong unit, SQL built from text, a key written to a log, an inverted check, a missing `await`, and others), and counts a catch when a checked finding points at the planted line. The published run is in [benchmarks/2026-11-26-review](benchmarks/2026-11-26-review/README.md).
+
 ## Notes, handoffs, reports and backups
 
 - **Lab file.** Decisions, ratings, notes, accepted routes and handoffs are kept in a second SQLite file next to the log (`lab.db`, or `CROSSVET_LAB_DB`, or `[lab] path`). The log itself keeps its schema and stays append-only.
@@ -238,7 +261,8 @@ Keys come from the environment, `./.env` or `~/.config/crossvet/.env` (the envir
 | `crossvet compare -m A -m B TEXT` | The same question to several models |
 | `crossvet challenge [--turn N] [-m MODEL]` | Another vendor's model checks an answer |
 | `crossvet replay -m MODEL [--judge J] [-n N]` | Past questions on another model, judged blind |
-| `crossvet bench [-m M ...] [--suite S] [--limit N] [--run-code] [--out DIR]` | The Sarasota benchmark |
+| `crossvet bench [-m M ...] [--suite S] [--limit N] [--run-code] [--out DIR]` | The Sarasota benchmark (`--review`: the review benchmark) |
+| `crossvet review --task T [--staged\|--base B] [--author A] [--reviewer R] [--fix [--apply] [--rounds N]] [--json]` | Another vendor reviews a change |
 | `crossvet note TEXT [--tags T]`, `crossvet notes [WORDS]` | Save and search notes |
 | `crossvet handoff claude-code\|codex TASK [--cwd DIR]`, `handoff status\|result ID` | Hand a task to a coding agent |
 | `crossvet report [--days N]`, `dashboard [--out F]`, `export [--out F]`, `sync` | Your numbers as Markdown, HTML, JSON lines, or in Langfuse |

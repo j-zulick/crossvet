@@ -1,0 +1,72 @@
+{"reviewer": "anthropic:claude-opus-5-5", "case": "turns-limit", "kind": "off-by-one", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.004972, "error": ""}
+{"reviewer": "anthropic:claude-opus-5-5", "case": "timeout-unit", "kind": "wrong unit", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.007596, "error": ""}
+{"reviewer": "anthropic:claude-opus-5-5", "case": "thread-sql", "kind": "SQL injection", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.005412, "error": ""}
+{"reviewer": "anthropic:claude-opus-5-5", "case": "key-in-log", "kind": "secret leak", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.00734, "error": ""}
+{"reviewer": "anthropic:claude-opus-5-5", "case": "token-check", "kind": "auth bypass", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.006416, "error": ""}
+{"reviewer": "anthropic:claude-opus-5-5", "case": "missing-await", "kind": "async", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.006488, "error": ""}
+{"reviewer": "anthropic:claude-opus-5-5", "case": "daily-cap", "kind": "comparison", "caught": false, "kept": 0, "dropped": 1, "other": 0, "cost": 0.004856, "error": ""}
+{"reviewer": "anthropic:claude-opus-5-5", "case": "mutable-default", "kind": "mutable default", "caught": true, "kept": 2, "dropped": 0, "other": 0, "cost": 0.01168, "error": ""}
+{"reviewer": "anthropic:claude-opus-5-5", "case": "swallowed-refusal", "kind": "error handling", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.007092, "error": ""}
+{"reviewer": "anthropic:claude-opus-5-5", "case": "input-price", "kind": "wrong value", "caught": false, "kept": 0, "dropped": 1, "other": 0, "cost": 0.004396, "error": ""}
+{"reviewer": "anthropic:claude-opus-5-5", "case": "token-timing", "kind": "timing leak", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.005064, "error": ""}
+{"reviewer": "anthropic:claude-opus-5-5", "case": "refused-forever", "kind": "logic", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.005104, "error": ""}
+{"reviewer": "openai:gpt-6.1-sol", "case": "turns-limit", "kind": "off-by-one", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.001502, "error": ""}
+{"reviewer": "openai:gpt-6.1-sol", "case": "timeout-unit", "kind": "wrong unit", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.001646, "error": ""}
+{"reviewer": "openai:gpt-6.1-sol", "case": "thread-sql", "kind": "SQL injection", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.0017, "error": ""}
+{"reviewer": "openai:gpt-6.1-sol", "case": "key-in-log", "kind": "secret leak", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.002272, "error": ""}
+{"reviewer": "openai:gpt-6.1-sol", "case": "token-check", "kind": "auth bypass", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.00161, "error": ""}
+{"reviewer": "openai:gpt-6.1-sol", "case": "missing-await", "kind": "async", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.001466, "error": ""}
+{"reviewer": "openai:gpt-6.1-sol", "case": "daily-cap", "kind": "comparison", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.001572, "error": ""}
+{"reviewer": "openai:gpt-6.1-sol", "case": "mutable-default", "kind": "mutable default", "caught": true, "kept": 2, "dropped": 0, "other": 0, "cost": 0.003746, "error": ""}
+{"reviewer": "openai:gpt-6.1-sol", "case": "swallowed-refusal", "kind": "error handling", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.002292, "error": ""}
+{"reviewer": "openai:gpt-6.1-sol", "case": "input-price", "kind": "wrong value", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.001492, "error": ""}
+{"reviewer": "openai:gpt-6.1-sol", "case": "token-timing", "kind": "timing leak", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.002004, "error": ""}
+{"reviewer": "openai:gpt-6.1-sol", "case": "refused-forever", "kind": "logic", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.001376, "error": ""}
+{"reviewer": "anthropic:claude-sonnet-5-5", "case": "turns-limit", "kind": "off-by-one", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.002886, "error": ""}
+{"reviewer": "anthropic:claude-sonnet-5-5", "case": "timeout-unit", "kind": "wrong unit", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.003198, "error": ""}
+{"reviewer": "anthropic:claude-sonnet-5-5", "case": "thread-sql", "kind": "SQL injection", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.002806, "error": ""}
+{"reviewer": "anthropic:claude-sonnet-5-5", "case": "key-in-log", "kind": "secret leak", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.00362, "error": ""}
+{"reviewer": "anthropic:claude-sonnet-5-5", "case": "token-check", "kind": "auth bypass", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.004158, "error": ""}
+{"reviewer": "anthropic:claude-sonnet-5-5", "case": "missing-await", "kind": "async", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.002934, "error": ""}
+{"reviewer": "anthropic:claude-sonnet-5-5", "case": "daily-cap", "kind": "comparison", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.002628, "error": ""}
+{"reviewer": "anthropic:claude-sonnet-5-5", "case": "mutable-default", "kind": "mutable default", "caught": true, "kept": 3, "dropped": 0, "other": 0, "cost": 0.00536, "error": ""}
+{"reviewer": "anthropic:claude-sonnet-5-5", "case": "swallowed-refusal", "kind": "error handling", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.005216, "error": ""}
+{"reviewer": "anthropic:claude-sonnet-5-5", "case": "input-price", "kind": "wrong value", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.003138, "error": ""}
+{"reviewer": "anthropic:claude-sonnet-5-5", "case": "token-timing", "kind": "timing leak", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.002252, "error": ""}
+{"reviewer": "anthropic:claude-sonnet-5-5", "case": "refused-forever", "kind": "logic", "caught": true, "kept": 2, "dropped": 0, "other": 0, "cost": 0.003592, "error": ""}
+{"reviewer": "openai:gpt-6.1-terra", "case": "turns-limit", "kind": "off-by-one", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.001251, "error": ""}
+{"reviewer": "openai:gpt-6.1-terra", "case": "timeout-unit", "kind": "wrong unit", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.001643, "error": ""}
+{"reviewer": "openai:gpt-6.1-terra", "case": "thread-sql", "kind": "SQL injection", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.00181, "error": ""}
+{"reviewer": "openai:gpt-6.1-terra", "case": "key-in-log", "kind": "secret leak", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.001366, "error": ""}
+{"reviewer": "openai:gpt-6.1-terra", "case": "token-check", "kind": "auth bypass", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.001405, "error": ""}
+{"reviewer": "openai:gpt-6.1-terra", "case": "missing-await", "kind": "async", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.000913, "error": ""}
+{"reviewer": "openai:gpt-6.1-terra", "case": "daily-cap", "kind": "comparison", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.000706, "error": ""}
+{"reviewer": "openai:gpt-6.1-terra", "case": "mutable-default", "kind": "mutable default", "caught": true, "kept": 2, "dropped": 0, "other": 0, "cost": 0.002083, "error": ""}
+{"reviewer": "openai:gpt-6.1-terra", "case": "swallowed-refusal", "kind": "error handling", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.001196, "error": ""}
+{"reviewer": "openai:gpt-6.1-terra", "case": "input-price", "kind": "wrong value", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.000961, "error": ""}
+{"reviewer": "openai:gpt-6.1-terra", "case": "token-timing", "kind": "timing leak", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.001427, "error": ""}
+{"reviewer": "openai:gpt-6.1-terra", "case": "refused-forever", "kind": "logic", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.001098, "error": ""}
+{"reviewer": "anthropic:claude-haiku-5-5", "case": "turns-limit", "kind": "off-by-one", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.0002753, "error": ""}
+{"reviewer": "anthropic:claude-haiku-5-5", "case": "timeout-unit", "kind": "wrong unit", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.0002064, "error": ""}
+{"reviewer": "anthropic:claude-haiku-5-5", "case": "thread-sql", "kind": "SQL injection", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.0002838, "error": ""}
+{"reviewer": "anthropic:claude-haiku-5-5", "case": "key-in-log", "kind": "secret leak", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.000229, "error": ""}
+{"reviewer": "anthropic:claude-haiku-5-5", "case": "token-check", "kind": "auth bypass", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.0002759, "error": ""}
+{"reviewer": "anthropic:claude-haiku-5-5", "case": "missing-await", "kind": "async", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.0002292, "error": ""}
+{"reviewer": "anthropic:claude-haiku-5-5", "case": "daily-cap", "kind": "comparison", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.0001994, "error": ""}
+{"reviewer": "anthropic:claude-haiku-5-5", "case": "mutable-default", "kind": "mutable default", "caught": true, "kept": 3, "dropped": 0, "other": 1, "cost": 0.0005225, "error": ""}
+{"reviewer": "anthropic:claude-haiku-5-5", "case": "swallowed-refusal", "kind": "error handling", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.0002343, "error": ""}
+{"reviewer": "anthropic:claude-haiku-5-5", "case": "input-price", "kind": "wrong value", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.0002229, "error": ""}
+{"reviewer": "anthropic:claude-haiku-5-5", "case": "token-timing", "kind": "timing leak", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.0001651, "error": ""}
+{"reviewer": "anthropic:claude-haiku-5-5", "case": "refused-forever", "kind": "logic", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.0001991, "error": ""}
+{"reviewer": "openai:gpt-6-luna", "case": "turns-limit", "kind": "off-by-one", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.00011159999999999999, "error": ""}
+{"reviewer": "openai:gpt-6-luna", "case": "timeout-unit", "kind": "wrong unit", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.00024180000000000002, "error": ""}
+{"reviewer": "openai:gpt-6-luna", "case": "thread-sql", "kind": "SQL injection", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.0001615, "error": ""}
+{"reviewer": "openai:gpt-6-luna", "case": "key-in-log", "kind": "secret leak", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.0001191, "error": ""}
+{"reviewer": "openai:gpt-6-luna", "case": "token-check", "kind": "auth bypass", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.0001825, "error": ""}
+{"reviewer": "openai:gpt-6-luna", "case": "missing-await", "kind": "async", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.0001248, "error": ""}
+{"reviewer": "openai:gpt-6-luna", "case": "daily-cap", "kind": "comparison", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.00018209999999999998, "error": ""}
+{"reviewer": "openai:gpt-6-luna", "case": "mutable-default", "kind": "mutable default", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.0003958, "error": ""}
+{"reviewer": "openai:gpt-6-luna", "case": "swallowed-refusal", "kind": "error handling", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.0001841, "error": ""}
+{"reviewer": "openai:gpt-6-luna", "case": "input-price", "kind": "wrong value", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.0001441, "error": ""}
+{"reviewer": "openai:gpt-6-luna", "case": "token-timing", "kind": "timing leak", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.0001172, "error": ""}
+{"reviewer": "openai:gpt-6-luna", "case": "refused-forever", "kind": "logic", "caught": true, "kept": 1, "dropped": 0, "other": 0, "cost": 0.0001138, "error": ""}

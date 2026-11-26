@@ -9,6 +9,7 @@
     crossvet rate good|bad      rate the last answer; tune: proposals from your ratings, accept or roll back
     crossvet bench              the Sarasota used-car benchmark, scored in code
     crossvet replay -m M        past questions on another model, judged blind
+    crossvet review --staged    another vendor reviews your change; findings checked in code; --fix, --apply
     crossvet note / notes       notes every app shares;  handoff: a task to Claude Code or Codex
     crossvet report / dashboard / export / sync    your numbers, as Markdown, HTML, JSON lines or in Langfuse
     crossvet backup / restore / prune             look after the local files
@@ -388,8 +389,10 @@ def cmd_bench(args: argparse.Namespace) -> int:
     """Run the chat benchmark and write its results page."""
     from crossvet import bench
 
-    cases = bench.SUITES[args.suite][: args.limit or None]
     cv = _cv()
+    if args.review:
+        return bench_review(cv, args)
+    cases = bench.SUITES[args.suite][: args.limit or None]
     models = [cv.config.resolve(m) for m in (args.model or cv.config.models)]
     if not models:
         print("no models to benchmark: pass -m MODEL (or set models in crossvet.toml)", file=sys.stderr)
@@ -403,6 +406,42 @@ def cmd_bench(args: argparse.Namespace) -> int:
     (out / "README.md").write_text(bench.results_page(rows, date=time.strftime("%Y-%m-%d"), suite=args.suite, command=command,
                                                       run_code=args.run_code))
     print(f"\n{bench.table(rows)}\n\nwrote {out}/README.md and results.jsonl")
+    return 0
+
+
+def cmd_review(args: argparse.Namespace) -> int:
+    """Have a model from another vendor review a change."""
+    from crossvet import review
+
+    diff = review.git_diff(staged=args.staged, base=args.base) if (args.staged or args.base) else sys.stdin.read()
+    if not diff.strip():
+        print("nothing to review: stage a change (--staged), name a base branch (--base main), or pipe a diff in", file=sys.stderr)
+        return 2
+    result = review.run(_cv(), diff, args.task, author=args.author, reviewer=args.reviewer, fix=args.fix, apply=args.apply,
+                        rounds=args.rounds, record_dir=None if args.no_record else Path(".crossvet/reviews"))
+    print(review.as_json(result) if args.json else review.text(result))
+    return 0
+
+
+def bench_review(cv, args: argparse.Namespace) -> int:  # noqa: ANN001 - a Crossvet
+    """Run the review benchmark and write its results page."""
+    from crossvet import review_bench
+
+    reviewers = args.model or [m for m in cv.config.slot_models("reviewer")][:2]
+    if not reviewers:
+        print("no reviewers to benchmark: pass -m MODEL", file=sys.stderr)
+        return 2
+    rows = review_bench.run(cv, reviewers, review_bench.CASES[: args.limit or None],
+                            on_result=lambda r: print(f"{r['reviewer']:<32} {r['case']:<20} "
+                                                      f"{'caught' if r['caught'] else 'missed'} {r['error'][:60]}", flush=True))
+    out = Path(args.out or f"docs/benchmarks/{time.strftime('%Y-%m-%d')}-review")
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "results.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
+    command = "crossvet bench --review " + " ".join(f"-m {cv.config.resolve(m)}" for m in reviewers)
+    (out / "README.md").write_text(review_bench.results_page(rows, command))
+    for model, stats in review_bench.summary(rows).items():
+        print(f"{model}: caught {int(stats['caught'])} of {int(stats['cases'])}, ${stats['cost']:.4f}")
+    print(f"wrote {out}/README.md and results.jsonl")
     return 0
 
 
@@ -584,7 +623,20 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--limit", type=int, default=0, help="only the first N cases")
     p.add_argument("--run-code", action="store_true", help="run code answers in a separate process to check them")
     p.add_argument("--out", default="", help="results folder (default docs/benchmarks/<date>)")
+    p.add_argument("--review", action="store_true", help="the review benchmark instead: planted bugs, -m picks the reviewers")
     p.set_defaults(func=cmd_bench)
+    p = sub.add_parser("review", help="another vendor reviews a change; findings checked in code")
+    p.add_argument("--task", required=True, help="what the change is meant to do")
+    p.add_argument("--staged", action="store_true", help="review the staged change")
+    p.add_argument("--base", default="", help="review this branch against BASE (default: a diff on standard input)")
+    p.add_argument("--author", default="", help="the model that wrote the change (default: default_model)")
+    p.add_argument("--reviewer", default="", help="default: the reviewer slot, from another vendor than the author")
+    p.add_argument("--fix", action="store_true", help="the author model writes a patch for the kept findings")
+    p.add_argument("--apply", action="store_true", help="with --fix: apply the patch and review again")
+    p.add_argument("--rounds", type=int, default=1, help="with --fix --apply: at most this many rounds (max 3)")
+    p.add_argument("--json", action="store_true")
+    p.add_argument("--no-record", action="store_true", help="don't write .crossvet/reviews/")
+    p.set_defaults(func=cmd_review)
     p = sub.add_parser("tune", help="routes from your ratings: show, accept, reject, rollback")
     p.add_argument("action", nargs="?", default="show", choices=("show", "accept", "reject", "rollback"))
     p.add_argument("id", nargs="?", type=int, default=0)

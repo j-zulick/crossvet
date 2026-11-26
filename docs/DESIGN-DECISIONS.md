@@ -60,6 +60,11 @@ Each entry: the context, the decision, and what it costs.
 **Decision.** Verdicts are JSON with a fixed set of values; anything else counts as no verdict. Judges and challengers come from another vendor than the answer they check where possible; replay shuffles the order and hides which model wrote which answer. The benchmark uses answer keys checked in code, not a judge.
 **Cost.** A judge that answers in prose is wasted. The benchmark's cases are small and synthetic: they show which models fail a job, not a general ranking.
 
+## 13. A review finding is shown only if it matches the diff
+**Context.** Model reviewers invent line numbers, quote code that isn't there, and report the same style nits over and over. A second vendor helps only if its findings can be trusted to point at real code.
+**Decision.** The reviewer must answer in JSON; code keeps a finding only when its file is in the diff, its quote is word for word on a new-side line the diff shows (the stated line, or the one line within three of it that holds the quote, since reviewers miscount lines), and its severity is one of four. A finding without a severity is dropped, not guessed. Dropped findings are counted with the reason, so a noisy reviewer is visible. Fixes are patches that `git apply --check` must accept, applied only when asked, in at most three rounds. The benchmark plants bugs in real code from this repository and counts catches in code.
+**Cost.** A reviewer that describes a real problem on a line the diff does not show is dropped. Twelve planted bugs are a small sample.
+
 ## 12. Tuning proposes; only you change the routes
 **Context.** Ratings show which model you were happy with for which kind of task. Changing routes automatically on a handful of ratings would chase noise.
 **Decision.** `crossvet tune` proposes a change only with at least 5 ratings for each model and a 15-point lead, records the evidence, and changes nothing until you accept it. Every accepted route can be rolled back.

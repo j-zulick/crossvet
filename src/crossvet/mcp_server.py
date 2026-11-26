@@ -8,6 +8,7 @@
     rate_answer      rate an answer good or bad (tunes auto's routes, only when you accept a change)
     save_note, search_memory, load_context   notes shared by every app
     handoff_submit, handoff_status, handoff_result   hand a task to Claude Code or Codex on this computer
+    review_diff      a model from another vendor reviews a diff; findings are checked against the diff in code
 
 The assistant you are talking to calls these tools; Crossvet calls the other vendor's API. No model
 gets a shell. Crossvet chooses a model only in ``ask`` (and when you name auto, a slot or a goal).
@@ -21,7 +22,7 @@ from __future__ import annotations
 import sys
 from typing import Any
 
-from crossvet import __version__, handoff, multi
+from crossvet import __version__, handoff, multi, review
 from crossvet.core import Crossvet
 from crossvet.providers import ProviderError
 
@@ -145,7 +146,23 @@ def tools(cv: Crossvet) -> dict[str, Any]:
         """Show a handoff's status and the agent's output."""
         return handoff.describe(cv.lab, int(handoff_id), with_result=True)
 
-    return {"list_models": list_models, "ask_model": ask_model, "recent_turns": recent_turns, "ask": ask,
+    def review_diff(diff: str, task: str, author_model: str = "", reviewer: str = "") -> str:
+        """Have a model from another vendor review a unified diff against the task it was meant to do.
+
+        Only findings whose file, line and quote match the diff are returned; the rest are counted as dropped.
+
+        Args:
+            diff: a unified diff (git diff output).
+            task: what the change is meant to do.
+            author_model: the model that wrote the change (default: your default model).
+            reviewer: the reviewer (default: the reviewer slot, from another vendor than the author).
+        """
+        try:
+            return review.text(review.run(cv, diff, task, author=author_model, reviewer=reviewer))
+        except (ProviderError, RuntimeError, ValueError) as exc:
+            return f"Crossvet could not review: {exc}"
+
+    return {"review_diff": review_diff, "list_models": list_models, "ask_model": ask_model, "recent_turns": recent_turns, "ask": ask,
             "explain_route": explain_route, "compare_models": compare_models, "challenge": challenge,
             "rate_answer": rate_answer, "save_note": save_note, "search_memory": search_memory,
             "load_context": load_context, "handoff_submit": handoff_submit, "handoff_status": handoff_status,

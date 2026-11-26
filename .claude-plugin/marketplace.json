@@ -1,0 +1,11 @@
+{
+  "name": "crossvet",
+  "owner": {"name": "Joseph Zulick"},
+  "plugins": [
+    {
+      "name": "crossvet",
+      "source": "./integrations/claude-code",
+      "description": "Second-vendor code review and any-model questions from Claude Code, through the crossvet command."
+    }
+  ]
+}

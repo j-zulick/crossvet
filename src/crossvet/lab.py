@@ -31,8 +31,10 @@ CREATE TABLE IF NOT EXISTS routes (id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL
 CREATE TABLE IF NOT EXISTS handoffs (id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL NOT NULL, agent TEXT NOT NULL,
   task TEXT NOT NULL, cwd TEXT NOT NULL, status TEXT NOT NULL, result TEXT NOT NULL DEFAULT '', seconds REAL);
 CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS reviews (id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL NOT NULL, author TEXT NOT NULL,
+  reviewer TEXT NOT NULL, task TEXT NOT NULL, record TEXT NOT NULL);
 """
-VERSION = 1
+VERSION = 2
 
 
 class Lab:
@@ -198,6 +200,20 @@ class Lab:
         with self.lock:
             row = self.db.execute("SELECT * FROM handoffs WHERE id=?", (handoff_id,)).fetchone()
             return dict(row) if row else None
+
+    # --- reviews ---
+
+    def add_review(self, author: str, reviewer: str, task: str, record: dict[str, Any]) -> int:
+        """Keep a review's decision record; return its id."""
+        cur = self.db.execute("INSERT INTO reviews(ts, author, reviewer, task, record) VALUES (?,?,?,?,?)",
+                              (time.time(), author, reviewer, task[:2000], json.dumps(record)))
+        self.db.commit()
+        return int(cur.lastrowid or 0)
+
+    def reviews(self, limit: int = 20) -> list[dict[str, Any]]:
+        """Return the latest reviews, newest first, with their records."""
+        rows = self.db.execute("SELECT * FROM reviews ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
+        return [{**dict(r), "record": json.loads(r["record"])} for r in rows]
 
     # --- small values (sync cursors and the like) ---
 

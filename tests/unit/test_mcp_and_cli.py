@@ -12,7 +12,8 @@ Q = "Summarize this listing in one line: 2020 Ford F-150 XLT, 41,000 mi, $34,500
 
 
 TOOLS = sorted(["ask", "ask_model", "challenge", "compare_models", "explain_route", "handoff_result", "handoff_status",
-                "handoff_submit", "list_models", "load_context", "rate_answer", "recent_turns", "save_note", "search_memory"])
+                "handoff_submit", "list_models", "load_context", "rate_answer", "recent_turns", "review_diff", "save_note",
+                "search_memory"])
 
 
 def test_the_named_model_mcp_tools(cv, fake):

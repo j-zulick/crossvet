@@ -347,3 +347,20 @@ def test_the_benchmark_scores_real_answers(tmp_path):
     rows = bench.run(cv, models, bench.CASES[:4])
     assert all(not r["error"] for r in rows) and sum(r["score"] for r in rows) / len(rows) >= 0.5
     log("bench", None, rows=[{k: r[k] for k in ("model", "case", "score", "cost")} for r in rows])
+
+
+# --- 3.1: a second-vendor review ---------------------------------------------------------------------
+
+def test_a_reviewer_from_another_vendor_catches_a_planted_bug(tmp_path):
+    if len(ready("openai:gpt-6.1-sol", "anthropic:claude-sonnet-5-5")) < 2:
+        pytest.skip("needs both OpenAI and Anthropic keys")
+    from crossvet import review, review_bench
+
+    case = next(c for c in review_bench.CASES if c.name == "token-check")
+    cv = Crossvet(auto_settings(reviewer=["anthropic:claude-sonnet-5-5", "openai:gpt-6.1-sol"]), Store(str(tmp_path / "rev.db")))
+    result = review.run(cv, case.diff(), case.task, author="openai:gpt-6.1-sol", record_dir=tmp_path / "reviews")
+    near = [f for f in result.kept if f.file == case.path and abs(f.line - case.line) <= 1]
+    log("review", None, model=result.reviewer, cost_usd=result.cost, kept=len(result.kept),
+        dropped=len(result.findings) - len(result.kept), caught=bool(near),
+        answer_start="; ".join(f"{f.file}:{f.line} {f.severity} {f.problem}" for f in result.kept)[:300])
+    assert result.reviewer == "anthropic:claude-sonnet-5-5" and near

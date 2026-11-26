@@ -4,6 +4,16 @@ All notable changes to Crossvet. Versions follow [Semantic Versioning](https://s
 
 ## [Unreleased]
 
+## [3.1.0] - 2026-11-26
+
+Another vendor reviews your change, and only findings that match the diff are shown.
+
+### Added
+- `crossvet review` (`--staged`, `--base`, or a diff on standard input) and the MCP tool `review_diff`: a reviewer from another vendor than the author model answers in JSON; each finding is kept only when its file, new-side line, quote and severity check out against the diff (`review.py`). Dropped findings are counted with the reason.
+- `--fix`: the author model writes a patch for the kept findings, kept only if `git apply --check` accepts it; `--apply --rounds N` applies it and reviews again (at most 3 rounds). Every review leaves a decision record (lab file and `.crossvet/reviews/`).
+- The review benchmark, `crossvet bench --review`: twelve changes to Crossvet's own code with one planted bug each, catches counted in code (`review_bench.py`), with the run of 2026-11-26 in `docs/benchmarks/`.
+- A Claude Code plugin (`/crossvet-review` and the `crossvet-review` skill; `.claude-plugin/marketplace.json`), and skills for Codex and Hermes, in `integrations/`.
+
 ## [3.0.0] - 2026-11-26
 
 Pick the model yourself, or let Crossvet choose and show why. Everything 2.x did still works the same; choosing is opt-in per request. Moving from 2.x or 1.x: [docs/MIGRATING.md](docs/MIGRATING.md).
