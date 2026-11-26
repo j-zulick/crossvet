@@ -67,8 +67,8 @@ class FakeModels:
                 yield word if i == 0 else " " + word
         yield reply
 
-    def relay(self, model: str, body: dict):
-        self.relayed.append((model, body))
+    def relay(self, model: str, body: dict, state: dict):
+        self.relayed.append((model, body, state))
         reply = self._next(model, body["messages"])
         message = {"role": "assistant", "content": reply.text or None}
         if reply.tool_calls:
@@ -76,6 +76,18 @@ class FakeModels:
         raw = {"choices": [{"message": message, "finish_reason": "tool_calls" if reply.tool_calls else "stop"}],
                "usage": {"prompt_tokens": reply.input_tokens, "completion_tokens": reply.output_tokens}}
         return raw, reply
+
+    def relay_stream(self, model: str, body: dict, state: dict):
+        self.relayed.append((model, body, state))
+        reply = self._next(model, body["messages"])
+        yield {"delta": {"role": "assistant", "content": ""}}
+        if reply.text:
+            yield {"delta": {"content": reply.text}}
+        for i, call in enumerate(reply.tool_calls):
+            yield {"delta": {"tool_calls": [{"index": i, **call}]}}
+        reply.stop = "tool_calls" if reply.tool_calls else "stop"
+        yield {"delta": {}, "finish_reason": reply.stop}
+        yield reply
 
 
 @pytest.fixture
@@ -90,7 +102,8 @@ def make(fake):
     def build(**changes) -> Crossvet:
         data = {**SETTINGS, **{k: v for k, v in changes.items() if k != "limits"}}
         data["limits"] = {**SETTINGS["limits"], **changes.get("limits", {})}
-        return Crossvet(parse(data, "test"), Store(), streamer=fake.stream, relayer=fake.relay)
+        return Crossvet(parse(data, "test"), Store(), streamer=fake.stream, relayer=fake.relay,
+                        relay_streamer=fake.relay_stream)
 
     return build
 

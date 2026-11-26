@@ -1,6 +1,8 @@
 """The local log: one SQLite file with every turn (question and answer), its model, tokens and cost.
 
-Turns are append-only (SQLite triggers refuse updates and deletes). The file is safe to open from
+Turns are append-only (SQLite triggers refuse updates and deletes). A second table keeps OpenAI's
+encrypted reasoning for tool calls for 7 days, so it can go back with the tool results (relay.py).
+The file is safe to open from
 the server, the MCP server and the terminal chat at once (WAL). It is the same file and table as
 Crossvet 1.x, so earlier history carries over.
 """
@@ -23,7 +25,9 @@ CREATE INDEX IF NOT EXISTS turns_thread ON turns(thread, id);
 CREATE TABLE IF NOT EXISTS store (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 CREATE TRIGGER IF NOT EXISTS turns_no_update BEFORE UPDATE ON turns BEGIN SELECT RAISE(ABORT, 'turns are append-only'); END;
 CREATE TRIGGER IF NOT EXISTS turns_no_delete BEFORE DELETE ON turns BEGIN SELECT RAISE(ABORT, 'turns are append-only'); END;
+CREATE TABLE IF NOT EXISTS relay_state (call_id TEXT PRIMARY KEY, ts REAL NOT NULL, model TEXT NOT NULL, items TEXT NOT NULL);
 """
+STATE_DAYS = 7  # kept reasoning older than this is dropped
 VERSION = 1  # SQLite user_version this release writes and reads
 
 
@@ -88,6 +92,23 @@ class Store:
     def recent(self, limit: int = 20) -> list[Turn]:
         """Return the last ``limit`` turns across every app, newest first."""
         return [_turn(r) for r in self.db.execute("SELECT * FROM turns ORDER BY id DESC LIMIT ?", (limit,)).fetchall()]
+
+    def save_state(self, model: str, state: dict[str, Any]) -> None:
+        """Keep the reasoning behind each tool call (tool-call id -> items); drop entries older than a week."""
+        now = time.time()
+        self.db.execute("DELETE FROM relay_state WHERE ts < ?", (now - STATE_DAYS * 86400,))
+        self.db.executemany("INSERT OR REPLACE INTO relay_state(call_id, ts, model, items) VALUES (?,?,?,?)",
+                            [(call_id, now, model, json.dumps(items)) for call_id, items in state.items()])
+        self.db.commit()
+
+    def load_state(self, model: str, call_ids: list[str]) -> dict[str, Any]:
+        """Return the kept reasoning for these tool-call ids, from the same model only."""
+        if not call_ids:
+            return {}
+        marks = ",".join("?" * len(call_ids))
+        rows = self.db.execute(f"SELECT call_id, items FROM relay_state WHERE model=? AND call_id IN ({marks})",  # noqa: S608
+                               (model, *call_ids)).fetchall()
+        return {r["call_id"]: json.loads(r["items"]) for r in rows}
 
     def spent_today(self) -> float:
         """USD recorded on turns since local midnight."""

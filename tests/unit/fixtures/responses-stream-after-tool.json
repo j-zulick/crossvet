@@ -1,0 +1,803 @@
+[
+ {
+  "type": "response.created",
+  "sequence_number": 0,
+  "response": {
+   "input_transformations": [],
+   "id": "resp_01b37121a9b8fdfc016b07ec88ef9087d2a9e87f97a694a8b0",
+   "object": "response",
+   "created_at": 1795681417,
+   "completed_at": null,
+   "status": "in_progress",
+   "background": false,
+   "frequency_penalty": 0.0,
+   "presence_penalty": 0.0,
+   "moderation": null,
+   "model": "gpt-6.1-sol",
+   "access_programs": {
+    "cyber": "standard"
+   },
+   "previous_response_id": null,
+   "instructions": null,
+   "output": [],
+   "error": null,
+   "incomplete_details": null,
+   "tools": [
+    {
+     "type": "function",
+     "name": "lookup_vin",
+     "description": "Look up a vehicle by VIN in the dealer inventory.",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "vin": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "vin"
+      ]
+     },
+     "output_schema": null,
+     "strict": false
+    }
+   ],
+   "tool_choice": "auto",
+   "parallel_tool_calls": true,
+   "prompt_cache_key": null,
+   "prompt_cache_retention": "24h",
+   "text": {
+    "format": {
+     "type": "text"
+    },
+    "verbosity": "medium"
+   },
+   "top_p": 0.98,
+   "top_logprobs": 0,
+   "temperature": 1.0,
+   "reasoning": {
+    "context": "all_turns",
+    "effort": "medium",
+    "summary": null,
+    "mode": "standard"
+   },
+   "user": null,
+   "usage": null,
+   "tool_usage": {
+    "image_gen": {
+     "input_tokens": 0,
+     "output_tokens": 0,
+     "total_tokens": 0,
+     "input_tokens_details": {
+      "text_tokens": 0,
+      "image_tokens": 0
+     },
+     "output_tokens_details": {
+      "image_tokens": 0,
+      "text_tokens": 0
+     }
+    },
+    "web_search": {
+     "num_requests": 0
+    }
+   },
+   "safety_identifier": null,
+   "store": false,
+   "metadata": {},
+   "max_output_tokens": 800,
+   "max_tool_calls": null,
+   "service_tier": "auto",
+   "truncation": "disabled",
+   "image": {
+    "context_compression": "disabled"
+   }
+  }
+ },
+ {
+  "type": "response.in_progress",
+  "sequence_number": 1,
+  "response": {
+   "input_transformations": [],
+   "id": "resp_01b37121a9b8fdfc016b07ec88ef9087d2a9e87f97a694a8b0",
+   "object": "response",
+   "created_at": 1795681417,
+   "completed_at": null,
+   "status": "in_progress",
+   "background": false,
+   "frequency_penalty": 0.0,
+   "presence_penalty": 0.0,
+   "moderation": null,
+   "model": "gpt-6.1-sol",
+   "access_programs": {
+    "cyber": "standard"
+   },
+   "previous_response_id": null,
+   "instructions": null,
+   "output": [],
+   "error": null,
+   "incomplete_details": null,
+   "tools": [
+    {
+     "type": "function",
+     "name": "lookup_vin",
+     "description": "Look up a vehicle by VIN in the dealer inventory.",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "vin": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "vin"
+      ]
+     },
+     "output_schema": null,
+     "strict": false
+    }
+   ],
+   "tool_choice": "auto",
+   "parallel_tool_calls": true,
+   "prompt_cache_key": null,
+   "prompt_cache_retention": "24h",
+   "text": {
+    "format": {
+     "type": "text"
+    },
+    "verbosity": "medium"
+   },
+   "top_p": 0.98,
+   "top_logprobs": 0,
+   "temperature": 1.0,
+   "reasoning": {
+    "context": "all_turns",
+    "effort": "medium",
+    "summary": null,
+    "mode": "standard"
+   },
+   "user": null,
+   "usage": null,
+   "tool_usage": {
+    "image_gen": {
+     "input_tokens": 0,
+     "output_tokens": 0,
+     "total_tokens": 0,
+     "input_tokens_details": {
+      "text_tokens": 0,
+      "image_tokens": 0
+     },
+     "output_tokens_details": {
+      "image_tokens": 0,
+      "text_tokens": 0
+     }
+    },
+    "web_search": {
+     "num_requests": 0
+    }
+   },
+   "safety_identifier": null,
+   "store": false,
+   "metadata": {},
+   "max_output_tokens": 800,
+   "max_tool_calls": null,
+   "service_tier": "auto",
+   "truncation": "disabled",
+   "image": {
+    "context_compression": "disabled"
+   }
+  }
+ },
+ {
+  "type": "response.output_item.added",
+  "sequence_number": 2,
+  "output_index": 0,
+  "item": {
+   "type": "message",
+   "id": "msg_01b37121a9b8fdfc016b07ec8a294087d29d3f17c3a4e3bd89",
+   "role": "assistant",
+   "status": "in_progress",
+   "content": [],
+   "phase": "final_answer"
+  }
+ },
+ {
+  "type": "response.content_part.added",
+  "sequence_number": 3,
+  "item_id": "msg_01b37121a9b8fdfc016b07ec8a294087d29d3f17c3a4e3bd89",
+  "output_index": 0,
+  "content_index": 0,
+  "part": {
+   "type": "output_text",
+   "text": "",
+   "annotations": [],
+   "logprobs": []
+  }
+ },
+ {
+  "type": "response.output_text.delta",
+  "sequence_number": 4,
+  "item_id": "msg_01b37121a9b8fdfc016b07ec8a294087d29d3f17c3a4e3bd89",
+  "output_index": 0,
+  "content_index": 0,
+  "delta": "-",
+  "logprobs": [],
+  "obfuscation": "1NPFsomeYro2UKx"
+ },
+ {
+  "type": "response.output_text.delta",
+  "sequence_number": 5,
+  "item_id": "msg_01b37121a9b8fdfc016b07ec8a294087d29d3f17c3a4e3bd89",
+  "output_index": 0,
+  "content_index": 0,
+  "delta": " VIN",
+  "logprobs": [],
+  "obfuscation": "FWTTpmXHY4UW"
+ },
+ {
+  "type": "response.output_text.delta",
+  "sequence_number": 6,
+  "item_id": "msg_01b37121a9b8fdfc016b07ec8a294087d29d3f17c3a4e3bd89",
+  "output_index": 0,
+  "content_index": 0,
+  "delta": " **",
+  "logprobs": [],
+  "obfuscation": "YbDOYekdI1wqN"
+ },
+ {
+  "type": "response.output_text.delta",
+  "sequence_number": 7,
+  "item_id": "msg_01b37121a9b8fdfc016b07ec8a294087d29d3f17c3a4e3bd89",
+  "output_index": 0,
+  "content_index": 0,
+  "delta": "1",
+  "logprobs": [],
+  "obfuscation": "C6MH8k8pbNiNG3D"
+ },
+ {
+  "type": "response.output_text.delta",
+  "sequence_number": 8,
+  "item_id": "msg_01b37121a9b8fdfc016b07ec8a294087d29d3f17c3a4e3bd89",
+  "output_index": 0,
+  "content_index": 0,
+  "delta": "FT",
+  "logprobs": [],
+  "obfuscation": "4mJ0402dKxccjj"
+ },
+ {
+  "type": "response.output_text.delta",
+  "sequence_number": 9,
+  "item_id": "msg_01b37121a9b8fdfc016b07ec8a294087d29d3f17c3a4e3bd89",
+  "output_index": 0,
+  "content_index": 0,
+  "delta": "FW",
+  "logprobs": [],
+  "obfuscation": "Eb7OjIigQJ5LXD"
+ },
+ {
+  "type": "response.output_text.delta",
+  "sequence_number": 10,
+  "item_id": "msg_01b37121a9b8fdfc016b07ec8a294087d29d3f17c3a4e3bd89",
+  "output_index": 0,
+  "content_index": 0,
+  "delta": "1",
+  "logprobs": [],
+  "obfuscation": "3PeOT3MjTeitb88"
+ },
+ {
+  "type": "response.output_text.delta",
+  "sequence_number": 11,
+  "item_id": "msg_01b37121a9b8fdfc016b07ec8a294087d29d3f17c3a4e3bd89",
+  "output_index": 0,
+  "content_index": 0,
+  "delta": "E",
+  "logprobs": [],
+  "obfuscation": "f3HYupR20Lp4lGZ"
+ },
+ {
+  "type": "response.output_text.delta",
+  "sequence_number": 12,
+  "item_id": "msg_01b37121a9b8fdfc016b07ec8a294087d29d3f17c3a4e3bd89",
+  "output_index": 0,
+  "content_index": 0,
+  "delta": "80",
+  "logprobs": [],
+  "obfuscation": "y1DaEwc9SGxl2r"
+ },
+ {
+  "type": "response.output_text.delta",
+  "sequence_number": 13,
+  "item_id": "msg_01b37121a9b8fdfc016b07ec8a294087d29d3f17c3a4e3bd89",
+  "output_index": 0,
+  "content_index": 0,
+  "delta": "M",
+  "logprobs": [],
+  "obfuscation": "eMeJeyQeMSXGkui"
+ },
+ {
+  "type": "response.output_text.delta",
+  "sequence_number": 14,
+  "item_id": "msg_01b37121a9b8fdfc016b07ec8a294087d29d3f17c3a4e3bd89",
+  "output_index": 0,
+  "content_index": 0,
+  "delta": "FA",
+  "logprobs": [],
+  "obfuscation": "kONoGy05wKcmCS"
+ },
+ {
+  "type": "response.output_text.delta",
+  "sequence_number": 15,
+  "item_id": "msg_01b37121a9b8fdfc016b07ec8a294087d29d3f17c3a4e3bd89",
+  "output_index": 0,
+  "content_index": 0,
+  "delta": "123",
+  "logprobs": [],
+  "obfuscation": "6DTZPypYAykWS"
+ },
+ {
+  "type": "response.output_text.delta",
+  "sequence_number": 16,
+  "item_id": "msg_01b37121a9b8fdfc016b07ec8a294087d29d3f17c3a4e3bd89",
+  "output_index": 0,
+  "content_index": 0,
+  "delta": "45",
+  "logprobs": [],
+  "obfuscation": "VWI2UbAuF1eHvI"
+ },
+ {
+  "type": "response.output_text.delta",
+  "sequence_number": 17,
+  "item_id": "msg_01b37121a9b8fdfc016b07ec8a294087d29d3f17c3a4e3bd89",
+  "output_index": 0,
+  "content_index": 0,
+  "delta": "**",
+  "logprobs": [],
+  "obfuscation": "n0XHZEM4kFc4Bd"
+ },
+ {
+  "type": "response.output_text.delta",
+  "sequence_number": 18,
+  "item_id": "msg_01b37121a9b8fdfc016b07ec8a294087d29d3f17c3a4e3bd89",
+  "output_index": 0,
+  "content_index": 0,
+  "delta": ":",
+  "logprobs": [],
+  "obfuscation": "1F02j0cn9Zqy27N"
+ },
+ {
+  "type": "response.output_text.delta",
+  "sequence_number": 19,
+  "item_id": "msg_01b37121a9b8fdfc016b07ec8a294087d29d3f17c3a4e3bd89",
+  "output_index": 0,
+  "content_index": 0,
+  "delta": " **",
+  "logprobs": [],
+  "obfuscation": "0UJ54anL8EFKv"
+ },
+ {
+  "type": "response.output_text.delta",
+  "sequence_number": 20,
+  "item_id": "msg_01b37121a9b8fdfc016b07ec8a294087d29d3f17c3a4e3bd89",
+  "output_index": 0,
+  "content_index": 0,
+  "delta": "$",
+  "logprobs": [],
+  "obfuscation": "cO4UDyvrUKXRYQt"
+ },
+ {
+  "type": "response.output_text.delta",
+  "sequence_number": 21,
+  "item_id": "msg_01b37121a9b8fdfc016b07ec8a294087d29d3f17c3a4e3bd89",
+  "output_index": 0,
+  "content_index": 0,
+  "delta": "38",
+  "logprobs": [],
+  "obfuscation": "0N4M95HAHwJiKl"
+ },
+ {
+  "type": "response.output_text.delta",
+  "sequence_number": 22,
+  "item_id": "msg_01b37121a9b8fdfc016b07ec8a294087d29d3f17c3a4e3bd89",
+  "output_index": 0,
+  "content_index": 0,
+  "delta": ",",
+  "logprobs": [],
+  "obfuscation": "Dl98oOB548NG6hX"
+ },
+ {
+  "type": "response.output_text.delta",
+  "sequence_number": 23,
+  "item_id": "msg_01b37121a9b8fdfc016b07ec8a294087d29d3f17c3a4e3bd89",
+  "output_index": 0,
+  "content_index": 0,
+  "delta": "995",
+  "logprobs": [],
+  "obfuscation": "RTNPkGMgawXMH"
+ },
+ {
+  "type": "response.output_text.delta",
+  "sequence_number": 24,
+  "item_id": "msg_01b37121a9b8fdfc016b07ec8a294087d29d3f17c3a4e3bd89",
+  "output_index": 0,
+  "content_index": 0,
+  "delta": "**\n",
+  "logprobs": [],
+  "obfuscation": "3uMm50WQt8pBx"
+ },
+ {
+  "type": "response.output_text.delta",
+  "sequence_number": 25,
+  "item_id": "msg_01b37121a9b8fdfc016b07ec8a294087d29d3f17c3a4e3bd89",
+  "output_index": 0,
+  "content_index": 0,
+  "delta": "-",
+  "logprobs": [],
+  "obfuscation": "KShGjWGmD1lbnjS"
+ },
+ {
+  "type": "response.output_text.delta",
+  "sequence_number": 26,
+  "item_id": "msg_01b37121a9b8fdfc016b07ec8a294087d29d3f17c3a4e3bd89",
+  "output_index": 0,
+  "content_index": 0,
+  "delta": " VIN",
+  "logprobs": [],
+  "obfuscation": "z5eV8nKI8yJc"
+ },
+ {
+  "type": "response.output_text.delta",
+  "sequence_number": 27,
+  "item_id": "msg_01b37121a9b8fdfc016b07ec8a294087d29d3f17c3a4e3bd89",
+  "output_index": 0,
+  "content_index": 0,
+  "delta": " **",
+  "logprobs": [],
+  "obfuscation": "wR4Wnqv08zNvK"
+ },
+ {
+  "type": "response.output_text.delta",
+  "sequence_number": 28,
+  "item_id": "msg_01b37121a9b8fdfc016b07ec8a294087d29d3f17c3a4e3bd89",
+  "output_index": 0,
+  "content_index": 0,
+  "delta": "5",
+  "logprobs": [],
+  "obfuscation": "HVbnEYZDtRmcYQD"
+ },
+ {
+  "type": "response.output_text.delta",
+  "sequence_number": 29,
+  "item_id": "msg_01b37121a9b8fdfc016b07ec8a294087d29d3f17c3a4e3bd89",
+  "output_index": 0,
+  "content_index": 0,
+  "delta": "J",
+  "logprobs": [],
+  "obfuscation": "TZRlJv7McLYx5Dz"
+ },
+ {
+  "type": "response.output_text.delta",
+  "sequence_number": 30,
+  "item_id": "msg_01b37121a9b8fdfc016b07ec8a294087d29d3f17c3a4e3bd89",
+  "output_index": 0,
+  "content_index": 0,
+  "delta": "6",
+  "logprobs": [],
+  "obfuscation": "EYN9bnWkIGIyKQ8"
+ },
+ {
+  "type": "response.output_text.delta",
+  "sequence_number": 31,
+  "item_id": "msg_01b37121a9b8fdfc016b07ec8a294087d29d3f17c3a4e3bd89",
+  "output_index": 0,
+  "content_index": 0,
+  "delta": "RW",
+  "logprobs": [],
+  "obfuscation": "AVyBqMnVnIrIyk"
+ },
+ {
+  "type": "response.output_text.delta",
+  "sequence_number": 32,
+  "item_id": "msg_01b37121a9b8fdfc016b07ec8a294087d29d3f17c3a4e3bd89",
+  "output_index": 0,
+  "content_index": 0,
+  "delta": "2",
+  "logprobs": [],
+  "obfuscation": "dilfRf78YwNtdD8"
+ },
+ {
+  "type": "response.output_text.delta",
+  "sequence_number": 33,
+  "item_id": "msg_01b37121a9b8fdfc016b07ec8a294087d29d3f17c3a4e3bd89",
+  "output_index": 0,
+  "content_index": 0,
+  "delta": "H",
+  "logprobs": [],
+  "obfuscation": "tjTQQ1MjWq9jTL8"
+ },
+ {
+  "type": "response.output_text.delta",
+  "sequence_number": 34,
+  "item_id": "msg_01b37121a9b8fdfc016b07ec8a294087d29d3f17c3a4e3bd89",
+  "output_index": 0,
+  "content_index": 0,
+  "delta": "89",
+  "logprobs": [],
+  "obfuscation": "dVUgEJEtw119AC"
+ },
+ {
+  "type": "response.output_text.delta",
+  "sequence_number": 35,
+  "item_id": "msg_01b37121a9b8fdfc016b07ec8a294087d29d3f17c3a4e3bd89",
+  "output_index": 0,
+  "content_index": 0,
+  "delta": "KL",
+  "logprobs": [],
+  "obfuscation": "VKofaDFKDdaIRb"
+ },
+ {
+  "type": "response.output_text.delta",
+  "sequence_number": 36,
+  "item_id": "msg_01b37121a9b8fdfc016b07ec8a294087d29d3f17c3a4e3bd89",
+  "output_index": 0,
+  "content_index": 0,
+  "delta": "004",
+  "logprobs": [],
+  "obfuscation": "mlBy3udbQ0b2v"
+ },
+ {
+  "type": "response.output_text.delta",
+  "sequence_number": 37,
+  "item_id": "msg_01b37121a9b8fdfc016b07ec8a294087d29d3f17c3a4e3bd89",
+  "output_index": 0,
+  "content_index": 0,
+  "delta": "321",
+  "logprobs": [],
+  "obfuscation": "rYCnxHEtx81I7"
+ },
+ {
+  "type": "response.output_text.delta",
+  "sequence_number": 38,
+  "item_id": "msg_01b37121a9b8fdfc016b07ec8a294087d29d3f17c3a4e3bd89",
+  "output_index": 0,
+  "content_index": 0,
+  "delta": "**",
+  "logprobs": [],
+  "obfuscation": "uMaqKK1fXRPdiL"
+ },
+ {
+  "type": "response.output_text.delta",
+  "sequence_number": 39,
+  "item_id": "msg_01b37121a9b8fdfc016b07ec8a294087d29d3f17c3a4e3bd89",
+  "output_index": 0,
+  "content_index": 0,
+  "delta": ":",
+  "logprobs": [],
+  "obfuscation": "EBzS68mlkEnsCa0"
+ },
+ {
+  "type": "response.output_text.delta",
+  "sequence_number": 40,
+  "item_id": "msg_01b37121a9b8fdfc016b07ec8a294087d29d3f17c3a4e3bd89",
+  "output_index": 0,
+  "content_index": 0,
+  "delta": " **",
+  "logprobs": [],
+  "obfuscation": "WNRL9lDTX8G6N"
+ },
+ {
+  "type": "response.output_text.delta",
+  "sequence_number": 41,
+  "item_id": "msg_01b37121a9b8fdfc016b07ec8a294087d29d3f17c3a4e3bd89",
+  "output_index": 0,
+  "content_index": 0,
+  "delta": "$",
+  "logprobs": [],
+  "obfuscation": "7nVAjaEXNNOJYDs"
+ },
+ {
+  "type": "response.output_text.delta",
+  "sequence_number": 42,
+  "item_id": "msg_01b37121a9b8fdfc016b07ec8a294087d29d3f17c3a4e3bd89",
+  "output_index": 0,
+  "content_index": 0,
+  "delta": "38",
+  "logprobs": [],
+  "obfuscation": "bVsb5ilzElkGK6"
+ },
+ {
+  "type": "response.output_text.delta",
+  "sequence_number": 43,
+  "item_id": "msg_01b37121a9b8fdfc016b07ec8a294087d29d3f17c3a4e3bd89",
+  "output_index": 0,
+  "content_index": 0,
+  "delta": ",",
+  "logprobs": [],
+  "obfuscation": "z02Hdxxwp4uIokT"
+ },
+ {
+  "type": "response.output_text.delta",
+  "sequence_number": 44,
+  "item_id": "msg_01b37121a9b8fdfc016b07ec8a294087d29d3f17c3a4e3bd89",
+  "output_index": 0,
+  "content_index": 0,
+  "delta": "995",
+  "logprobs": [],
+  "obfuscation": "p2Hsjp5SFR6K0"
+ },
+ {
+  "type": "response.output_text.delta",
+  "sequence_number": 45,
+  "item_id": "msg_01b37121a9b8fdfc016b07ec8a294087d29d3f17c3a4e3bd89",
+  "output_index": 0,
+  "content_index": 0,
+  "delta": "**",
+  "logprobs": [],
+  "obfuscation": "ji4ZwEbfpyP17t"
+ },
+ {
+  "type": "response.output_text.done",
+  "sequence_number": 46,
+  "item_id": "msg_01b37121a9b8fdfc016b07ec8a294087d29d3f17c3a4e3bd89",
+  "output_index": 0,
+  "content_index": 0,
+  "text": "- VIN **1FTFW1E80MFA12345**: **$38,995**\n- VIN **5J6RW2H89KL004321**: **$38,995**",
+  "logprobs": []
+ },
+ {
+  "type": "response.content_part.done",
+  "sequence_number": 47,
+  "item_id": "msg_01b37121a9b8fdfc016b07ec8a294087d29d3f17c3a4e3bd89",
+  "output_index": 0,
+  "content_index": 0,
+  "part": {
+   "type": "output_text",
+   "text": "- VIN **1FTFW1E80MFA12345**: **$38,995**\n- VIN **5J6RW2H89KL004321**: **$38,995**",
+   "annotations": [],
+   "logprobs": []
+  }
+ },
+ {
+  "type": "response.output_item.done",
+  "sequence_number": 48,
+  "output_index": 0,
+  "item": {
+   "type": "message",
+   "id": "msg_01b37121a9b8fdfc016b07ec8a294087d29d3f17c3a4e3bd89",
+   "role": "assistant",
+   "status": "completed",
+   "content": [
+    {
+     "type": "output_text",
+     "text": "- VIN **1FTFW1E80MFA12345**: **$38,995**\n- VIN **5J6RW2H89KL004321**: **$38,995**",
+     "annotations": [],
+     "logprobs": []
+    }
+   ],
+   "phase": "final_answer"
+  }
+ },
+ {
+  "type": "response.completed",
+  "sequence_number": 49,
+  "response": {
+   "input_transformations": [],
+   "id": "resp_01b37121a9b8fdfc016b07ec88ef9087d2a9e87f97a694a8b0",
+   "object": "response",
+   "created_at": 1795681417,
+   "completed_at": 1795681418,
+   "status": "completed",
+   "background": false,
+   "frequency_penalty": 0.0,
+   "presence_penalty": 0.0,
+   "moderation": null,
+   "model": "gpt-6.1-sol",
+   "access_programs": {
+    "cyber": "standard"
+   },
+   "previous_response_id": null,
+   "instructions": null,
+   "output": [
+    {
+     "type": "message",
+     "id": "msg_01b37121a9b8fdfc016b07ec8a294087d29d3f17c3a4e3bd89",
+     "role": "assistant",
+     "status": "completed",
+     "content": [
+      {
+       "type": "output_text",
+       "text": "- VIN **1FTFW1E80MFA12345**: **$38,995**\n- VIN **5J6RW2H89KL004321**: **$38,995**",
+       "annotations": [],
+       "logprobs": []
+      }
+     ],
+     "phase": "final_answer"
+    }
+   ],
+   "error": null,
+   "incomplete_details": null,
+   "tools": [
+    {
+     "type": "function",
+     "name": "lookup_vin",
+     "description": "Look up a vehicle by VIN in the dealer inventory.",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "vin": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "vin"
+      ]
+     },
+     "output_schema": null,
+     "strict": false
+    }
+   ],
+   "tool_choice": "auto",
+   "parallel_tool_calls": true,
+   "prompt_cache_key": null,
+   "prompt_cache_retention": "24h",
+   "text": {
+    "format": {
+     "type": "text"
+    },
+    "verbosity": "medium"
+   },
+   "top_p": 0.98,
+   "top_logprobs": 0,
+   "temperature": 1.0,
+   "reasoning": {
+    "context": "all_turns",
+    "effort": "medium",
+    "summary": null,
+    "mode": "standard"
+   },
+   "user": null,
+   "usage": {
+    "input_tokens": 237,
+    "input_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "cache_write_tokens_details": {
+      "ttl_30m_tokens": 0,
+      "ttl_12h_tokens": 0
+     }
+    },
+    "output_tokens": 46,
+    "output_tokens_details": {
+     "reasoning_tokens": 0
+    },
+    "total_tokens": 283
+   },
+   "tool_usage": {
+    "image_gen": {
+     "input_tokens": 0,
+     "output_tokens": 0,
+     "total_tokens": 0,
+     "input_tokens_details": {
+      "text_tokens": 0,
+      "image_tokens": 0
+     },
+     "output_tokens_details": {
+      "image_tokens": 0,
+      "text_tokens": 0
+     }
+    },
+    "web_search": {
+     "num_requests": 0
+    }
+   },
+   "safety_identifier": null,
+   "store": false,
+   "metadata": {},
+   "max_output_tokens": 800,
+   "max_tool_calls": null,
+   "service_tier": "default",
+   "truncation": "disabled",
+   "image": {
+    "context_compression": "disabled"
+   }
+  }
+ }
+]

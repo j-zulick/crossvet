@@ -143,6 +143,87 @@ def test_an_agents_tool_call_round_trip(client, model):
     assert "38,995" in text or "38995" in text
 
 
+def _stream(client, body):
+    """POST a streaming request; return the chat chunks."""
+    response = client.post("/v1/chat/completions", json={**body, "stream": True})
+    assert response.status_code == 200, response.text
+    return [json.loads(line[6:]) for line in response.text.splitlines() if line.startswith("data: {")]
+
+
+def _assemble(chunks):
+    """Rebuild the assistant message from streamed chunks, the way an agent does."""
+    text, calls = "", {}
+    for c in chunks:
+        for choice in c.get("choices") or []:
+            delta = choice.get("delta") or {}
+            text += delta.get("content") or ""
+            for call in delta.get("tool_calls") or []:
+                kept = calls.setdefault(call["index"], {"id": "", "type": "function", "function": {"name": "", "arguments": ""}})
+                kept["id"] = call.get("id") or kept["id"]
+                kept["function"]["name"] = (call.get("function") or {}).get("name") or kept["function"]["name"]
+                kept["function"]["arguments"] += (call.get("function") or {}).get("arguments") or ""
+    message = {"role": "assistant", "content": text or None}
+    if calls:
+        message["tool_calls"] = [calls[i] for i in sorted(calls)]
+    return message
+
+
+@pytest.mark.parametrize("model", ["anthropic:claude-sonnet-5-5", "openai:gpt-6.1-sol"])
+def test_a_streamed_agent_loop_with_parallel_tool_calls(client, model):
+    """Hermes streams: two VINs looked up in one turn, results sent back, then the comparison, all streamed."""
+    if not ready(model):
+        pytest.skip(f"no key for {model}")
+    prices = {"1FTFW1E80MFA12345": 38995, "5J6RW2H89KL004321": 27450}
+    messages = [{"role": "system", "content": "You help a Sarasota used-car dealer. Use tools for inventory facts."},
+                {"role": "user", "content": "Look up VINs 1FTFW1E80MFA12345 and 5J6RW2H89KL004321 and tell me which costs less."}]
+    for step in range(3):
+        chunks = _stream(client, {"model": model, "messages": messages, "tools": [VIN_TOOL]})
+        message = _assemble(chunks)
+        log("streamed_agent_step", None, model=model, step=step, cost_usd=chunks[-1]["crossvet"]["cost"],
+            tool_calls=[json.loads(c["function"]["arguments"]).get("vin") for c in message.get("tool_calls", [])],
+            answer_start=(message["content"] or "")[:200])
+        if not message.get("tool_calls"):
+            break
+        messages.append(message)
+        for call in message["tool_calls"]:
+            vin = json.loads(call["function"]["arguments"]).get("vin", "")
+            messages.append({"role": "tool", "tool_call_id": call["id"], "content": json.dumps({"vin": vin, "price": prices.get(vin)})})
+    assert not message.get("tool_calls") and "27,450" in (message["content"] or "").replace("27450", "27,450")
+    looked_up = {json.loads(c["function"]["arguments"]).get("vin") for m in messages for c in m.get("tool_calls", [])}
+    assert looked_up == set(prices)
+
+
+def test_openai_reasoning_is_kept_across_tool_steps(cv, client):
+    """At high effort the model reasons before calling a tool; that reasoning goes back with the result."""
+    model = "openai:gpt-6.1-sol"
+    if not ready(model):
+        pytest.skip("needs OPENAI_API_KEY")
+    messages = [{"role": "user", "content": "A buyer has $30,000 and wants the lowest cost per remaining mile (200,000-mile life). "
+                                            "Decide which one VIN to check first among 1FTFW1E80MFA12345 (2021 F-150) and "
+                                            "5J6RW2H89KL004321 (2019 CR-V), reason it through, then look it up."}]
+    body = {"model": model, "messages": messages, "tools": [VIN_TOOL], "reasoning_effort": "high", "max_completion_tokens": 3000}
+    first = client.post("/v1/chat/completions", json=body).json()
+    message = first["choices"][0]["message"]
+    kept = cv.store.db.execute("SELECT COUNT(*) FROM relay_state").fetchone()[0]
+    calls = message.get("tool_calls") or []
+    assert calls, first
+    results = [{"role": "tool", "tool_call_id": c["id"], "content": json.dumps({"price": 27450, "miles": 52000})} for c in calls]
+    second = client.post("/v1/chat/completions", json={**body, "messages": [*messages, message, *results]})
+    assert second.status_code == 200, second.text
+    log("reasoning_kept", None, model=model, kept_items=kept, cost_usd=(first["crossvet"]["cost"] or 0) + (second.json()["crossvet"]["cost"] or 0),
+        answer_start=(second.json()["choices"][0]["message"]["content"] or "")[:200])
+
+
+def test_fields_without_a_place_are_reported(client):
+    model = "openai:gpt-6-luna"
+    if not ready(model):
+        pytest.skip("needs OPENAI_API_KEY")
+    data = client.post("/v1/chat/completions", json={"model": model, "seed": 7, "tools": [VIN_TOOL],
+                                                      "messages": [{"role": "user", "content": "Say OK."}]}).json()
+    log("dropped_fields", None, model=model, dropped=data["crossvet"].get("dropped"))
+    assert data["crossvet"]["dropped"] == ["seed"]
+
+
 # --- guards ---------------------------------------------------------------------------------------
 
 def test_the_per_call_cap_stops_a_call_before_it_is_made(tmp_path):

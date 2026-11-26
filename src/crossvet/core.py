@@ -19,7 +19,7 @@ from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from typing import Any
 
-from crossvet import providers
+from crossvet import providers, relay
 from crossvet.config import Config, load
 from crossvet.providers import AccountError, Reply, text_of
 from crossvet.store import Store, new_thread
@@ -47,6 +47,7 @@ class Answer:
     stop: str = ""
     served_by: str = ""
     tool_calls: list[dict[str, Any]] = field(default_factory=list)
+    dropped: list[str] = field(default_factory=list)
 
     def footer(self) -> str:
         """One line: model, tokens, cost and time."""
@@ -56,7 +57,8 @@ class Answer:
 
 
 Streamer = Callable[[str, list[dict[str, Any]], int], Iterator["str | Reply"]]
-Relayer = Callable[[str, dict[str, Any]], tuple[dict[str, Any], Reply]]
+Relayer = Callable[[str, dict[str, Any], dict[str, Any]], tuple[dict[str, Any], Reply]]
+RelayStreamer = Callable[[str, dict[str, Any], dict[str, Any]], Iterator["dict[str, Any] | Reply"]]
 
 
 def estimate_tokens(text: str) -> int:
@@ -73,12 +75,14 @@ class Crossvet:
     """Ask a named model; guard the call; log the turn."""
 
     def __init__(self, config: Config | None = None, store: Store | None = None, *,  # noqa: D107
-                 streamer: Streamer | None = None, relayer: Relayer | None = None) -> None:
+                 streamer: Streamer | None = None, relayer: Relayer | None = None,
+                 relay_streamer: RelayStreamer | None = None) -> None:
         self.config = config or load()
         providers.set_timeout(self.config.timeout_seconds)
         self.store = store or Store(self.config.store_path())
         self.streamer: Streamer = streamer or (lambda m, msgs, n: providers.stream(m, msgs, n))
-        self.relayer: Relayer = relayer or (lambda m, body: providers.passthrough(m, body))
+        self.relayer: Relayer = relayer or (lambda m, body, state: relay.send(m, body, state))
+        self.relay_streamer: RelayStreamer = relay_streamer or (lambda m, body, state: relay.send_stream(m, body, state))
         self.refused: set[str] = set()  # providers that refused the account in this process
         self.lock = threading.Lock()
 
@@ -137,21 +141,47 @@ class Crossvet:
         assert answer is not None  # noqa: S101 - ask_stream always ends with an Answer
         return answer
 
-    def relay(self, model_name: str | None, body: dict[str, Any], *, thread: str | None = None,
-              app: str = "api") -> tuple[dict[str, Any], Answer]:
-        """Pass an agent's whole request (tools and tool results included) to the named model; log the turn."""
+    def _relay_prepare(self, model_name: str | None, body: dict[str, Any]) -> tuple[str, dict[str, Any], dict[str, Any]]:
+        """Resolve, guard, set the output limit, and find the kept reasoning for the tool results in the request."""
         model = self.config.resolve(model_name)
         messages = list(body.get("messages") or [])
         self.check(model, json.dumps(messages) + json.dumps(body.get("tools") or []))
         sent = dict(body)
         if "max_tokens" not in sent and "max_completion_tokens" not in sent:
             sent["max_tokens"] = self.config.max_output_tokens
+        call_ids = [str(c.get("id")) for m in messages for c in (m.get("tool_calls") or []) if c.get("id")]
+        with self.lock:
+            state = self.store.load_state(model, call_ids)
+        return model, sent, state
+
+    def relay(self, model_name: str | None, body: dict[str, Any], *, thread: str | None = None,
+              app: str = "api") -> tuple[dict[str, Any], Answer]:
+        """Pass an agent's whole request (tools and tool results included) to the named model; log the turn."""
+        model, sent, state = self._relay_prepare(model_name, body)
         try:
-            raw, reply = self.relayer(model, sent)
+            raw, reply = self.relayer(model, sent, state)
         except AccountError:
             self._refusal(model)
             raise
-        return raw, self._log(model, last_user_text(messages), reply, thread or new_thread(), app)
+        return raw, self._log(model, last_user_text(sent["messages"]), reply, thread or new_thread(), app)
+
+    def relay_stream(self, model_name: str | None, body: dict[str, Any], *, thread: str | None = None,
+                     app: str = "api") -> Iterator[dict[str, Any] | Answer]:
+        """Stream an agent's request: chat-completions deltas as they arrive, then the logged :class:`Answer`."""
+        model, sent, state = self._relay_prepare(model_name, body)
+        reply: Reply | None = None
+        try:
+            for item in self.relay_streamer(model, sent, state):
+                if isinstance(item, Reply):
+                    reply = item
+                else:
+                    yield item
+        except AccountError:
+            self._refusal(model)
+            raise
+        if reply is None:
+            raise providers.ProviderError(f"{model} returned no answer")
+        yield self._log(model, last_user_text(sent["messages"]), reply, thread or new_thread(), app)
 
     # --- logging ---
 
@@ -159,12 +189,16 @@ class Crossvet:
         cost = reply.cost if reply.cost is not None else self.config.cost(model, reply.input_tokens, reply.output_tokens)
         answer = Answer(text=reply.text, model=model, thread=thread, input_tokens=reply.input_tokens,
                         output_tokens=reply.output_tokens, cost=cost, seconds=reply.seconds, truncated=reply.truncated,
-                        stop=reply.stop, served_by=reply.served_by, tool_calls=reply.tool_calls)
+                        stop=reply.stop, served_by=reply.served_by, tool_calls=reply.tool_calls, dropped=reply.dropped)
         shown = reply.text or ("(tool calls: " + ", ".join(str((c.get("function") or {}).get("name", "?"))
                                                            for c in reply.tool_calls) + ")" if reply.tool_calls else "")
         meta = {"input_tokens": reply.input_tokens, "output_tokens": reply.output_tokens, "seconds": reply.seconds,
                 "served_by": reply.served_by, "stop": reply.stop}
+        if reply.dropped:
+            meta["dropped"] = reply.dropped
         with self.lock:
+            if reply.state:
+                self.store.save_state(model, reply.state)
             self.store.add_turn(thread, app, "user", question)
             answer.turn_id = self.store.add_turn(thread, app, "assistant", shown, model=model, cost=cost, meta=meta)
         return answer

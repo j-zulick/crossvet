@@ -87,65 +87,6 @@ def test_a_missing_key_is_named():
         providers.call("openai:gpt-6-luna", [{"role": "user", "content": "q"}])
 
 
-def test_passthrough_sends_anthropic_tools_to_its_openai_compatible_endpoint(monkeypatch):
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
-    call = {"id": "t", "type": "function", "function": {"name": "lookup_vin", "arguments": "{}"}}
-    transport, seen = recorder(lambda r: httpx.Response(200, json={
-        "model": "claude-opus-5-5", "choices": [{"message": {"content": None, "tool_calls": [call]}, "finish_reason": "tool_calls"}],
-        "usage": {"prompt_tokens": 30, "completion_tokens": 9}}))
-    body = {"model": "x", "messages": [{"role": "user", "content": "q"}], "tools": [{"type": "function"}], "stream": True,
-            "max_completion_tokens": 200}
-    raw, reply = providers.passthrough("anthropic:claude-opus-5-5", body, transport)
-    sent = json.loads(seen[0].content)
-    assert str(seen[0].url) == providers.ANTHROPIC_OPENAI_URL and seen[0].headers["authorization"] == "Bearer sk-ant-test"
-    assert sent["model"] == "claude-opus-5-5" and sent["max_tokens"] == 200 and "stream" not in sent and sent["tools"]
-    assert reply.tool_calls == [call] and reply.input_tokens == 30 and raw["choices"][0]["finish_reason"] == "tool_calls"
-
-
-def test_openai_tool_requests_go_through_the_responses_api(monkeypatch):
-    """OpenAI's current models refuse tools on chat completions (checked live on 2026-11-26)."""
-    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
-    transport, seen = recorder(lambda r: httpx.Response(200, json={
-        "id": "resp_1", "model": "gpt-6.1-sol-2026", "created_at": 1,
-        "output": [{"type": "reasoning", "summary": []},
-                   {"type": "function_call", "call_id": "call_9", "name": "lookup_vin", "arguments": "{\"vin\": \"1\"}"}],
-        "usage": {"input_tokens": 80, "output_tokens": 12, "total_tokens": 92}}))
-    body = {"model": "x", "max_tokens": 300, "tool_choice": {"type": "function", "function": {"name": "lookup_vin"}},
-            "messages": [{"role": "system", "content": "Use tools."},
-                         {"role": "user", "content": [{"type": "text", "text": "Price?"},
-                                                      {"type": "image_url", "image_url": {"url": "https://x/y.jpg"}}]},
-                         {"role": "assistant", "content": None,
-                          "tool_calls": [{"id": "call_1", "type": "function", "function": {"name": "lookup_vin", "arguments": "{}"}}]},
-                         {"role": "tool", "tool_call_id": "call_1", "content": "{\"price\": 38995}"}],
-            "tools": [{"type": "function", "function": {"name": "lookup_vin", "parameters": {"type": "object"}}}]}
-    raw, reply = providers.passthrough("openai:gpt-6.1-sol", body, transport)
-    sent = json.loads(seen[0].content)
-    assert str(seen[0].url) == "https://api.openai.com/v1/responses"
-    assert sent["model"] == "gpt-6.1-sol" and sent["max_output_tokens"] == 300 and sent["store"] is False
-    assert sent["tools"] == [{"type": "function", "name": "lookup_vin", "description": "", "parameters": {"type": "object"},
-                              "strict": False}]
-    assert sent["tool_choice"] == {"type": "function", "name": "lookup_vin"}
-    assert sent["input"] == [
-        {"role": "system", "content": "Use tools."},
-        {"role": "user", "content": [{"type": "input_text", "text": "Price?"}, {"type": "input_image", "image_url": "https://x/y.jpg"}]},
-        {"type": "function_call", "call_id": "call_1", "name": "lookup_vin", "arguments": "{}"},
-        {"type": "function_call_output", "call_id": "call_1", "output": "{\"price\": 38995}"}]
-    assert raw["choices"][0]["finish_reason"] == "tool_calls" and raw["usage"]["prompt_tokens"] == 80
-    assert reply.tool_calls == [{"id": "call_9", "type": "function", "function": {"name": "lookup_vin", "arguments": "{\"vin\": \"1\"}"}}]
-    assert (reply.input_tokens, reply.output_tokens, reply.served_by) == (80, 12, "gpt-6.1-sol-2026")
-
-
-def test_a_responses_text_answer_and_a_cut_off_answer():
-    done = providers.to_chat_completion({"output": [{"type": "message", "content": [{"type": "output_text", "text": "$38,995"}]}]})
-    assert done["choices"][0]["message"] == {"role": "assistant", "content": "$38,995"} and done["choices"][0]["finish_reason"] == "stop"
-    cut = providers.to_chat_completion({"output": [], "incomplete_details": {"reason": "max_output_tokens"}})
-    assert cut["choices"][0]["finish_reason"] == "length"
-    with pytest.raises(ProviderError):
-        providers.to_chat_completion({"error": "x"})
-    assert providers.to_responses_request({"model": "m", "messages": [], "reasoning_effort": "low",
-                                           "response_format": {"type": "json_object"}})["reasoning"] == {"effort": "low"}
-
-
 def test_images_are_converted_for_anthropic():
     system, turns = providers.anthropic_turns([{"role": "user", "content": [
         {"type": "text", "text": "What trim is this?"},

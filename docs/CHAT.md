@@ -62,7 +62,7 @@ Typed as the whole message, these work in any app and call no model. Crossvet le
 | `/cost` | Spend in this conversation, per model, and today |
 | `/help` | This list |
 
-Each response carries a `crossvet` block with the model, the cost, the conversation id and the turn id. Send `x-crossvet-thread` to set the conversation id yourself, and `x-crossvet-app` to name the app in the log.
+Each response carries a `crossvet` block with the model, the cost, the conversation id, the turn id and any `dropped` request fields. Send `x-crossvet-thread` to set the conversation id yourself, and `x-crossvet-app` to name the app in the log.
 
 ## Claude Code, Codex and Cursor (MCP)
 
@@ -93,13 +93,13 @@ Answers stream as they arrive, followed by one line: model, tokens in and out, c
 
 ## Agents and tools
 
-Hermes and other agents send `tools` and tool results. Crossvet passes the whole request to the model you named and returns its tool calls unchanged:
+Hermes and other agents send `tools` and tool results. Crossvet passes the whole request to the model you named and returns its tool calls in the chat-completions shape, streamed as the model writes when the app asks for a stream:
 
-- OpenAI-style providers get the request as it is.
+- OpenAI-style providers (Google, xAI, OpenRouter, Ollama, local) get the request as it is.
 - Anthropic models get it through Anthropic's OpenAI-compatible endpoint.
-- OpenAI models get it through OpenAI's Responses API. On 2026-11-26, gpt-6.1-sol, gpt-6.1-terra and gpt-6-luna all refused tools on chat completions; Crossvet translates the request and the reply, so your app still speaks chat completions.
-
-A tool request is answered in one piece, then streamed to the app if it asked for a stream. Text-only requests stream as the model writes.
+- OpenAI models get it through OpenAI's Responses API. On 2026-11-26, gpt-6.1-sol, gpt-6.1-terra and gpt-6-luna all refused tools on chat completions. Crossvet translates each request and reply (text, images, tools, tool choice, parallel calls, output limits, reasoning effort, JSON formats, the older `functions` format) and sends it with `store: false`.
+- **Reasoning across tool steps:** when an OpenAI model reasons before calling a tool, its encrypted reasoning is kept in the local log for 7 days, keyed by the tool call, and sent back with the tool's result, so the model continues its train of thought. If OpenAI no longer accepts a kept item, Crossvet sends the same request to the same model once more without it, and says so.
+- **Nothing dropped silently:** a field a vendor's API has no place for (for example `seed` or `logprobs` on OpenAI's Responses API) is left out and listed under `crossvet.dropped` in the response and in the log. A request for several answers at once (`n` above 1) is refused with a clear error.
 
 ## Costs and caps
 

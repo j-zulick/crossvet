@@ -12,7 +12,7 @@ From 2.0 on, the interfaces below follow [Semantic Versioning](https://semver.or
 
 The 1.x spellings `crossvet chat <subcommand>` keep working for each of them. Exit codes: 0 success; 1 a failure or problems found; 2 a usage error; 3 a spend cap, or a log written by a newer Crossvet.
 
-**The server's HTTP API** (`crossvet serve`, `crossvet start`): these paths; the OpenAI chat-completions request and response shapes they accept and return; the model names `default`, `crossvet`, short names and `provider:model`; the `/model`, `/models`, `/cost` and `/help` commands; the `crossvet` block added to each response; and the headers `x-crossvet-thread` and `x-crossvet-app`.
+**The server's HTTP API** (`crossvet serve`, `crossvet start`): these paths; the OpenAI chat-completions request and response shapes they accept and return; the model names `default`, `crossvet`, short names and `provider:model`; the `/model`, `/models`, `/cost` and `/help` commands; the `crossvet` block added to each response (`model`, `served_by`, `cost`, `thread`, `turn`, and `dropped` when a field was dropped); and the headers `x-crossvet-thread` and `x-crossvet-app`.
 
 <!-- list:http -->
 `/health`, `/v1/chat/completions`, `/v1/models`

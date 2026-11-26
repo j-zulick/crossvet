@@ -4,6 +4,20 @@ All notable changes to Crossvet. Versions follow [Semantic Versioning](https://s
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-11-26
+
+Agents' tool calls, hardened. Live run: [docs/live-runs/2026-11-26-v2.0.1.md](docs/live-runs/2026-11-26-v2.0.1.md) (17 of 17, $0.043).
+
+### Added
+- Requests with tools stream when the app streams, for every provider (`relay.py`); before, they were answered in one piece.
+- OpenAI reasoning is kept across tool steps: the encrypted reasoning before a tool call is kept for 7 days and sent back with the tool's result (`store: false` stays). Kept reasoning OpenAI no longer accepts is left out and the same request resent once to the same model, with a note.
+- `crossvet.dropped` lists request fields a vendor's API had no place for (also in the log); `n` above 1 is refused clearly.
+- The Responses translation covers `developer` messages, assistant text with tool calls, tool results given as parts, refusals, `content_filter` and length stops, `metadata`, `service_tier`, and the older `functions` format.
+- Offline tests built from replies recorded from the real APIs on 2026-11-26.
+
+### Changed
+- Tool requests moved from `providers.py` to `relay.py`.
+
 ## [2.0.0] - 2026-11-26
 
 Crossvet now does one thing: you name a model, from any chat, and that model answers. It no longer chooses, rates or compares models. Moving from 1.x: [docs/MIGRATING.md](docs/MIGRATING.md).

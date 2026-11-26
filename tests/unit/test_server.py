@@ -93,7 +93,7 @@ def test_tools_are_passed_through_and_tool_calls_come_back(client, fake):
     data = post(client, [user("Decode VIN 1"), user("/model claude"), {"role": "assistant", "content": "ok"}, user("go")],
                 tools=tools).json()
     assert data["choices"][0]["message"]["tool_calls"] == [call] and data["choices"][0]["finish_reason"] == "tool_calls"
-    model, body = fake.relayed[0]
+    model, body, _ = fake.relayed[0]
     assert model == "anthropic:claude-opus-5-5" and body["tools"] == tools
     assert [m["content"] for m in body["messages"]] == ["Decode VIN 1", "go"]
 
@@ -104,7 +104,16 @@ def test_streamed_tool_calls_keep_their_index(client, fake):
     with client.stream("POST", "/v1/chat/completions",
                        json={"model": "gpt", "messages": [user("x")], "tools": [{"type": "function"}], "stream": True}) as r:
         events = [json.loads(line[6:]) for line in r.iter_lines() if line.startswith("data: {")]
-    assert events[0]["choices"][0]["delta"]["tool_calls"][0]["index"] == 0
+    calls = [e["choices"][0]["delta"]["tool_calls"][0] for e in events if e["choices"] and "tool_calls" in e["choices"][0]["delta"]]
+    assert calls == [{"index": 0, **call}]
+    assert [e["choices"][0]["finish_reason"] for e in events if e["choices"]][-1] == "tool_calls"
+    assert events[-1]["choices"] == [] and events[-1]["crossvet"]["model"] == "openai:gpt-6.1-sol"
+
+
+def test_dropped_fields_are_reported(client, fake):
+    fake.on("openai:gpt-6.1-sol", Reply("ok", "", dropped=["logprobs", "seed"]))
+    data = post(client, [user("x")], model="gpt", tools=[{"type": "function"}], seed=1, logprobs=True).json()
+    assert data["crossvet"]["dropped"] == ["logprobs", "seed"]
 
 
 @pytest.mark.parametrize(("error", "status", "kind"), [

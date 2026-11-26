@@ -12,7 +12,8 @@ Crossvet sits between your chat apps and several vendors' APIs, holds your keys,
 | Spend runs away | Daily and per-call caps stop a call before it is made; one output limit and one timeout for every call; request size limit on the server | `core.py`, `[limits]` | A model with no price counts as $0 |
 | A refused account keeps costing money | A provider that answers 401, 402, or a quota or billing refusal is not called again until restart | `core.py`, `providers.py` | Restart after fixing the account |
 | History is rewritten | The log refuses updates and deletes (SQLite triggers) | `store.py` | Anyone with write access to the file can replace it |
-| Requests stored by a vendor | Tool requests to OpenAI's Responses API are sent with `store: false` | `providers.py` | Each vendor's own data policy still applies |
+| Requests stored by a vendor | Tool requests to OpenAI's Responses API are sent with `store: false` | `relay.py` | Each vendor's own data policy still applies |
+| Kept reasoning | OpenAI's reasoning for tool calls is kept only as the encrypted blob OpenAI returns, in the local log's `relay_state` table, for 7 days, and only sent back to the same model | `store.py`, `relay.py` | Anyone with the log file has the blobs (they are encrypted by OpenAI, not readable as text) |
 
 ## Not covered
 - A wrong answer from a model. Crossvet shows which model answered; it does not judge the answer.

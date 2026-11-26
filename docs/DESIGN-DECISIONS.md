@@ -14,8 +14,11 @@ Each entry: the context, the decision, and what it costs. Entries for 1.x featur
 
 ## 3. Pass agents' tools through; translate only where a vendor requires it
 **Context.** Agents such as Hermes send tools and tool results on every request. On 2026-11-26, OpenAI's gpt-6.1-sol, gpt-6.1-terra and gpt-6-luna all refused tools on chat completions (Sol refused them with any reasoning setting); Anthropic's native API uses a different tool format.
-**Decision.** Requests with tools go through whole: OpenAI-style providers as they are, Anthropic through its OpenAI-compatible endpoint, OpenAI through the Responses API with a translation in each direction (`providers.to_responses_request`, `providers.to_chat_completion`), and `store: false`.
-**Cost.** The translation covers text, images, function tools, tool choice, output limits, reasoning effort and JSON formats; other Responses-only features are not exposed. Tool requests are answered in one piece, then streamed to the app.
+**Decision.** Requests with tools go through whole, streamed when the app streams (`relay.py`): OpenAI-style providers as they are, Anthropic through its OpenAI-compatible endpoint, OpenAI through the Responses API with a translation in each direction and `store: false`. Since 2.0.1:
+- OpenAI's encrypted reasoning is requested (`include: reasoning.encrypted_content`), kept per tool-call id for 7 days, and sent back with the tool results, which is how a stateless client keeps a reasoning model's chain of thought across tool steps. Checked live on 2026-11-26: Sol at high effort reasoned before its tool call, and the kept reasoning was accepted on the next step.
+- A field the Responses API has no place for is dropped and reported (`crossvet.dropped`), never silently.
+- The translation is tested against replies recorded from the real APIs (`tests/unit/fixtures/`).
+**Cost.** One exception to "nothing is resent": when OpenAI rejects kept reasoning (`invalid_encrypted_content`, for example after a key or organization change), the same request goes to the same model once more without it, and the response says so. Responses-only features beyond the chat-completions shape are not exposed.
 
 ## 4. Guards are code, and run before the call
 **Context.** Spending money is the main way a multi-vendor chat goes wrong: a runaway agent loop, an expensive model on a huge input, a revoked key that keeps being called.

@@ -4,7 +4,7 @@ Crossvet 2.0 does one thing: you name a model, from any chat, and it answers. It
 
 ## What to do
 
-1. Install 2.0: `uv tool install --force "git+https://github.com/j-zulick/crossvet@v2.0.0"`.
+1. Install 2.0: `uv tool install --force "git+https://github.com/j-zulick/crossvet@v2.0.1"`.
 2. Write new settings: `crossvet init` (2.0 refuses a 1.x `crossvet-chat.toml` rather than half-read it). Move your keys to `~/.config/crossvet/.env` if you want `crossvet mcp` to find them from any folder; a `.env` in the folder you run from still works.
 3. Rename environment variables: `CROSSVET_CHAT_CONFIG` → `CROSSVET_CONFIG`, `CROSSVET_CHAT_DB` → `CROSSVET_DB`, `CROSSVET_CHAT_TOKEN` → `CROSSVET_TOKEN`. `crossvet doctor` lists any 1.x names still set.
 4. In Hermes or another OpenAI-style app, change the model from `auto` (or `crossvet/<slot>`) to a model name or `default`.

@@ -9,12 +9,13 @@ Crossvet is one chat, any model: you use Claude, ChatGPT, Gemini, Grok or a loca
 
 ## Layout
 - `src/crossvet/core.py`: the one path every request takes: resolve the name, check the caps, call, log
-- `src/crossvet/providers.py`: every vendor through one function; tool requests passed through (Anthropic's OpenAI-compatible endpoint, OpenAI's Responses API)
+- `src/crossvet/providers.py`: every vendor through one function
+- `src/crossvet/relay.py`: agents' requests with tools, streamed; OpenAI through the Responses API (reasoning kept across tool steps), Anthropic through its OpenAI-compatible endpoint
 - `src/crossvet/server.py`: the OpenAI-compatible server; `src/crossvet/mcp_server.py`: three MCP tools
 - `src/crossvet/config.py`: default model, short names, menu, prices (a dated built-in table), limits, `.env` loading
 - `src/crossvet/store.py`: the local log (SQLite, append-only)
 - `src/crossvet/cli.py`: the `crossvet` command
-- `tests/unit/`: offline tests (no keys, no network); `tests/live/`: real API calls, skipped unless `CROSSVET_LIVE=1`
+- `tests/unit/`: offline tests (no keys, no network), some built from replies recorded from the real APIs (`tests/unit/fixtures/`, no keys, encrypted reasoning shortened); `tests/live/`: real API calls, skipped unless `CROSSVET_LIVE=1`
 - `docs/`: `CHAT.md` (the guide), `SETUP.md`, `ARCHITECTURE.md`, `DESIGN-DECISIONS.md`, `SECURITY-MODEL.md`, `STABILITY.md`, `MIGRATING.md`, `live-runs/` (dated real runs), `releases/`
 
 ## Commands

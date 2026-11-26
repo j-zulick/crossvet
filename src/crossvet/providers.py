@@ -12,10 +12,7 @@ A model is named ``provider:model``. Keys come from the environment and are neve
 
 Only the vendors' APIs are used: no chat website is driven and no subscription login is used.
 
-``passthrough`` forwards a whole OpenAI-style request (tools, tool results, temperature and the
-rest) to one model and returns its reply in the chat-completions shape, so an agent that calls tools
-keeps them. Anthropic models get it through Anthropic's OpenAI-compatible endpoint; OpenAI models
-through OpenAI's Responses API, because OpenAI's current models refuse tools on chat completions.
+Requests that carry tools (an agent's whole request) go through ``relay.py`` instead.
 """
 
 from __future__ import annotations
@@ -87,6 +84,8 @@ class Reply:
     stop: str = ""
     served_by: str = ""            # the model id the provider says answered
     tool_calls: list[dict[str, Any]] = field(default_factory=list)
+    dropped: list[str] = field(default_factory=list)  # request fields the vendor's API had no place for
+    state: dict[str, Any] = field(default_factory=dict)  # opaque data to send back next turn (OpenAI reasoning)
 
 
 def split(model: str) -> tuple[str, str]:
@@ -237,132 +236,6 @@ def stream(model: str, messages: list[dict[str, Any]], max_tokens: int = 4000,
     reply.truncated = reply.truncated or reply.stop in ("length", "max_tokens")
     reply.seconds = round(time.monotonic() - started, 2)
     yield reply
-
-
-def passthrough(model: str, body: dict[str, Any], transport: httpx.BaseTransport | None = None) -> tuple[dict[str, Any], Reply]:
-    """Send a full OpenAI-style request to ``model``; return the raw reply and a ``Reply`` summary.
-
-    ``stream`` is turned off upstream (the server re-streams the finished reply).
-    """
-    provider, name = split(model)
-    sent = {k: v for k, v in body.items() if k not in ("stream", "stream_options")}
-    sent["model"] = name
-    if provider == "openai":  # OpenAI's current models take tools only through the Responses API
-        url, headers = _endpoint(provider)
-        started = time.monotonic()
-        data = to_chat_completion(_post(url.rsplit("/chat/completions", 1)[0] + "/responses", headers,
-                                        to_responses_request(sent), transport))
-        reply, message = _openai_reply(data, provider)
-        reply.model, reply.seconds = model, round(time.monotonic() - started, 2)
-        reply.tool_calls = list(message.get("tool_calls") or [])
-        return data, reply
-    if provider == "anthropic":
-        url, headers = ANTHROPIC_OPENAI_URL, {"Authorization": f"Bearer {_anthropic_key()}"}
-        if "max_completion_tokens" in sent:
-            sent.setdefault("max_tokens", sent.pop("max_completion_tokens"))
-    else:
-        url, headers = _endpoint(provider)
-        if provider == "openrouter":
-            sent["usage"] = {"include": True}
-    started = time.monotonic()
-    data = _post(url, headers, sent, transport)
-    reply, message = _openai_reply(data, provider)
-    reply.model = model
-    reply.seconds = round(time.monotonic() - started, 2)
-    reply.tool_calls = list(message.get("tool_calls") or [])
-    return data, reply
-
-
-def _responses_content(content: Any, role: str) -> Any:
-    """Turn chat-style content (a string or parts) into Responses-API content."""
-    if not isinstance(content, list):
-        return text_of(content)
-    kind = "output_text" if role == "assistant" else "input_text"
-    parts = []
-    for part in content:
-        if not isinstance(part, dict):
-            continue
-        if part.get("type") in ("text", "input_text", "output_text"):
-            parts.append({"type": kind, "text": str(part.get("text", ""))})
-        elif part.get("type") == "image_url":
-            parts.append({"type": "input_image", "image_url": str((part.get("image_url") or {}).get("url", ""))})
-        else:
-            raise ProviderError(f"Crossvet sends text and images to OpenAI with tools; a {part.get('type')!r} part is not supported")
-    return parts
-
-
-def to_responses_request(body: dict[str, Any]) -> dict[str, Any]:
-    """Turn a chat-completions request (with tools) into an OpenAI Responses-API request."""
-    items: list[dict[str, Any]] = []
-    for m in body.get("messages") or []:
-        role = m.get("role")
-        if role == "tool":
-            items.append({"type": "function_call_output", "call_id": str(m.get("tool_call_id", "")),
-                          "output": text_of(m.get("content"))})
-            continue
-        if role == "function":
-            raise ProviderError("the old 'function' role is not supported; send tool results with role 'tool'")
-        content = _responses_content(m.get("content"), str(role))
-        if content:
-            items.append({"role": role, "content": content})
-        for call in m.get("tool_calls") or []:
-            fn = call.get("function") or {}
-            items.append({"type": "function_call", "call_id": str(call.get("id", "")), "name": str(fn.get("name", "")),
-                          "arguments": str(fn.get("arguments") or "{}")})
-    out: dict[str, Any] = {"model": body["model"], "input": items, "store": False}
-    tools = []
-    for tool in body.get("tools") or []:
-        fn = tool.get("function") or {}
-        if tool.get("type") == "function" and fn.get("name"):
-            tools.append({"type": "function", "name": fn["name"], "description": fn.get("description", ""),
-                          "parameters": fn.get("parameters") or {"type": "object", "properties": {}},
-                          "strict": bool(fn.get("strict", False))})
-    if tools:
-        out["tools"] = tools
-    choice = body.get("tool_choice")
-    if isinstance(choice, dict):
-        out["tool_choice"] = {"type": "function", "name": (choice.get("function") or {}).get("name", "")}
-    elif choice:
-        out["tool_choice"] = choice
-    limit = body.get("max_completion_tokens", body.get("max_tokens"))
-    if limit:
-        out["max_output_tokens"] = int(limit)
-    if body.get("reasoning_effort"):
-        out["reasoning"] = {"effort": body["reasoning_effort"]}
-    for key in ("temperature", "top_p", "parallel_tool_calls", "user"):
-        if key in body:
-            out[key] = body[key]
-    fmt = body.get("response_format") or {}
-    if fmt.get("type") == "json_object":
-        out["text"] = {"format": {"type": "json_object"}}
-    elif fmt.get("type") == "json_schema":
-        out["text"] = {"format": {"type": "json_schema", **(fmt.get("json_schema") or {})}}
-    return out
-
-
-def to_chat_completion(data: dict[str, Any]) -> dict[str, Any]:
-    """Turn an OpenAI Responses-API reply into a chat-completions reply."""
-    text: list[str] = []
-    calls: list[dict[str, Any]] = []
-    for item in data.get("output") or []:
-        if item.get("type") == "message":
-            text += [str(c.get("text", "")) for c in item.get("content") or [] if c.get("type") == "output_text"]
-        elif item.get("type") == "function_call":
-            calls.append({"id": str(item.get("call_id", "")), "type": "function",
-                          "function": {"name": str(item.get("name", "")), "arguments": str(item.get("arguments") or "{}")}})
-    if "output" not in data:
-        raise ProviderError("unexpected reply shape from openai (responses)")
-    incomplete = (data.get("incomplete_details") or {}).get("reason") == "max_output_tokens"
-    finish = "tool_calls" if calls else "length" if incomplete else "stop"
-    message: dict[str, Any] = {"role": "assistant", "content": "".join(text) or None}
-    if calls:
-        message["tool_calls"] = calls
-    usage = data.get("usage") or {}
-    return {"id": str(data.get("id", "")), "object": "chat.completion", "created": int(data.get("created_at") or time.time()),
-            "model": str(data.get("model") or ""), "choices": [{"index": 0, "message": message, "finish_reason": finish}],
-            "usage": {"prompt_tokens": int(usage.get("input_tokens", 0) or 0),
-                      "completion_tokens": int(usage.get("output_tokens", 0) or 0),
-                      "total_tokens": int(usage.get("total_tokens", 0) or 0)}}
 
 
 def _content(message: dict[str, Any]) -> str:

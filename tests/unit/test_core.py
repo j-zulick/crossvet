@@ -89,6 +89,7 @@ def test_an_agents_request_is_passed_through_with_an_output_limit(cv, fake):
     body = {"messages": ASK, "tools": [{"type": "function", "function": {"name": "lookup_vin"}}], "temperature": 0}
     raw, answer = cv.relay("claude", body, thread="t2", app="hermes")
     sent = fake.relayed[0][1]
+    assert fake.relayed[0][2] == {}
     assert sent["max_tokens"] == 1000 and sent["tools"] == body["tools"] and sent["temperature"] == 0
     assert answer.tool_calls == [call]
     assert cv.store.turns("t2")[-1].content == "(tool calls: lookup_vin)"
@@ -97,6 +98,29 @@ def test_an_agents_request_is_passed_through_with_an_output_limit(cv, fake):
 def test_relay_keeps_the_clients_own_output_limit(cv, fake):
     cv.relay("gpt", {"messages": ASK, "tools": [], "max_completion_tokens": 50})
     assert "max_tokens" not in fake.relayed[0][1]
+
+
+def test_kept_reasoning_goes_back_with_the_tool_results(cv, fake):
+    item = {"type": "reasoning", "id": "rs_1", "encrypted_content": "gAAA", "summary": []}
+    call = {"id": "call_1", "type": "function", "function": {"name": "lookup_vin", "arguments": "{}"}}
+    fake.on("openai:gpt-6.1-sol", Reply("", "", tool_calls=[call], state={"call_1": [item]}), Reply("$38,995", ""))
+    tools = [{"type": "function", "function": {"name": "lookup_vin"}}]
+    cv.relay("gpt", {"messages": [{"role": "user", "content": "price?"}], "tools": tools})
+    follow = [{"role": "user", "content": "price?"}, {"role": "assistant", "content": None, "tool_calls": [call]},
+              {"role": "tool", "tool_call_id": "call_1", "content": "38995"}]
+    cv.relay("gpt", {"messages": follow, "tools": tools})
+    assert fake.relayed[1][2] == {"call_1": [item]}
+    assert cv.store.load_state("anthropic:claude-opus-5-5", ["call_1"]) == {}  # kept per model
+
+
+def test_a_streamed_relay_yields_deltas_then_the_logged_answer(cv, fake):
+    call = {"id": "c1", "type": "function", "function": {"name": "f", "arguments": "{}"}}
+    fake.on("anthropic:claude-opus-5-5", Reply("", "", tool_calls=[call], dropped=["seed"]))
+    items = list(cv.relay_stream("claude", {"messages": ASK, "tools": [{"type": "function"}]}, thread="s"))
+    answer = items[-1]
+    assert isinstance(answer, Answer) and answer.tool_calls == [call] and answer.dropped == ["seed"]
+    assert {"delta": {}, "finish_reason": "tool_calls"} in items
+    assert cv.store.turns("s")[-1].meta["dropped"] == ["seed"]
 
 
 def test_models_and_cost_text(cv, fake):

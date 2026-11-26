@@ -1,0 +1,125 @@
+{
+ "access_programs": {
+  "cyber": "standard"
+ },
+ "background": false,
+ "billing": {
+  "payer": "developer"
+ },
+ "completed_at": 1795681435,
+ "created_at": 1795681433,
+ "error": null,
+ "frequency_penalty": 0.0,
+ "id": "resp_0967e9b4c180f581016b07ec99c82087d2852d2e61241ae8d4",
+ "image": {
+  "context_compression": "disabled"
+ },
+ "incomplete_details": null,
+ "input_transformations": [],
+ "instructions": null,
+ "max_output_tokens": 1500,
+ "max_tool_calls": null,
+ "model": "gpt-6.1-sol",
+ "moderation": null,
+ "object": "response",
+ "output": [
+  {
+   "arguments": "{\"vin\": \"1FTFW1E80MFA12345\"}",
+   "call_id": "call_fba968b6e6484f47889e49cbde2aabcf",
+   "id": "fc_0967e9b4c180f581016b07ec9ad7b887d2961319162376fa72",
+   "name": "lookup_vin",
+   "status": "completed",
+   "type": "function_call"
+  },
+  {
+   "arguments": "{\"vin\": \"5J6RW2H89KL004321\"}",
+   "call_id": "call_373efd07a764470e914fe6c57fbbf5ed",
+   "id": "fc_0967e9b4c180f581016b07ec9b9e2087d2b320e0b7a3759fd7",
+   "name": "lookup_vin",
+   "status": "completed",
+   "type": "function_call"
+  }
+ ],
+ "parallel_tool_calls": true,
+ "presence_penalty": 0.0,
+ "previous_response_id": null,
+ "prompt_cache_key": null,
+ "prompt_cache_retention": "24h",
+ "reasoning": {
+  "context": "all_turns",
+  "effort": "medium",
+  "mode": "standard",
+  "summary": null
+ },
+ "safety_identifier": null,
+ "service_tier": "default",
+ "status": "completed",
+ "store": false,
+ "temperature": 1.0,
+ "text": {
+  "format": {
+   "type": "text"
+  },
+  "verbosity": "medium"
+ },
+ "tool_choice": "auto",
+ "tool_usage": {
+  "image_gen": {
+   "input_tokens": 0,
+   "input_tokens_details": {
+    "image_tokens": 0,
+    "text_tokens": 0
+   },
+   "output_tokens": 0,
+   "output_tokens_details": {
+    "image_tokens": 0,
+    "text_tokens": 0
+   },
+   "total_tokens": 0
+  },
+  "web_search": {
+   "num_requests": 0
+  }
+ },
+ "tools": [
+  {
+   "description": "Look up a vehicle by VIN.",
+   "name": "lookup_vin",
+   "output_schema": null,
+   "parameters": {
+    "properties": {
+     "vin": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "vin"
+    ],
+    "type": "object"
+   },
+   "strict": false,
+   "type": "function"
+  }
+ ],
+ "top_logprobs": 0,
+ "top_p": 0.98,
+ "truncation": "disabled",
+ "usage": {
+  "input_tokens": 82,
+  "input_tokens_details": {
+   "cache_write_tokens": 0,
+   "cache_write_tokens_details": {
+    "ttl_12h_tokens": 0,
+    "ttl_30m_tokens": 0
+   },
+   "cached_tokens": 0
+  },
+  "output_tokens": 68,
+  "output_tokens_details": {
+   "reasoning_tokens": 0
+  },
+  "total_tokens": 150
+ },
+ "user": null,
+ "metadata": {}
+}

@@ -34,7 +34,7 @@ A real session with the released build, from the [live run of 2026-11-26](docs/l
 ## Quick start
 
 ```bash
-uv tool install "git+https://github.com/j-zulick/crossvet@v2.0.0"
+uv tool install "git+https://github.com/j-zulick/crossvet@v2.0.1"
 mkdir -p ~/.config/crossvet && cp .env.example ~/.config/crossvet/.env   # then fill in the keys you have
 crossvet start
 ```
@@ -68,7 +68,7 @@ flowchart LR
 ```
 
 - **You choose, every time.** No routing, no fallback, no silent retries. If a call fails, the error names the model and you pick another.
-- **Agents keep their tools.** Hermes and other agents send tools and tool results; Crossvet passes them through unchanged (Anthropic models through Anthropic's OpenAI-compatible endpoint, OpenAI models through OpenAI's Responses API, because OpenAI's current models refuse tools on chat completions).
+- **Agents keep their tools.** Hermes and other agents send tools and tool results, and Crossvet passes them to the model you named, streamed when the app streams. Anthropic models get them through Anthropic's OpenAI-compatible endpoint. OpenAI models get them through OpenAI's Responses API, because OpenAI's current models refuse tools on chat completions; their encrypted reasoning is kept and sent back with the tool results, so they keep their train of thought across tool steps. A request field a vendor's API has no place for is reported in the response, never dropped silently.
 - **Costs are visible and capped.** Each answer is priced from the vendor's list price (or OpenRouter's reported cost). A daily cap and a per-call worst-case cap stop a call before it is made. A provider that rejects your key or reports a billing problem is not called again until restart.
 - **One local log.** Every question and answer, with model, tokens and cost, goes to one SQLite file (append-only), shared by every app: `crossvet log` and the `recent_turns` tool read it.
 
@@ -82,16 +82,17 @@ flowchart LR
 - a per-call cap stopped a request before any model was called, and a rejected key was not called again;
 - the MCP server, started the way Claude Code and Cursor start it, listed its three tools and answered.
 
-The run found and fixed one real problem before release: OpenAI's current models refuse tools on chat completions. Not tested live yet: the Hermes and Cursor apps themselves (next release), Google, xAI, OpenRouter and local models.
+The run found and fixed one real problem before release: OpenAI's current models refuse tools on chat completions. The [2.0.1 run](docs/live-runs/2026-11-26-v2.0.1.md) added 4 more checks: streamed agent loops with two tool calls at once for Claude Sonnet and GPT-6.1 Sol, OpenAI reasoning kept across tool steps, and dropped request fields reported (17 of 17 passed, $0.043). Not tested live yet: the Hermes and Cursor apps themselves (next release), Google, xAI, OpenRouter and local models.
 
 ## Project layout
 
-About 1,800 lines of Python in seven modules, with 84 offline tests and 13 live ones.
+About 2,100 lines of Python in eight modules, with 105 offline tests (some built from replies recorded from the real APIs) and 17 live ones.
 
 | File | What it does |
 |---|---|
 | `src/crossvet/core.py` | The one path every request takes: resolve the name, check the caps, call, log |
 | `src/crossvet/providers.py` | OpenAI, Anthropic, Google, xAI, OpenRouter, Ollama and any OpenAI-compatible server through one function |
+| `src/crossvet/relay.py` | Agents' requests with tools: streamed, translated for OpenAI's Responses API, reasoning kept across tool steps |
 | `src/crossvet/server.py` | The OpenAI-compatible server for Hermes and other chat apps |
 | `src/crossvet/mcp_server.py` | Three MCP tools: `list_models`, `ask_model`, `recent_turns` |
 | `src/crossvet/config.py` | Default model, short names, the model menu, prices, limits |

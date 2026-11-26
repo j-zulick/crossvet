@@ -1,6 +1,6 @@
 [project]
 name = "crossvet"
-version = "2.0.0"
+version = "2.0.1"
 description = "One chat, any model: talk to Claude, ChatGPT, Gemini, Grok or a local model from Hermes, Cursor, Claude Code, Codex or a terminal, and pick the model yourself."
 authors = [
     { name = "Joseph Zulick" },

@@ -17,7 +17,7 @@ Commands typed as the whole message (no model is called, and they are left out o
     /help         this list
 
 Agents keep their tools: a request with ``tools`` or tool results is passed through to the named
-model unchanged (Anthropic models through Anthropic's OpenAI-compatible endpoint).
+model (``relay.py``), streamed when the app asks for a stream.
 
 Security: it listens on this computer only by default. Set ``CROSSVET_TOKEN`` to require
 ``Authorization: Bearer <token>``; any other address needs a token of at least 16 characters.
@@ -115,8 +115,11 @@ def command(cv: Crossvet, messages: list[dict[str, Any]], requested: str, thread
 
 def info(answer: Answer) -> dict[str, Any]:
     """Return what the response adds under ``crossvet``: the model, cost, conversation and turn."""
-    return {"model": answer.model, "served_by": answer.served_by, "cost": answer.cost, "thread": answer.thread,
-            "turn": answer.turn_id}
+    extra = {"model": answer.model, "served_by": answer.served_by, "cost": answer.cost, "thread": answer.thread,
+             "turn": answer.turn_id}
+    if answer.dropped:
+        extra["dropped"] = answer.dropped  # request fields the vendor's API had no place for
+    return extra
 
 
 def create_app(cv: Crossvet | None = None, token: str | None = None):
@@ -196,6 +199,29 @@ def create_app(cv: Crossvet | None = None, token: str | None = None):
             yield chunk({"content": f"\n\n[crossvet: {model} stopped: {str(exc)[:200]}]"}, "stop")
         yield "data: [DONE]\n\n"
 
+    def relayed(first: dict[str, Any] | Answer | None, rest: Iterator[dict[str, Any] | Answer], model: str) -> Iterator[str]:
+        """Stream an agent's reply: each delta as its own chunk, then usage and cost."""
+        cid, created = new_id(model), int(time.time())
+        finished = False
+
+        def chunk(choices: list[dict[str, Any]], **more: Any) -> str:
+            body = {"id": cid, "object": "chat.completion.chunk", "created": created, "model": model, "choices": choices, **more}
+            return f"data: {json.dumps(body)}\n\n"
+
+        try:
+            for item in itertools.chain([first] if first is not None else [], rest):
+                if isinstance(item, Answer):
+                    if not finished:
+                        yield chunk([{"index": 0, "delta": {}, "finish_reason": "error" if item.stop == "error" else "stop"}])
+                    yield chunk([], usage=usage_of(item), crossvet=info(item))
+                else:
+                    finished = finished or bool(item.get("finish_reason"))
+                    yield chunk([{"index": 0, "delta": item.get("delta") or {}, "finish_reason": item.get("finish_reason")}])
+        except Exception as exc:  # noqa: BLE001 - the response has started; report the failure in the stream
+            yield chunk([{"index": 0, "delta": {"content": f"\n\n[crossvet: {model} stopped: {str(exc)[:200]}]"},
+                          "finish_reason": "stop"}])
+        yield "data: [DONE]\n\n"
+
     def usage_of(answer: Answer) -> dict[str, int]:
         return {"prompt_tokens": answer.input_tokens, "completion_tokens": answer.output_tokens,
                 "total_tokens": answer.input_tokens + answer.output_tokens}
@@ -229,6 +255,10 @@ def create_app(cv: Crossvet | None = None, token: str | None = None):
                 zero = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
                 return whole(text, "crossvet", {"command": text_of(messages[-1]["content"]).split()[0]}, zero, stream)
             sent = without_commands(messages)
+            if wants_relay(body) and stream:
+                deltas = cv.relay_stream(model_name, {**body, "messages": sent}, thread=thread, app=app)
+                first = await run_in_threadpool(next, deltas, None)  # errors before any output become HTTP errors
+                return StreamingResponse(relayed(first, deltas, cv.config.resolve(model_name)), media_type="text/event-stream")
             if wants_relay(body):
                 raw, answer = await run_in_threadpool(cv.relay, model_name, {**body, "messages": sent}, thread=thread, app=app)
                 choice = (raw.get("choices") or [{}])[0]

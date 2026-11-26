@@ -1,0 +1,392 @@
+[
+ {
+  "type": "response.created",
+  "sequence_number": 0,
+  "response": {
+   "input_transformations": [],
+   "id": "resp_01e8a08c98ffd643016b07ec8ae96c87d2ba433a9357ed459a",
+   "object": "response",
+   "created_at": 1795681419,
+   "completed_at": null,
+   "status": "in_progress",
+   "background": false,
+   "frequency_penalty": 0.0,
+   "presence_penalty": 0.0,
+   "moderation": null,
+   "model": "gpt-6-luna",
+   "access_programs": null,
+   "previous_response_id": null,
+   "instructions": null,
+   "output": [],
+   "error": null,
+   "incomplete_details": null,
+   "tools": [
+    {
+     "type": "function",
+     "name": "lookup_vin",
+     "description": "Look up a vehicle by VIN in the dealer inventory.",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "vin": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "vin"
+      ]
+     },
+     "output_schema": null,
+     "strict": false
+    }
+   ],
+   "tool_choice": "auto",
+   "parallel_tool_calls": true,
+   "prompt_cache_key": null,
+   "prompt_cache_retention": "24h",
+   "text": {
+    "format": {
+     "type": "text"
+    },
+    "verbosity": "medium"
+   },
+   "top_p": 0.98,
+   "top_logprobs": 0,
+   "temperature": 1.0,
+   "reasoning": {
+    "context": "all_turns",
+    "effort": "medium",
+    "summary": null,
+    "mode": "standard"
+   },
+   "user": null,
+   "usage": null,
+   "tool_usage": {
+    "image_gen": {
+     "input_tokens": 0,
+     "output_tokens": 0,
+     "total_tokens": 0,
+     "input_tokens_details": {
+      "text_tokens": 0,
+      "image_tokens": 0
+     },
+     "output_tokens_details": {
+      "image_tokens": 0,
+      "text_tokens": 0
+     }
+    },
+    "web_search": {
+     "num_requests": 0
+    }
+   },
+   "safety_identifier": null,
+   "store": false,
+   "metadata": {},
+   "max_output_tokens": 800,
+   "max_tool_calls": null,
+   "service_tier": "auto",
+   "truncation": "disabled",
+   "image": {
+    "context_compression": "disabled"
+   }
+  }
+ },
+ {
+  "type": "response.in_progress",
+  "sequence_number": 1,
+  "response": {
+   "input_transformations": [],
+   "id": "resp_01e8a08c98ffd643016b07ec8ae96c87d2ba433a9357ed459a",
+   "object": "response",
+   "created_at": 1795681419,
+   "completed_at": null,
+   "status": "in_progress",
+   "background": false,
+   "frequency_penalty": 0.0,
+   "presence_penalty": 0.0,
+   "moderation": null,
+   "model": "gpt-6-luna",
+   "access_programs": null,
+   "previous_response_id": null,
+   "instructions": null,
+   "output": [],
+   "error": null,
+   "incomplete_details": null,
+   "tools": [
+    {
+     "type": "function",
+     "name": "lookup_vin",
+     "description": "Look up a vehicle by VIN in the dealer inventory.",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "vin": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "vin"
+      ]
+     },
+     "output_schema": null,
+     "strict": false
+    }
+   ],
+   "tool_choice": "auto",
+   "parallel_tool_calls": true,
+   "prompt_cache_key": null,
+   "prompt_cache_retention": "24h",
+   "text": {
+    "format": {
+     "type": "text"
+    },
+    "verbosity": "medium"
+   },
+   "top_p": 0.98,
+   "top_logprobs": 0,
+   "temperature": 1.0,
+   "reasoning": {
+    "context": "all_turns",
+    "effort": "medium",
+    "summary": null,
+    "mode": "standard"
+   },
+   "user": null,
+   "usage": null,
+   "tool_usage": {
+    "image_gen": {
+     "input_tokens": 0,
+     "output_tokens": 0,
+     "total_tokens": 0,
+     "input_tokens_details": {
+      "text_tokens": 0,
+      "image_tokens": 0
+     },
+     "output_tokens_details": {
+      "image_tokens": 0,
+      "text_tokens": 0
+     }
+    },
+    "web_search": {
+     "num_requests": 0
+    }
+   },
+   "safety_identifier": null,
+   "store": false,
+   "metadata": {},
+   "max_output_tokens": 800,
+   "max_tool_calls": null,
+   "service_tier": "auto",
+   "truncation": "disabled",
+   "image": {
+    "context_compression": "disabled"
+   }
+  }
+ },
+ {
+  "type": "response.output_item.added",
+  "sequence_number": 2,
+  "output_index": 0,
+  "item": {
+   "type": "function_call",
+   "id": "fc_01e8a08c98ffd643016b07ec8b99a487d287138ff0ae3b7514",
+   "call_id": "call_e378d9577fbe427db54f903d113fc6eb",
+   "name": "lookup_vin",
+   "arguments": "",
+   "status": "in_progress"
+  }
+ },
+ {
+  "type": "response.function_call_arguments.delta",
+  "sequence_number": 3,
+  "item_id": "fc_01e8a08c98ffd643016b07ec8b99a487d287138ff0ae3b7514",
+  "output_index": 0,
+  "delta": "{\"vin\": \"1FTFW1E80MFA12345\"}",
+  "obfuscation": "w8Zu"
+ },
+ {
+  "type": "response.function_call_arguments.done",
+  "sequence_number": 4,
+  "item_id": "fc_01e8a08c98ffd643016b07ec8b99a487d287138ff0ae3b7514",
+  "output_index": 0,
+  "arguments": "{\"vin\": \"1FTFW1E80MFA12345\"}"
+ },
+ {
+  "type": "response.output_item.done",
+  "sequence_number": 5,
+  "output_index": 0,
+  "item": {
+   "type": "function_call",
+   "id": "fc_01e8a08c98ffd643016b07ec8b99a487d287138ff0ae3b7514",
+   "call_id": "call_e378d9577fbe427db54f903d113fc6eb",
+   "name": "lookup_vin",
+   "arguments": "{\"vin\": \"1FTFW1E80MFA12345\"}",
+   "status": "completed"
+  }
+ },
+ {
+  "type": "response.output_item.added",
+  "sequence_number": 6,
+  "output_index": 1,
+  "item": {
+   "type": "function_call",
+   "id": "fc_01e8a08c98ffd643016b07ec8bd72c87d2802f8006bb1ad336",
+   "call_id": "call_21099c7aa555416fb321c5dc2b611664",
+   "name": "lookup_vin",
+   "arguments": "",
+   "status": "in_progress"
+  }
+ },
+ {
+  "type": "response.function_call_arguments.delta",
+  "sequence_number": 7,
+  "item_id": "fc_01e8a08c98ffd643016b07ec8bd72c87d2802f8006bb1ad336",
+  "output_index": 1,
+  "delta": "{\"vin\": \"5J6RW2H89KL004321\"}",
+  "obfuscation": "G8Bv"
+ },
+ {
+  "type": "response.function_call_arguments.done",
+  "sequence_number": 8,
+  "item_id": "fc_01e8a08c98ffd643016b07ec8bd72c87d2802f8006bb1ad336",
+  "output_index": 1,
+  "arguments": "{\"vin\": \"5J6RW2H89KL004321\"}"
+ },
+ {
+  "type": "response.output_item.done",
+  "sequence_number": 9,
+  "output_index": 1,
+  "item": {
+   "type": "function_call",
+   "id": "fc_01e8a08c98ffd643016b07ec8bd72c87d2802f8006bb1ad336",
+   "call_id": "call_21099c7aa555416fb321c5dc2b611664",
+   "name": "lookup_vin",
+   "arguments": "{\"vin\": \"5J6RW2H89KL004321\"}",
+   "status": "completed"
+  }
+ },
+ {
+  "type": "response.completed",
+  "sequence_number": 10,
+  "response": {
+   "input_transformations": [],
+   "id": "resp_01e8a08c98ffd643016b07ec8ae96c87d2ba433a9357ed459a",
+   "object": "response",
+   "created_at": 1795681419,
+   "completed_at": 1795681419,
+   "status": "completed",
+   "background": false,
+   "frequency_penalty": 0.0,
+   "presence_penalty": 0.0,
+   "moderation": null,
+   "model": "gpt-6-luna",
+   "access_programs": null,
+   "previous_response_id": null,
+   "instructions": null,
+   "output": [
+    {
+     "type": "function_call",
+     "id": "fc_01e8a08c98ffd643016b07ec8b99a487d287138ff0ae3b7514",
+     "call_id": "call_e378d9577fbe427db54f903d113fc6eb",
+     "name": "lookup_vin",
+     "arguments": "{\"vin\": \"1FTFW1E80MFA12345\"}",
+     "status": "completed"
+    },
+    {
+     "type": "function_call",
+     "id": "fc_01e8a08c98ffd643016b07ec8bd72c87d2802f8006bb1ad336",
+     "call_id": "call_21099c7aa555416fb321c5dc2b611664",
+     "name": "lookup_vin",
+     "arguments": "{\"vin\": \"5J6RW2H89KL004321\"}",
+     "status": "completed"
+    }
+   ],
+   "error": null,
+   "incomplete_details": null,
+   "tools": [
+    {
+     "type": "function",
+     "name": "lookup_vin",
+     "description": "Look up a vehicle by VIN in the dealer inventory.",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "vin": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "vin"
+      ]
+     },
+     "output_schema": null,
+     "strict": false
+    }
+   ],
+   "tool_choice": "auto",
+   "parallel_tool_calls": true,
+   "prompt_cache_key": null,
+   "prompt_cache_retention": "24h",
+   "text": {
+    "format": {
+     "type": "text"
+    },
+    "verbosity": "medium"
+   },
+   "top_p": 0.98,
+   "top_logprobs": 0,
+   "temperature": 1.0,
+   "reasoning": {
+    "context": "all_turns",
+    "effort": "medium",
+    "summary": null,
+    "mode": "standard"
+   },
+   "user": null,
+   "usage": {
+    "input_tokens": 103,
+    "input_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "cache_write_tokens_details": {
+      "ttl_30m_tokens": 0,
+      "ttl_12h_tokens": 0
+     }
+    },
+    "output_tokens": 68,
+    "output_tokens_details": {
+     "reasoning_tokens": 0
+    },
+    "total_tokens": 171
+   },
+   "tool_usage": {
+    "image_gen": {
+     "input_tokens": 0,
+     "output_tokens": 0,
+     "total_tokens": 0,
+     "input_tokens_details": {
+      "text_tokens": 0,
+      "image_tokens": 0
+     },
+     "output_tokens_details": {
+      "image_tokens": 0,
+      "text_tokens": 0
+     }
+    },
+    "web_search": {
+     "num_requests": 0
+    }
+   },
+   "safety_identifier": null,
+   "store": false,
+   "metadata": {},
+   "max_output_tokens": 800,
+   "max_tool_calls": null,
+   "service_tier": "default",
+   "truncation": "disabled",
+   "image": {
+    "context_compression": "disabled"
+   }
+  }
+ }
+]
