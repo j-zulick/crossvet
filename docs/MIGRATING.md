@@ -4,7 +4,7 @@
 
 Nothing you use changes. A model you name answers exactly as before, every command, MCP tool, setting and environment variable keeps working, and your log opens unchanged. What 3.0 adds is opt-in:
 
-1. Install: `uv tool install --force "git+https://github.com/j-zulick/crossvet@v3.5.0"`.
+1. Install: `uv tool install --force "git+https://github.com/j-zulick/crossvet@v3.6.0"`.
 2. Optional: name `auto` (or `crossvet/strong`, `crossvet/cheapest`...) where you want Crossvet to choose. `crossvet route "your request"` shows what it would pick, and why.
 3. Optional: run `crossvet init --force` to write a settings file with the new `[slots]` and `[router]` sections, or copy them from [crossvet.example.toml](../crossvet.example.toml). Without them, the slots are filled from the built-in table with the models your keys can call.
 4. Optional: add a model on your machine to `[slots] private` so requests that look private can go to `auto` too. Without one, such requests are refused under `auto` (never sent to a cloud model).

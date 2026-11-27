@@ -251,36 +251,45 @@ SETS: dict[str, tuple[Planted, ...]] = {"planted": CASES, "hard": HARD, "all": C
 
 
 def run(cv: Crossvet, reviewers: list[str], cases: tuple[Planted, ...] = CASES,
-        on_result: Callable[[dict[str, Any]], None] | None = None) -> list[dict[str, Any]]:
-    """Have each reviewer review each case; return one row per (reviewer, case)."""
+        on_result: Callable[[dict[str, Any]], None] | None = None, repeat: int = 1) -> list[dict[str, Any]]:
+    """Have each reviewer review each case ``repeat`` times; return one row per (reviewer, case, run)."""
     from crossvet.review import review_once
 
     rows = []
     for reviewer in [cv.config.resolve(r) for r in reviewers]:
         for case in cases:
-            row: dict[str, Any] = {"reviewer": reviewer, "case": case.name, "kind": case.kind, "clean": case.clean,
-                                   "caught": False, "false_alarm": False, "kept": 0, "dropped": 0, "other": 0, "cost": 0.0,
-                                   "why_dropped": [], "error": ""}
-            try:
-                findings, cost = review_once(cv, case.diff(), case.task, reviewer)
-                kept = [f for f in findings if not f.dropped]
-                if case.clean:
-                    row.update(false_alarm=any(f.severity in ALARM for f in kept), other=len(kept))
-                else:
-                    near = [f for f in kept if f.file == case.path and abs(f.line - case.line) <= NEAR]
-                    row.update(caught=bool(near), other=len(kept) - len(near))
-                row.update(kept=len(kept), dropped=len(findings) - len(kept), cost=cost,
-                           why_dropped=[f.dropped[:160] for f in findings if f.dropped][:5])
-            except (ProviderError, RuntimeError, ValueError) as exc:
-                row["error"] = str(exc)[:200]
-            rows.append(row)
-            if on_result:
-                on_result(row)
+            for n in range(1, max(1, repeat) + 1):
+                row: dict[str, Any] = {"reviewer": reviewer, "case": case.name, "kind": case.kind, "clean": case.clean,
+                                       "run": n, "caught": False, "false_alarm": False, "kept": 0, "dropped": 0, "other": 0,
+                                       "cost": 0.0, "why_dropped": [], "error": ""}
+                try:
+                    findings, cost = review_once(cv, case.diff(), case.task, reviewer)
+                    kept = [f for f in findings if not f.dropped]
+                    if case.clean:
+                        row.update(false_alarm=any(f.severity in ALARM for f in kept), other=len(kept))
+                    else:
+                        near = [f for f in kept if f.file == case.path and abs(f.line - case.line) <= NEAR]
+                        row.update(caught=bool(near), other=len(kept) - len(near))
+                    row.update(kept=len(kept), dropped=len(findings) - len(kept), cost=cost,
+                               why_dropped=[f.dropped[:160] for f in findings if f.dropped][:5])
+                except (ProviderError, RuntimeError, ValueError) as exc:
+                    row["error"] = str(exc)[:200]
+                rows.append(row)
+                if on_result:
+                    on_result(row)
     return rows
 
 
+def _runs(rows: list[dict[str, Any]]) -> int:
+    return max((int(r.get("run", 1)) for r in rows), default=1)
+
+
 def summary(rows: list[dict[str, Any]]) -> dict[str, dict[str, float]]:
-    """Return per reviewer: caught, cases, rate, other, dropped, cost, cost_per_catch, clean, false_alarms."""
+    """Return per-reviewer totals, including steadiness over repeated runs.
+
+    Keys: caught, cases, rate, other, dropped, cost, cost_per_catch, clean, false_alarms, clean_notes, ``always``
+    (bugs caught in every run), ``sometimes`` (caught in some runs but not all), bugs and errors. ``caught`` and ``cases`` count reviews, so with three runs each bug counts three times.
+    """
     out: dict[str, dict[str, float]] = {}
     for reviewer in dict.fromkeys(r["reviewer"] for r in rows):
         mine = [r for r in rows if r["reviewer"] == reviewer and not r["error"]]
@@ -288,10 +297,16 @@ def summary(rows: list[dict[str, Any]]) -> dict[str, dict[str, float]]:
         clean = [r for r in mine if r.get("clean")]
         caught = sum(r["caught"] for r in bugs)
         cost = sum(r["cost"] for r in mine)
+        per_case: dict[str, list[bool]] = {}
+        for r in bugs:
+            per_case.setdefault(r["case"], []).append(bool(r["caught"]))
         out[reviewer] = {"caught": caught, "cases": len(bugs), "rate": caught / len(bugs) if bugs else 0.0,
                          "other": sum(r["other"] for r in bugs), "dropped": sum(r["dropped"] for r in mine), "cost": cost,
                          "cost_per_catch": cost / caught if caught else 0.0, "clean": len(clean),
                          "false_alarms": sum(r["false_alarm"] for r in clean), "clean_notes": sum(r["other"] for r in clean),
+                         "always": sum(1 for v in per_case.values() if all(v)),
+                         "sometimes": sum(1 for v in per_case.values() if any(v) and not all(v)),
+                         "bugs": len(per_case),
                          "errors": sum(1 for r in rows if r["reviewer"] == reviewer and r["error"])}
     return out
 
@@ -299,35 +314,60 @@ def summary(rows: list[dict[str, Any]]) -> dict[str, dict[str, float]]:
 def results_page(rows: list[dict[str, Any]], command: str, set_name: str = "planted") -> str:
     """Return the results page in Markdown, every number computed from ``rows``."""
     stats = summary(rows)
+    runs = _runs(rows)
     names = list(dict.fromkeys(r["case"] for r in rows))
     planted = [n for n in names if not next(r for r in rows if r["case"] == n).get("clean")]
     clean = [n for n in names if n not in planted]
     intro = f"{len(planted)} changes to Crossvet's own code, each with one planted bug"
     if clean:
         intro += f", and {len(clean)} clean changes with no bug"
+    if runs > 1:
+        intro += f"; each reviewer reviewed each change {runs} times"
     lines = [f"# Review benchmark ({set_name} set), {time.strftime('%Y-%m-%d')}", "", f"Command: `{command}`", "",
              intro + ". A bug counts as caught when a finding that passed the checks in `review.check` points at its line "
              "(one line either side)." + (" On a clean change, a kept finding marked blocker or major is a false alarm." if clean else ""),
-             "", "| Reviewer | Caught | Other findings | Dropped by the checks | Cost | Cost per bug caught |"
-             + (" False alarms |" if clean else ""), "|---|---:|---:|---:|---:|---:|" + ("---:|" if clean else "")]
+             ""]
+    head = "| Reviewer | Caught | Other findings | Dropped by the checks | Cost | Cost per bug caught |"
+    rule = "|---|---:|---:|---:|---:|---:|"
+    if runs > 1:
+        head += " Bugs caught every run | Bugs caught in some runs |"
+        rule += "---:|---:|"
+    if clean:
+        head += " False alarms |"
+        rule += "---:|"
+    lines += [head, rule]
     for m, s in stats.items():
         per_catch = f"${s['cost_per_catch']:.4f}" if s["caught"] else "-"
-        alarms = f" {int(s['false_alarms'])} of {int(s['clean'])} |" if clean else ""
-        lines.append(f"| `{m}` | {int(s['caught'])} of {int(s['cases'])} | {int(s['other'])} | {int(s['dropped'])} | "
-                     f"${s['cost']:.4f} | {per_catch} |" + alarms)
+        row = (f"| `{m}` | {int(s['caught'])} of {int(s['cases'])} | {int(s['other'])} | {int(s['dropped'])} | "
+               f"${s['cost']:.4f} | {per_catch} |")
+        if runs > 1:
+            row += f" {int(s['always'])} of {int(s['bugs'])} | {int(s['sometimes'])} |"
+        if clean:
+            row += f" {int(s['false_alarms'])} of {int(s['clean'])} |"
+        lines.append(row)
     lines += ["", "## Per case", "", "| Case | Kind | " + " | ".join(f"`{m}`" for m in stats) + " |", "|---|---|" + "---|" * len(stats)]
     for case in names:
         cells = []
         for reviewer in stats:
-            row = next(r for r in rows if r["case"] == case and r["reviewer"] == reviewer)
-            if row["error"]:
+            mine = [r for r in rows if r["case"] == case and r["reviewer"] == reviewer]
+            done = [r for r in mine if not r["error"]]
+            if not done:
                 cells.append("error")
-            elif row.get("clean"):
-                cells.append("false alarm" if row["false_alarm"] else "quiet" if not row["other"] else f"{row['other']} note(s)")
+            elif runs > 1:
+                if done[0].get("clean"):
+                    alarms = sum(r["false_alarm"] for r in done)
+                    cells.append(f"{alarms}/{len(done)} false alarms")
+                else:
+                    cells.append(f"{sum(r['caught'] for r in done)}/{len(done)}")
             else:
-                cells.append("caught" if row["caught"] else "missed")
+                row = done[0]
+                if row.get("clean"):
+                    cells.append("false alarm" if row["false_alarm"] else "quiet" if not row["other"] else f"{row['other']} note(s)")
+                else:
+                    cells.append("caught" if row["caught"] else "missed")
         lines.append(f"| {case} | {next(r['kind'] for r in rows if r['case'] == case)} | " + " | ".join(cells) + " |")
-    lines += ["", "## Limits", "", f"- {len(names)} small changes; one run per reviewer and case.",
+    once = "one run per reviewer and case" if runs == 1 else f"{runs} runs per reviewer and case"
+    lines += ["", "## Limits", "", f"- {len(names)} small changes; {once}.",
               "- A reviewer that names the right problem on a different line counts as a miss; one that flags the line for another reason counts as a catch.",
               "- `results.jsonl` next to this page has every row.", ""]
     return "\n".join(lines)

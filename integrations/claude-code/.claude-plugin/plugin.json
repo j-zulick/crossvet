@@ -1,6 +1,6 @@
 {
   "name": "crossvet",
-  "version": "3.5.0",
+  "version": "3.6.0",
   "description": "Have a model from another vendor review your change (findings checked against the diff in code), or ask any model, through the crossvet command.",
   "author": {"name": "Joseph Zulick"},
   "homepage": "https://github.com/j-zulick/crossvet",

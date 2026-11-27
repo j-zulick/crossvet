@@ -4,6 +4,17 @@ All notable changes to Crossvet. Versions follow [Semantic Versioning](https://s
 
 ## [Unreleased]
 
+## [3.6.0] - 2026-11-27
+
+Repeated benchmark runs, so a steady catch can be told from a lucky one.
+
+### Added
+- `crossvet bench --review --repeat N`: each change is reviewed N times; rows carry a `run` number, and the results page adds "bugs caught every run" and "bugs caught in some runs" per reviewer and an N-of-N cell per case.
+- Three runs of the hard set: [docs/benchmarks/2026-11-27-review-hard-repeat](docs/benchmarks/2026-11-27-review-hard-repeat/README.md).
+
+### Changed
+- GitHub Actions: gitleaks-action 2 → 3 (Dependabot #23).
+
 ## [3.5.0] - 2026-11-26
 
 A harder review benchmark that also counts false alarms.

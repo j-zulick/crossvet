@@ -215,3 +215,35 @@ def test_the_hard_set_from_the_terminal(monkeypatch, tmp_path, fake, capsys):
     rows = [json.loads(x) for x in (out / "results.jsonl").read_text().splitlines()]
     assert len(rows) == len(review_bench.HARD) and sum(r["clean"] for r in rows) == sum(c.clean for c in review_bench.HARD)
     assert "false alarm(s) on" in capsys.readouterr().out
+
+
+def test_repeated_runs_show_which_catches_are_steady(make, fake):
+    cv = make()
+    case = next(c for c in review_bench.HARD if not c.clean)
+    clean = next(c for c in review_bench.HARD if c.clean)
+    hit = {"file": case.path, "line": case.line, "severity": "major", "quote": case.added[case.bug].strip()[:30],
+           "problem": "Wrong."}
+    found, nothing = json.dumps({"findings": [hit]}), json.dumps({"findings": []})
+    fake.on("openai:gpt-6.1-sol", found, nothing, found, nothing, nothing, nothing)
+    rows = review_bench.run(cv, ["gpt"], (case, clean), repeat=3)
+    assert [r["run"] for r in rows] == [1, 2, 3, 1, 2, 3]
+    stats = review_bench.summary(rows)["openai:gpt-6.1-sol"]
+    assert (stats["caught"], stats["cases"], stats["always"], stats["sometimes"], stats["bugs"]) == (2, 3, 0, 1, 1)
+    page = review_bench.results_page(rows, "crossvet bench --review --set hard --repeat 3 -m gpt", "hard")
+    assert "each reviewer reviewed each change 3 times" in page and "Bugs caught every run" in page
+    assert f"| {case.name} | {case.kind} | 2/3 |" in page and f"| {clean.name} | clean | 0/3 false alarms |" in page
+    assert "3 runs per reviewer and case" in page
+
+
+def test_repeat_from_the_terminal(monkeypatch, tmp_path, fake, capsys):
+    from crossvet.core import Crossvet
+
+    fake.on("openai:gpt-6.1-sol", json.dumps({"findings": []}))
+    monkeypatch.setenv("CROSSVET_DB", str(tmp_path / "chat.db"))
+    real = Crossvet.__init__
+    monkeypatch.setattr(Crossvet, "__init__", lambda self, *a, **k: real(self, *a, streamer=fake.stream, **k))
+    out = tmp_path / "bench"
+    assert cli.main(["bench", "--review", "--set", "hard", "--limit", "2", "--repeat", "2", "-m", "gpt", "--out", str(out)]) == 0
+    rows = [json.loads(x) for x in (out / "results.jsonl").read_text().splitlines()]
+    assert len(rows) == 4 and {r["run"] for r in rows} == {1, 2}
+    assert "--repeat 2" in (out / "README.md").read_text() and "bugs caught every run" in capsys.readouterr().out

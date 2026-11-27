@@ -5,10 +5,10 @@
 Crossvet installs from GitHub (there is no PyPI package). With [uv](https://docs.astral.sh/uv/):
 
 ```bash
-uv tool install "git+https://github.com/j-zulick/crossvet@v3.5.0"
+uv tool install "git+https://github.com/j-zulick/crossvet@v3.6.0"
 ```
 
-`pip install "git+https://github.com/j-zulick/crossvet@v3.5.0"` works in a virtual environment too. Python 3.11 to 3.13. Three dependencies: httpx, the MCP Python SDK (1.x or 2.x) and python-dotenv.
+`pip install "git+https://github.com/j-zulick/crossvet@v3.6.0"` works in a virtual environment too. Python 3.11 to 3.13. Three dependencies: httpx, the MCP Python SDK (1.x or 2.x) and python-dotenv.
 
 ## Keys
 
