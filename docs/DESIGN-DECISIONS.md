@@ -84,3 +84,8 @@ Each entry: the context, the decision, and what it costs.
 **Context.** The planted set showed five of six reviewers catching all twelve bugs, which says little: a reviewer that flags every line would score the same. A reviewer's cost to a team is its false alarms as much as its misses.
 **Decision.** The hard set adds clean changes with no bug. On a clean change, any kept finding marked blocker or major is a false alarm; minor and nit findings are counted as notes. Every change is cut from the real source, and a test checks each context line against the file, so a reviewer sees code that exists. The checks in `review.check` are not changed to suit the benchmark: a finding without a severity is still dropped.
 **Cost.** Six clean changes are a small sample, and refactors this small are easy to leave alone. A dropped finding counts as a miss even when it named the bug.
+
+## 17. Langfuse gets answers over OpenTelemetry, with per-install score ids
+**Context.** Langfuse v4 (Langfuse Cloud from 2026-11-16) accepts traces only on its OpenTelemetry endpoint; the batch ingestion API Crossvet used for traces now answers HTTP 410. Scores still go through that API, and Langfuse upserts them by id.
+**Decision.** Each answer is one OTLP/HTTP JSON span of type `generation`, built with plain `httpx` (no OpenTelemetry SDK, so the light install keeps three dependencies), with the same stable trace id as before, so ratings and judge scores still attach to it. Score ids carry the first 12 characters of the install's Langfuse seed.
+**Cost.** Langfuse ingests spans asynchronously (about 10 seconds in the live check), so `sync` cannot confirm the trace in the same call. Scores sent by 3.6.0 and earlier keep their old ids.

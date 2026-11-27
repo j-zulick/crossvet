@@ -51,7 +51,7 @@ Shortened: the typed lines sit next to the answers and the `/cost` table is summ
 ## Quick start
 
 ```bash
-uv tool install "git+https://github.com/j-zulick/crossvet@v3.6.0"
+uv tool install "git+https://github.com/j-zulick/crossvet@v3.6.1"
 mkdir -p ~/.config/crossvet && cp .env.example ~/.config/crossvet/.env   # then fill in the keys you have
 crossvet start
 ```
@@ -103,7 +103,7 @@ flowchart LR
 
 ## Tested with real API calls
 
-`tests/live/` calls the real APIs (`CROSSVET_LIVE=1 uv run pytest tests/live`). The [run of 2026-11-27](docs/live-runs/2026-11-27-v3.6.0.md) passed all 25 checks with OpenAI and Anthropic keys, for **$0.071**:
+`tests/live/` calls the real APIs (`CROSSVET_LIVE=1 uv run pytest tests/live`). The [run of 2026-11-27](docs/live-runs/2026-11-27-v3.6.1.md) passed all 26 checks with OpenAI, Anthropic and Langfuse keys, for **$0.088**:
 
 - each of six models answered when named; through the server, `/model` switched vendors mid-conversation, the answer streamed, and `/cost` showed both;
 - agents' tool calls round-tripped (call `lookup_vin`, send the result, get the price) with Claude Sonnet, GPT-6.1 Sol and GPT-6 Luna, including streamed loops with two tool calls at once and OpenAI reasoning kept across tool steps;
@@ -114,13 +114,14 @@ flowchart LR
 - the judge (GPT-6.1 Sol, since the answer came from Anthropic) scored Claude Haiku's mileage answer 3 of 5; a shadow answer from GPT-6 Luna, judged by Claude Sonnet, scored 5;
 - with routing from scores, four real judged answers (Luna and Haiku tied at 5.0) were enough for `auto` to pick from scores and explain the choice (a test setting of 2 judged answers per model; the default is 20);
 - `crossvet serve`, started as its own process, answered `/health` and an HTTP request with `"model": "auto"` (Claude Haiku, `34236`, with the decision in the response);
-- on four benchmark cases, Claude Haiku scored 1.0 on all four and GPT-6 Luna on three (0.5 on a 40-word summary); a per-call cap and a rejected key stopped calls before they were made; the MCP server listed its 16 tools, answered, and explained a route.
+- on four benchmark cases, Claude Haiku scored 1.0 on all four and GPT-6 Luna on three (0.5 on a 40-word summary); a per-call cap and a rejected key stopped calls before they were made; the MCP server listed its 16 tools, answered, and explained a route;
+- `crossvet sync` sent a Claude Haiku answer and its rating to Langfuse Cloud (v4), where it showed as a generation with the model, tokens, cost and the `user_rating` score within 10 seconds.
 
-The live runs found five problems before release, all fixed and covered by tests ([3.0.0](docs/live-runs/2026-11-26-v3.0.0.md), [3.2.0](docs/live-runs/2026-11-26-v3.2.0.md)): "ZIP code" counted as program code; a short fact plus a question was not counted as quick; "answer in one sentence" made a question count as a summary; parallel calls could collide on the log's one SQLite connection; and a lab file could end up next to the wrong log. The full chat benchmark (28 cases, six models, $0.48) is in [docs/benchmarks/2026-11-25](docs/benchmarks/2026-11-25/README.md). In the [review benchmark](docs/benchmarks/2026-11-26-review/README.md) (twelve planted bugs in Crossvet's own code), five of six reviewers caught all twelve, GPT-6 Luna for $0.002; Claude Opus described the other two without the required severity, so the checks dropped them ($0.16 in all). In the [hard set](docs/benchmarks/2026-11-27-review-hard-repeat/README.md) (twelve subtler bugs and six clean changes, three runs each, $0.64), no reviewer raised a false alarm on a clean change; Claude Haiku and GPT-6.1 Terra caught all twelve bugs in every run, Claude Opus only four, and 15 of the 20 misses were findings the checks dropped (mostly a missing severity) rather than bugs left unseen. Not tested live yet: the Hermes, Cursor, Claude Code and Codex apps themselves (and the plugin and skills inside them), scoring over weeks of real traffic, a launchd agent loaded on macOS, the container image, Langfuse sync, handoffs, Google, xAI, OpenRouter and local models.
+The live runs found five problems before release, all fixed and covered by tests ([3.0.0](docs/live-runs/2026-11-26-v3.0.0.md), [3.2.0](docs/live-runs/2026-11-26-v3.2.0.md)): "ZIP code" counted as program code; a short fact plus a question was not counted as quick; "answer in one sentence" made a question count as a summary; parallel calls could collide on the log's one SQLite connection; and a lab file could end up next to the wrong log. The full chat benchmark (28 cases, six models, $0.48) is in [docs/benchmarks/2026-11-25](docs/benchmarks/2026-11-25/README.md). In the [review benchmark](docs/benchmarks/2026-11-26-review/README.md) (twelve planted bugs in Crossvet's own code), five of six reviewers caught all twelve, GPT-6 Luna for $0.002; Claude Opus described the other two without the required severity, so the checks dropped them ($0.16 in all). In the [hard set](docs/benchmarks/2026-11-27-review-hard-repeat/README.md) (twelve subtler bugs and six clean changes, three runs each, $0.64), no reviewer raised a false alarm on a clean change; Claude Haiku and GPT-6.1 Terra caught all twelve bugs in every run, Claude Opus only four, and 15 of the 20 misses were findings the checks dropped (mostly a missing severity) rather than bugs left unseen. Not tested live yet: the Hermes, Cursor, Claude Code and Codex apps themselves (and the plugin and skills inside them), scoring over weeks of real traffic, a launchd agent loaded on macOS, the container image, handoffs, Google, xAI, OpenRouter and local models.
 
 ## Project layout
 
-About 6,000 lines of Python in 22 modules, with 223 offline tests (some built from replies recorded from the real APIs) and 25 live ones.
+About 6,000 lines of Python in 22 modules, with 224 offline tests (some built from replies recorded from the real APIs) and 26 live ones.
 
 | File | What it does |
 |---|---|

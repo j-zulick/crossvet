@@ -124,22 +124,56 @@ def test_langfuse_sync_sends_traces_and_ratings_once(cv, fake, monkeypatch):
     monkeypatch.setenv("LANGFUSE_SECRET_KEY", "sk")
     answer = cv.ask("luna", [{"role": "user", "content": Q}])
     cv.lab.rate(answer.turn_id, -1, "too vague")
+    spans: list[dict] = []
     sent: list[dict] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
-        if request.method == "POST":
+        if request.url.path == "/api/public/otel/v1/traces":
+            assert request.headers["x-langfuse-ingestion-version"] == "4"
+            for group in json.loads(request.content)["resourceSpans"]:
+                for scope in group["scopeSpans"]:
+                    spans.extend(scope["spans"])
+            return httpx.Response(200, json={})
+        if request.url.path == "/api/public/ingestion":
             sent.extend(json.loads(request.content)["batch"])
             return httpx.Response(207, json={"successes": [], "errors": []})
-        return httpx.Response(200, json={"data": [{"id": "lf-1", "traceId": langfuse.trace_id(cv, answer.turn_id),
+        assert request.url.path == "/api/public/v3/scores" and request.url.params["fields"] == "subject"
+        return httpx.Response(200, json={"data": [{"id": "lf-1", "subject": {"kind": "trace", "id": langfuse.trace_id(cv, answer.turn_id)},
                                                    "value": 1, "comment": "fine on review"}]})
 
     summary = langfuse.sync(cv, httpx.MockTransport(handler))
-    assert [e["type"] for e in sent] == ["trace-create", "generation-create", "score-create"]
-    assert sent[2]["body"]["value"] == -1 and "read back 1" in summary
+    assert len(spans) == 1 and spans[0]["traceId"] == langfuse.trace_id(cv, answer.turn_id) and len(spans[0]["spanId"]) == 16
+    attrs = {a["key"]: a["value"] for a in spans[0]["attributes"]}
+    assert attrs["langfuse.observation.type"] == {"stringValue": "generation"}
+    assert attrs["langfuse.observation.model.name"] == {"stringValue": "openai:gpt-6-luna"}
+    assert attrs["langfuse.observation.input"] == {"stringValue": Q}
+    assert json.loads(attrs["langfuse.observation.usage_details"]["stringValue"]) == {"input": 100, "output": 50}
+    assert attrs["langfuse.trace.tags"] == {"arrayValue": {"values": [{"stringValue": "crossvet"}]}}
+    assert [e["type"] for e in sent] == ["score-create"] and sent[0]["body"]["value"] == -1
+    seed = cv.lab.get("langfuse_seed")
+    assert sent[0]["body"]["id"] == f"crossvet-rating-{seed[:12]}-1"  # unique per install: Langfuse upserts score ids
+    assert sent[0]["body"]["traceId"] == spans[0]["traceId"] and "read back 1" in summary
     assert cv.lab.ratings()[-1]["source"] == "langfuse"
+    spans.clear()
     sent.clear()
     langfuse.sync(cv, httpx.MockTransport(handler))
-    assert sent == []  # nothing new, and the rating read back is not sent again
+    assert spans == [] and sent == []  # nothing new, and the rating read back is not sent again
+
+
+def test_langfuse_refusing_the_traces_stops_before_the_scores(cv, fake, monkeypatch):
+    monkeypatch.setenv("LANGFUSE_PUBLIC_KEY", "pk")
+    monkeypatch.setenv("LANGFUSE_SECRET_KEY", "sk")
+    answer = cv.ask("luna", [{"role": "user", "content": Q}])
+    cv.lab.rate(answer.turn_id, 1)
+    paths = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        paths.append(request.url.path)
+        return httpx.Response(410, json={"_deprecation": {"message": "Removed"}})
+
+    with pytest.raises(RuntimeError, match="HTTP 410 to the traces"):
+        langfuse.sync(cv, httpx.MockTransport(handler))
+    assert paths == ["/api/public/otel/v1/traces"] and cv.lab.get("langfuse_turn", "0") == "0"
 
 
 def test_a_handoff_runs_the_agent_without_a_shell(cv, tmp_path, monkeypatch):

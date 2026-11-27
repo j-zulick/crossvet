@@ -111,7 +111,7 @@ def test_judge_scores_go_to_langfuse(scored, fake, monkeypatch):
     sent = []
 
     def handler(request):
-        if request.method == "POST":
+        if request.url.path == "/api/public/ingestion":
             sent.extend(json.loads(request.content)["batch"])
             return httpx.Response(207, json={"errors": []})
         return httpx.Response(200, json={"data": []})

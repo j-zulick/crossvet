@@ -456,3 +456,37 @@ def test_the_server_process_answers_auto_over_http(tmp_path):
     assert "34236" in text and reply["crossvet"]["decision"]["slot"] == "quick"
     log("server_process", None, model=reply["model"], cost_usd=reply["crossvet"]["cost"], version=health["version"],
         slot=reply["crossvet"]["decision"]["slot"], answer_start=text[:100])
+
+
+# --- 3.6.1: Langfuse sync on Langfuse v4 ------------------------------------------------------------
+
+def test_langfuse_sync_lands_as_a_generation_with_its_rating(tmp_path):
+    from crossvet import langfuse
+
+    if not langfuse.configured() or not ready("anthropic:claude-haiku-5-5"):
+        pytest.skip("needs LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY and an Anthropic key")
+
+    cv = Crossvet(settings(), Store(str(tmp_path / "lf.db")))
+    answer = cv.ask("anthropic:claude-haiku-5-5", [{"role": "user", "content": "Sarasota Ford is at 707 S Washington Blvd., "
+                                                    "Sarasota, FL 34236. What is its ZIP code? Number only."}], app="live")
+    cv.lab.rate(answer.turn_id, 1, "correct ZIP")
+    summary = langfuse.sync(cv)
+    assert "Sent 1 answer(s) and 1 score(s)" in summary
+    tid = langfuse.trace_id(cv, answer.turn_id)
+    seen, rating = None, None
+    with langfuse._client(None) as client:
+        for _ in range(6):  # Langfuse ingests asynchronously; it usually shows within 10 seconds
+            time.sleep(5)
+            obs = client.get("/api/public/v2/observations",
+                             params={"traceId": tid, "limit": 5, "fields": "core,basic,io,model,usage"})
+            scores = client.get("/api/public/v3/scores", params={"name": "user_rating", "limit": 50, "fields": "subject"})
+            seen = next(iter(obs.json().get("data") or []), None) if obs.status_code == 200 else None
+            rating = next((s for s in (scores.json().get("data") or []) if (s.get("subject") or {}).get("id") == tid), None) \
+                if scores.status_code == 200 else None
+            if seen and rating:
+                break
+    assert isinstance(seen, dict) and seen["type"] == "GENERATION" and seen["model"] == answer.model
+    assert seen["usageDetails"]["input"] == answer.input_tokens and seen["output"] == answer.text
+    assert rating and rating["value"] == 1
+    log("langfuse_sync", answer, trace=tid, landed_model=seen["model"], landed_usage=seen["usageDetails"],
+        landed_cost=seen.get("totalCost"), rating=rating["value"])

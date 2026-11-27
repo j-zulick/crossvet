@@ -4,6 +4,18 @@ All notable changes to Crossvet. Versions follow [Semantic Versioning](https://s
 
 ## [Unreleased]
 
+## [3.6.1] - 2026-11-27
+
+`crossvet sync` works with Langfuse v4 again.
+
+### Fixed
+- Langfuse Cloud removed its legacy ingestion for traces on 2026-11-16, so `crossvet sync` failed with HTTP 410. Answers now go to `/api/public/otel/v1/traces` as OTLP/HTTP JSON spans of type `generation` (model, input, output, token usage, cost, session, tags, Crossvet's decision as metadata); scores still go as `score-create` events; ratings added in Langfuse are read from `/api/public/v3/scores`.
+- Score ids sent to Langfuse now include a per-install id. Langfuse upserts scores by id, so two Crossvet installs (or a reset log) sharing a project overwrote each other's ratings.
+- A refused trace upload stops before any score is sent and leaves the sync cursor where it was.
+
+### Added
+- A live check that a synced answer and its rating show up in Langfuse.
+
 ## [3.6.0] - 2026-11-27
 
 Repeated benchmark runs, so a steady catch can be told from a lucky one.
